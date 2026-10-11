@@ -11,36 +11,84 @@ class LiveLogFeed extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final holdings = ref.watch(openHoldingsProvider);
-    return StationPanel(
-      title: 'In the fridge',
+    return ScreenBody(
       child: holdings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Text('Could not load the fridge feed: $error'),
         data: (items) {
-          if (items.isEmpty) {
-            return const Text('Nothing is in a fridge right now.');
-          }
           final now = DateTime.now();
-          return ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final holding = items[index];
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                title: Text(
-                  holding.productName,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  '${holding.fridgeName}\nIn at ${formatCelsius(holding.checkInTemperatureCelsius)} · ${formatInside(holding.checkedInAt, now)}',
-                ),
-                isThreeLine: true,
-              );
-            },
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                items.isEmpty ? 'Nothing inside' : '${items.length} inside',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Items still in a fridge',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 24),
+              Expanded(
+                child: items.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Nothing is in a fridge right now.',
+                          style: TextStyle(fontSize: 28),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 460,
+                              mainAxisExtent: 180,
+                              crossAxisSpacing: 20,
+                              mainAxisSpacing: 20,
+                            ),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final holding = items[index];
+                          return Card(
+                            margin: EdgeInsets.zero,
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    holding.productName,
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    holding.fridgeName,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'In at ${formatCelsius(holding.checkInTemperatureCelsius)}',
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    formatInside(holding.checkedInAt, now),
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           );
         },
       ),

@@ -20,7 +20,7 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
   double _temperature = 4;
   bool _saving = false;
 
-  Future<void> _confirm(List<OpenHolding> holdings) async {
+  Future<void> _confirm() async {
     final movementId = _selectedMovementId;
     if (movementId == null || _saving) {
       return;
@@ -62,8 +62,7 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
   @override
   Widget build(BuildContext context) {
     final holdings = ref.watch(openHoldingsProvider);
-    return StationPanel(
-      title: 'Check out',
+    return ScreenBody(
       child: holdings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Text('Could not load open items: $error'),
@@ -74,63 +73,72 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
           );
           final canConfirm =
               _selectedMovementId != null && selectedStillOpen && !_saving;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                style: const TextStyle(fontSize: 20),
-                decoration: const InputDecoration(
-                  labelText: 'Find an open item',
-                  hintText: 'Filter by product or fridge',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) => setState(() => _query = value),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: filtered.isEmpty
-                    ? const Text('Nothing open matches this filter.')
-                    : ListView.separated(
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final holding = filtered[index];
-                          final selected =
-                              holding.movementId == _selectedMovementId;
-                          final label =
-                              '${holding.productName}\n${holding.fridgeName} · in at ${formatCelsius(holding.checkInTemperatureCelsius)}';
-                          return SizedBox(
-                            height: 72,
-                            child: selected
-                                ? FilledButton(
-                                    onPressed: () => _select(holding),
-                                    child: Text(label),
-                                  )
-                                : FilledButton.tonal(
-                                    onPressed: () => _select(holding),
-                                    child: Text(label),
-                                  ),
-                          );
-                        },
-                      ),
-              ),
-              TemperatureStepper(
-                temperature: _temperature,
-                onChanged: (value) => setState(() => _temperature = value),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Time is captured when you confirm',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                key: const Key('confirm-check-out'),
-                onPressed: canConfirm ? () => _confirm(items) : null,
-                child: Text(_saving ? 'Saving…' : 'Confirm check-out'),
-              ),
-            ],
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 800;
+              final list = _OpenItemList(
+                items: filtered,
+                query: _query,
+                hasAnyItems: items.isNotEmpty,
+                selectedMovementId: _selectedMovementId,
+                onQueryChanged: (value) => setState(() => _query = value),
+                onSelected: (holding) =>
+                    setState(() => _selectedMovementId = holding.movementId),
+              );
+              final controls = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Spacer(),
+                  TemperatureStepper(
+                    temperature: _temperature,
+                    onChanged: (value) => setState(() => _temperature = value),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Time is captured when you confirm',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 20),
+                  ConfirmBar(
+                    buttonKey: const Key('confirm-check-out'),
+                    label: _saving ? 'Saving…' : 'Confirm check-out',
+                    onPressed: canConfirm ? _confirm : null,
+                  ),
+                ],
+              );
+              if (!wide) {
+                return Column(
+                  children: [
+                    Expanded(child: list),
+                    const SizedBox(height: 24),
+                    TemperatureStepper(
+                      temperature: _temperature,
+                      onChanged: (value) =>
+                          setState(() => _temperature = value),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Time is captured when you confirm',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 20),
+                    ConfirmBar(
+                      buttonKey: const Key('confirm-check-out'),
+                      label: _saving ? 'Saving…' : 'Confirm check-out',
+                      onPressed: canConfirm ? _confirm : null,
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 3, child: list),
+                  const SizedBox(width: 32),
+                  Expanded(flex: 2, child: controls),
+                ],
+              );
+            },
           );
         },
       ),
@@ -150,8 +158,107 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
         )
         .toList();
   }
+}
 
-  void _select(OpenHolding holding) {
-    setState(() => _selectedMovementId = holding.movementId);
+class _OpenItemList extends StatelessWidget {
+  const _OpenItemList({
+    required this.items,
+    required this.query,
+    required this.hasAnyItems,
+    required this.selectedMovementId,
+    required this.onQueryChanged,
+    required this.onSelected,
+  });
+
+  final List<OpenHolding> items;
+  final String query;
+  final bool hasAnyItems;
+  final String? selectedMovementId;
+  final ValueChanged<String> onQueryChanged;
+  final ValueChanged<OpenHolding> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Open items', style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 16),
+        TextField(
+          style: const TextStyle(fontSize: 22),
+          decoration: const InputDecoration(
+            hintText: 'Filter by product or fridge',
+            prefixIcon: Icon(Icons.search, size: 32),
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+          ),
+          onChanged: onQueryChanged,
+        ),
+        const SizedBox(height: 20),
+        Expanded(
+          child: items.isEmpty
+              ? Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(
+                    hasAnyItems && query.trim().isNotEmpty
+                        ? 'Nothing open matches this filter.'
+                        : 'Nothing is in a fridge right now.',
+                    style: const TextStyle(fontSize: 22),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: items.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final holding = items[index];
+                    final selected = holding.movementId == selectedMovementId;
+                    final label = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          holding.productName,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${holding.fridgeName} · in at ${formatCelsius(holding.checkInTemperatureCelsius)}',
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                      ],
+                    );
+                    return SizedBox(
+                      height: 112,
+                      width: double.infinity,
+                      child: selected
+                          ? FilledButton(
+                              style: FilledButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                              ),
+                              onPressed: () => onSelected(holding),
+                              child: label,
+                            )
+                          : FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                              ),
+                              onPressed: () => onSelected(holding),
+                              child: label,
+                            ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
   }
 }

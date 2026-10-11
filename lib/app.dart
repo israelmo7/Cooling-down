@@ -19,11 +19,17 @@ class CoolingDownApp extends StatelessWidget {
         materialTapTargetSize: MaterialTapTargetSize.padded,
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
-            minimumSize: const Size(64, 64),
+            minimumSize: const Size(64, 72),
             textStyle: const TextStyle(
-              fontSize: 18,
+              fontSize: 22,
               fontWeight: FontWeight.w600,
             ),
+          ),
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          height: 88,
+          labelTextStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),
       ),

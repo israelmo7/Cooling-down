@@ -28,16 +28,27 @@ void main() {
     expect(find.text('Chicken breast'), findsOneWidget);
     expect(find.text('Kitchen fridge'), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-in')), findsOneWidget);
-    expect(find.byKey(const Key('confirm-check-out')), findsOneWidget);
+    expect(find.byKey(const Key('confirm-check-out')), findsNothing);
 
     final checkIn = tester.widget<FilledButton>(
       find.byKey(const Key('confirm-check-in')),
     );
+    expect(checkIn.onPressed, isNull);
+
+    await tester.tap(find.text('Check out'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byKey(const Key('confirm-check-out')), findsOneWidget);
     final checkOut = tester.widget<FilledButton>(
       find.byKey(const Key('confirm-check-out')),
     );
-    expect(checkIn.onPressed, isNull);
     expect(checkOut.onPressed, isNull);
+
+    await tester.tap(find.text('In the fridge'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('Nothing is in a fridge right now.'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

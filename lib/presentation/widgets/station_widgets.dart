@@ -2,27 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../format.dart';
 
-class StationPanel extends StatelessWidget {
-  const StationPanel({super.key, required this.title, required this.child});
+class ScreenBody extends StatelessWidget {
+  const ScreenBody({super.key, required this.child});
 
-  final String title;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 12),
-            Expanded(child: child),
-          ],
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 28, 32, 20),
+      child: child,
     );
   }
 }
@@ -45,22 +34,26 @@ class TemperatureStepper extends StatelessWidget {
           tooltip: 'Decrease temperature',
           onPressed: () => onChanged(_step(temperature, -0.5)),
           icon: const Icon(Icons.remove),
-          iconSize: 32,
-          style: IconButton.styleFrom(minimumSize: const Size(64, 64)),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(88, 88),
+            iconSize: 40,
+          ),
         ),
         Expanded(
           child: Text(
             formatCelsius(temperature),
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w700),
           ),
         ),
         IconButton.filled(
           tooltip: 'Increase temperature',
           onPressed: () => onChanged(_step(temperature, 0.5)),
           icon: const Icon(Icons.add),
-          iconSize: 32,
-          style: IconButton.styleFrom(minimumSize: const Size(64, 64)),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(88, 88),
+            iconSize: 40,
+          ),
         ),
       ],
     );
@@ -69,5 +62,31 @@ class TemperatureStepper extends StatelessWidget {
   double _step(double current, double delta) {
     final next = (current + delta).clamp(-40.0, 30.0).toDouble();
     return (next * 2).round() / 2;
+  }
+}
+
+class ConfirmBar extends StatelessWidget {
+  const ConfirmBar({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.buttonKey,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final Key? buttonKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(
+      key: buttonKey,
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(88),
+        textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+      ),
+      child: Text(label),
+    );
   }
 }

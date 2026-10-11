@@ -2,7 +2,7 @@
 
 Tablet app for logging refrigerator check-in and check-out temperatures in commercial kitchens and pharmacies. Each confirm writes to SQLite first. Check-in and check-out are separate rows, and a sync outbox queues them for a later PostgreSQL upload.
 
-The station layout is landscape, about 1024 px wide or wider.
+Check-in, check-out, and the fridge list are three full-screen tabs.
 
 ## Run
 

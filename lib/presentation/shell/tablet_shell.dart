@@ -6,13 +6,18 @@ import '../check_out/check_out_panel.dart';
 import '../live_log/live_log_feed.dart';
 import '../providers.dart';
 
-class TabletShell extends ConsumerWidget {
+class TabletShell extends ConsumerStatefulWidget {
   const TabletShell({super.key});
 
-  static const tabletWidth = 1024.0;
+  @override
+  ConsumerState<TabletShell> createState() => _TabletShellState();
+}
+
+class _TabletShellState extends ConsumerState<TabletShell> {
+  int _index = 0;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final alerts =
         ref.watch(unacknowledgedAlertsProvider).asData?.value ?? const [];
     final pendingCount = ref.watch(pendingSyncCountProvider).asData?.value ?? 0;
@@ -64,35 +69,23 @@ class TabletShell extends ConsumerWidget {
               ),
             ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < tabletWidth) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text(
-                        'This station is laid out for a tablet in landscape.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 22),
-                      ),
-                    ),
-                  );
-                }
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: CheckInPanel()),
-                      SizedBox(width: 16),
-                      Expanded(child: CheckOutPanel()),
-                      SizedBox(width: 16),
-                      Expanded(child: LiveLogFeed()),
-                    ],
-                  ),
-                );
-              },
+            child: IndexedStack(
+              index: _index,
+              children: const [CheckInPanel(), CheckOutPanel(), LiveLogFeed()],
             ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (index) => setState(() => _index = index),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.login), label: 'Check in'),
+          NavigationDestination(icon: Icon(Icons.logout), label: 'Check out'),
+          NavigationDestination(
+            icon: Icon(Icons.kitchen_outlined),
+            selectedIcon: Icon(Icons.kitchen),
+            label: 'In the fridge',
           ),
         ],
       ),
