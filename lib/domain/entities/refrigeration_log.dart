@@ -19,6 +19,7 @@ class RefrigerationLog {
     required this.temperatureCelsius,
     required this.occurredAt,
     required this.createdAt,
+    this.originDeviceId = '',
   });
 
   final String id;
@@ -30,4 +31,5 @@ class RefrigerationLog {
   final double temperatureCelsius;
   final DateTime occurredAt;
   final DateTime createdAt;
+  final String originDeviceId;
 }

@@ -9,6 +9,7 @@ import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/failures.dart';
 import '../../domain/repositories/log_repository.dart';
 import '../db/app_database.dart';
+import '../db/ensure_settings.dart';
 import '../mappers.dart';
 import '../sync/enqueue.dart';
 
@@ -43,6 +44,7 @@ class DriftLogRepository implements LogRepository {
       }
 
       final capturedAt = (occurredAt ?? _clock.now()).toUtc();
+      final deviceId = await ensureDeviceId(_db);
       final log = RefrigerationLog(
         id: _uuid.v4(),
         movementId: _uuid.v4(),
@@ -53,6 +55,7 @@ class DriftLogRepository implements LogRepository {
         temperatureCelsius: temperatureCelsius,
         occurredAt: capturedAt,
         createdAt: capturedAt,
+        originDeviceId: deviceId,
       );
       await _insertLog(log);
       await _maybeAlert(
@@ -102,6 +105,7 @@ class DriftLogRepository implements LogRepository {
                 ..where((table) => table.id.equals(checkIn.productId)))
               .getSingleOrNull();
       final capturedAt = (occurredAt ?? _clock.now()).toUtc();
+      final deviceId = await ensureDeviceId(_db);
       final log = RefrigerationLog(
         id: _uuid.v4(),
         movementId: movementId,
@@ -112,6 +116,7 @@ class DriftLogRepository implements LogRepository {
         temperatureCelsius: temperatureCelsius,
         occurredAt: capturedAt,
         createdAt: capturedAt,
+        originDeviceId: deviceId,
       );
       await _insertLog(log);
       await _maybeAlert(
@@ -180,6 +185,7 @@ class DriftLogRepository implements LogRepository {
             temperatureCelsius: log.temperatureCelsius,
             occurredAt: log.occurredAt,
             createdAt: log.createdAt,
+            originDeviceId: Value(log.originDeviceId),
           ),
         );
     await enqueueInsert(
@@ -196,6 +202,7 @@ class DriftLogRepository implements LogRepository {
         'temperature_celsius': log.temperatureCelsius,
         'occurred_at': log.occurredAt.toIso8601String(),
         'created_at': log.createdAt.toIso8601String(),
+        'origin_device_id': log.originDeviceId,
       },
       createdAt: log.createdAt,
     );
@@ -219,6 +226,7 @@ class DriftLogRepository implements LogRepository {
       message:
           '${log.productNameSnapshot} $eventLabel at ${log.temperatureCelsius.toStringAsFixed(1)}°C, outside ${fridge.name} range ${fridge.minCelsius.toStringAsFixed(1)}–${fridge.maxCelsius.toStringAsFixed(1)}°C.',
       createdAt: capturedAt,
+      originDeviceId: log.originDeviceId,
     );
     await _db
         .into(_db.alerts)
@@ -231,6 +239,7 @@ class DriftLogRepository implements LogRepository {
             logId: Value(alert.logId),
             message: alert.message,
             createdAt: alert.createdAt,
+            originDeviceId: Value(alert.originDeviceId),
           ),
         );
     await enqueueInsert(
@@ -245,6 +254,7 @@ class DriftLogRepository implements LogRepository {
         'log_id': alert.logId,
         'message': alert.message,
         'created_at': alert.createdAt.toIso8601String(),
+        'origin_device_id': alert.originDeviceId,
       },
       createdAt: alert.createdAt,
     );

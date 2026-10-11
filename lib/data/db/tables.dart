@@ -47,6 +47,8 @@ class RefrigerationLogs extends Table {
   RealColumn get temperatureCelsius => real().named('temperature_celsius')();
   DateTimeColumn get occurredAt => dateTime().named('occurred_at')();
   DateTimeColumn get createdAt => dateTime().named('created_at')();
+  TextColumn get originDeviceId =>
+      text().named('origin_device_id').withDefault(const Constant(''))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -73,6 +75,8 @@ class Alerts extends Table {
   DateTimeColumn get createdAt => dateTime().named('created_at')();
   DateTimeColumn get acknowledgedAt =>
       dateTime().named('acknowledged_at').nullable()();
+  TextColumn get originDeviceId =>
+      text().named('origin_device_id').withDefault(const Constant(''))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -80,7 +84,70 @@ class Alerts extends Table {
   @override
   List<String> get customConstraints => [
     "CHECK (severity IN ('info', 'warning', 'critical'))",
-    "CHECK (kind IN ('temperature_out_of_range'))",
+    "CHECK (kind IN ('temperature_out_of_range', 'sync_conflict'))",
+  ];
+}
+
+/// One row per tablet. These fields stay on the device and are not synced.
+@DataClassName('LocalSettingsRow')
+class LocalSettings extends Table {
+  @override
+  String get tableName => 'local_settings';
+
+  TextColumn get id => text()();
+  TextColumn get deviceId => text().named('device_id')();
+  TextColumn get deviceName => text().named('device_name')();
+  TextColumn get environmentName => text().named('environment_name')();
+  TextColumn get serverUrl =>
+      text().named('server_url').withDefault(const Constant(''))();
+  TextColumn get serverToken =>
+      text().named('server_token').withDefault(const Constant(''))();
+  TextColumn get ownerEmail =>
+      text().named('owner_email').withDefault(const Constant(''))();
+  BoolColumn get dailyReportEnabled => boolean()
+      .named('daily_report_enabled')
+      .withDefault(const Constant(false))();
+  IntColumn get reportHour =>
+      integer().named('report_hour').withDefault(const Constant(21))();
+  IntColumn get reportMinute =>
+      integer().named('report_minute').withDefault(const Constant(0))();
+  IntColumn get syncCursor =>
+      integer().named('sync_cursor').withDefault(const Constant(0))();
+  DateTimeColumn get lastSyncAt =>
+      dateTime().named('last_sync_at').nullable()();
+  TextColumn get lastSyncError => text().named('last_sync_error').nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DataClassName('DailyReportRow')
+class DailyReports extends Table {
+  @override
+  String get tableName => 'daily_reports';
+
+  TextColumn get id => text()();
+  TextColumn get environmentName => text().named('environment_name')();
+  TextColumn get reportDate => text().named('report_date')();
+  TextColumn get ownerEmail => text().named('owner_email')();
+  TextColumn get subject => text()();
+  TextColumn get body => text()();
+  TextColumn get status => text()();
+  DateTimeColumn get createdAt => dateTime().named('created_at')();
+  DateTimeColumn get sentAt => dateTime().named('sent_at').nullable()();
+  TextColumn get lastError => text().named('last_error').nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {environmentName, reportDate},
+  ];
+
+  @override
+  List<String> get customConstraints => [
+    "CHECK (status IN ('waiting', 'sent', 'already_sent', 'stored', 'failed'))",
   ];
 }
 

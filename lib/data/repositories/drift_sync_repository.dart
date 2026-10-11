@@ -1,15 +1,31 @@
 import 'package:drift/drift.dart';
 
+import '../../core/clock.dart';
+import '../../domain/repositories/settings_repository.dart';
 import '../../domain/repositories/sync_repository.dart';
+import '../../domain/settings/device_settings.dart';
 import '../db/app_database.dart';
 import '../db/converters.dart';
+import '../sync/gateway_factory.dart';
+import '../sync/remote_apply.dart';
 import '../sync/sync_gateway.dart';
 
 class DriftSyncRepository implements SyncRepository {
-  DriftSyncRepository(this._db, {required this.gateway});
+  DriftSyncRepository(
+    this._db, {
+    required this.settings,
+    Clock? clock,
+    SyncGateway Function(DeviceSettings settings)? gatewayFor,
+    RemoteApplier? applier,
+  }) : _clock = clock ?? const Clock(),
+       _gatewayFor = gatewayFor ?? gatewayForSettings,
+       _applier = applier ?? RemoteApplier(_db);
 
   final AppDatabase _db;
-  final SyncGateway gateway;
+  final SettingsRepository settings;
+  final Clock _clock;
+  final SyncGateway Function(DeviceSettings settings) _gatewayFor;
+  final RemoteApplier _applier;
 
   @override
   Stream<int> watchPendingCount() {
@@ -22,47 +38,128 @@ class DriftSyncRepository implements SyncRepository {
 
   @override
   Future<SyncAttempt> trySync() async {
+    final current = await settings.ensure();
     final pending =
         await (_db.select(_db.syncOutbox)
-              ..where((table) => table.status.equalsValue(SyncStatus.pending))
+              ..where(
+                (table) =>
+                    table.status.equalsValue(SyncStatus.pending) |
+                    table.status.equalsValue(SyncStatus.inFlight),
+              )
               ..orderBy([(table) => OrderingTerm(expression: table.createdAt)]))
             .get();
-    var synced = 0;
+
+    if (!current.hasServer) {
+      if (pending.isEmpty) {
+        return const SyncAttempt(synced: 0, remaining: 0);
+      }
+      await _restore(pending, 'offline');
+      return SyncAttempt(
+        synced: 0,
+        remaining: pending.length,
+        stoppedBecause: 'offline',
+      );
+    }
+
     for (final row in pending) {
       await (_db.update(_db.syncOutbox)
             ..where((table) => table.id.equals(row.id)))
-          .write(SyncOutboxCompanion(status: const Value(SyncStatus.inFlight)));
-      final accepted = await gateway.pushInsert(
-        entityType: row.entityType,
-        entityId: row.entityId,
-        payloadJson: row.payloadJson,
+          .write(const SyncOutboxCompanion(status: Value(SyncStatus.inFlight)));
+    }
+
+    final SyncExchange result;
+    try {
+      result = await _gatewayFor(current).exchange(
+        SyncRequest(
+          deviceId: current.deviceId,
+          environment: current.environmentName,
+          cursor: current.syncCursor,
+          push: [
+            for (final row in pending)
+              SyncPushItem(
+                entityType: row.entityType,
+                entityId: row.entityId,
+                payloadJson: row.payloadJson,
+              ),
+          ],
+        ),
       );
-      if (!accepted) {
+    } on Object catch (error) {
+      await _restore(pending, error.toString());
+      await settings.recordSync(error: error.toString());
+      return SyncAttempt(
+        synced: 0,
+        remaining: pending.length,
+        stoppedBecause: error.toString(),
+      );
+    }
+
+    if (!result.reachable) {
+      final reason = result.error ?? 'offline';
+      await _restore(pending, reason);
+      await settings.recordSync(error: reason);
+      return SyncAttempt(
+        synced: 0,
+        remaining: pending.length,
+        stoppedBecause: reason,
+      );
+    }
+
+    try {
+      await _applier.apply(result.changes, conflicts: result.conflicts);
+      final accepted = result.acceptedIds.toSet();
+      for (final row in pending) {
+        final ok = accepted.contains(row.entityId);
         await (_db.update(
           _db.syncOutbox,
         )..where((table) => table.id.equals(row.id))).write(
           SyncOutboxCompanion(
-            status: const Value(SyncStatus.pending),
-            attemptCount: Value(row.attemptCount + 1),
-            lastError: const Value('offline'),
+            status: Value(ok ? SyncStatus.synced : SyncStatus.pending),
+            lastError: ok
+                ? const Value(null)
+                : const Value('The server did not accept this row.'),
+            attemptCount: ok
+                ? const Value.absent()
+                : Value(row.attemptCount + 1),
           ),
         );
-        return SyncAttempt(
-          synced: synced,
-          remaining: pending.length - synced,
-          stoppedBecause: 'offline',
-        );
       }
+      await settings.recordSync(
+        cursor: result.cursor,
+        at: _clock.now(),
+        clearError: true,
+      );
+    } on Object catch (error) {
+      await _restore(pending, error.toString());
+      await settings.recordSync(error: error.toString());
+      return SyncAttempt(
+        synced: 0,
+        remaining: pending.length,
+        stoppedBecause: error.toString(),
+      );
+    }
+
+    final synced = pending
+        .where((row) => result.acceptedIds.contains(row.entityId))
+        .length;
+    return SyncAttempt(
+      synced: synced,
+      remaining: pending.length - synced,
+      pulled: result.changes.length,
+    );
+  }
+
+  Future<void> _restore(List<SyncOutboxRow> rows, String error) async {
+    for (final row in rows) {
       await (_db.update(
         _db.syncOutbox,
       )..where((table) => table.id.equals(row.id))).write(
-        const SyncOutboxCompanion(
-          status: Value(SyncStatus.synced),
-          lastError: Value(null),
+        SyncOutboxCompanion(
+          status: const Value(SyncStatus.pending),
+          attemptCount: Value(row.attemptCount + 1),
+          lastError: Value(error),
         ),
       );
-      synced += 1;
     }
-    return SyncAttempt(synced: synced, remaining: 0);
   }
 }

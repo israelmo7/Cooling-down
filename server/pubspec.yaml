@@ -1,0 +1,16 @@
+name: cooling_down_server
+description: Optional sync server for Cooling down tablets.
+publish_to: none
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  mailer: ^6.6.0
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+  sqlite3: ^3.5.0
+  uuid: ^4.6.0
+
+dev_dependencies:
+  test: ^1.26.3

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../check_in/check_in_panel.dart';
 import '../check_out/check_out_panel.dart';
 import '../live_log/live_log_feed.dart';
 import '../providers.dart';
+import '../settings/settings_page.dart';
 
 class TabletShell extends ConsumerStatefulWidget {
   const TabletShell({super.key});
@@ -13,29 +16,74 @@ class TabletShell extends ConsumerStatefulWidget {
   ConsumerState<TabletShell> createState() => _TabletShellState();
 }
 
-class _TabletShellState extends ConsumerState<TabletShell> {
+class _TabletShellState extends ConsumerState<TabletShell>
+    with WidgetsBindingObserver {
   int _index = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _tick());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _tick();
+    }
+  }
+
+  Future<void> _tick() async {
+    if (!mounted) {
+      return;
+    }
+    try {
+      await ref.read(tabletMaintenanceProvider).run();
+    } on Object {
+      // Sync and report errors stay on the settings row.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final alerts =
         ref.watch(unacknowledgedAlertsProvider).asData?.value ?? const [];
     final pendingCount = ref.watch(pendingSyncCountProvider).asData?.value ?? 0;
+    final settings = ref.watch(settingsProvider).asData?.value;
+    final sharing = settings?.hasServer ?? false;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cooling down'),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 24),
-            child: Center(
-              child: Text(
-                pendingCount == 0
-                    ? 'Saved on this tablet'
-                    : 'Saved on this tablet · $pendingCount waiting to sync',
-              ),
+          Center(
+            child: Text(
+              _syncLabel(pendingCount: pendingCount, sharing: sharing),
             ),
           ),
+          IconButton(
+            key: const Key('open-settings'),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => const SettingsPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.settings),
+          ),
+          const SizedBox(width: 12),
         ],
       ),
       body: Column(
@@ -90,5 +138,14 @@ class _TabletShellState extends ConsumerState<TabletShell> {
         ],
       ),
     );
+  }
+
+  String _syncLabel({required int pendingCount, required bool sharing}) {
+    if (!sharing) {
+      return pendingCount == 0
+          ? 'Saved on this tablet'
+          : 'Saved on this tablet · $pendingCount waiting to sync';
+    }
+    return pendingCount == 0 ? 'Synced' : '$pendingCount waiting to sync';
   }
 }

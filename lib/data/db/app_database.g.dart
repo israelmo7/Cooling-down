@@ -728,6 +728,18 @@ class $RefrigerationLogsTable extends RefrigerationLogs
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _originDeviceIdMeta = const VerificationMeta(
+    'originDeviceId',
+  );
+  @override
+  late final GeneratedColumn<String> originDeviceId = GeneratedColumn<String>(
+    'origin_device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -739,6 +751,7 @@ class $RefrigerationLogsTable extends RefrigerationLogs
     temperatureCelsius,
     occurredAt,
     createdAt,
+    originDeviceId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -819,6 +832,15 @@ class $RefrigerationLogsTable extends RefrigerationLogs
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('origin_device_id')) {
+      context.handle(
+        _originDeviceIdMeta,
+        originDeviceId.isAcceptableOrUnknown(
+          data['origin_device_id']!,
+          _originDeviceIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -866,6 +888,10 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      originDeviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_device_id'],
+      )!,
     );
   }
 
@@ -889,6 +915,7 @@ class RefrigerationLogRow extends DataClass
   final double temperatureCelsius;
   final DateTime occurredAt;
   final DateTime createdAt;
+  final String originDeviceId;
   const RefrigerationLogRow({
     required this.id,
     required this.movementId,
@@ -899,6 +926,7 @@ class RefrigerationLogRow extends DataClass
     required this.temperatureCelsius,
     required this.occurredAt,
     required this.createdAt,
+    required this.originDeviceId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -916,6 +944,7 @@ class RefrigerationLogRow extends DataClass
     map['temperature_celsius'] = Variable<double>(temperatureCelsius);
     map['occurred_at'] = Variable<DateTime>(occurredAt);
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['origin_device_id'] = Variable<String>(originDeviceId);
     return map;
   }
 
@@ -930,6 +959,7 @@ class RefrigerationLogRow extends DataClass
       temperatureCelsius: Value(temperatureCelsius),
       occurredAt: Value(occurredAt),
       createdAt: Value(createdAt),
+      originDeviceId: Value(originDeviceId),
     );
   }
 
@@ -952,6 +982,7 @@ class RefrigerationLogRow extends DataClass
       ),
       occurredAt: serializer.fromJson<DateTime>(json['occurredAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      originDeviceId: serializer.fromJson<String>(json['originDeviceId']),
     );
   }
   @override
@@ -967,6 +998,7 @@ class RefrigerationLogRow extends DataClass
       'temperatureCelsius': serializer.toJson<double>(temperatureCelsius),
       'occurredAt': serializer.toJson<DateTime>(occurredAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'originDeviceId': serializer.toJson<String>(originDeviceId),
     };
   }
 
@@ -980,6 +1012,7 @@ class RefrigerationLogRow extends DataClass
     double? temperatureCelsius,
     DateTime? occurredAt,
     DateTime? createdAt,
+    String? originDeviceId,
   }) => RefrigerationLogRow(
     id: id ?? this.id,
     movementId: movementId ?? this.movementId,
@@ -990,6 +1023,7 @@ class RefrigerationLogRow extends DataClass
     temperatureCelsius: temperatureCelsius ?? this.temperatureCelsius,
     occurredAt: occurredAt ?? this.occurredAt,
     createdAt: createdAt ?? this.createdAt,
+    originDeviceId: originDeviceId ?? this.originDeviceId,
   );
   RefrigerationLogRow copyWithCompanion(RefrigerationLogsCompanion data) {
     return RefrigerationLogRow(
@@ -1010,6 +1044,9 @@ class RefrigerationLogRow extends DataClass
           ? data.occurredAt.value
           : this.occurredAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      originDeviceId: data.originDeviceId.present
+          ? data.originDeviceId.value
+          : this.originDeviceId,
     );
   }
 
@@ -1024,7 +1061,8 @@ class RefrigerationLogRow extends DataClass
           ..write('eventType: $eventType, ')
           ..write('temperatureCelsius: $temperatureCelsius, ')
           ..write('occurredAt: $occurredAt, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('originDeviceId: $originDeviceId')
           ..write(')'))
         .toString();
   }
@@ -1040,6 +1078,7 @@ class RefrigerationLogRow extends DataClass
     temperatureCelsius,
     occurredAt,
     createdAt,
+    originDeviceId,
   );
   @override
   bool operator ==(Object other) =>
@@ -1053,7 +1092,8 @@ class RefrigerationLogRow extends DataClass
           other.eventType == this.eventType &&
           other.temperatureCelsius == this.temperatureCelsius &&
           other.occurredAt == this.occurredAt &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.originDeviceId == this.originDeviceId);
 }
 
 class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
@@ -1066,6 +1106,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
   final Value<double> temperatureCelsius;
   final Value<DateTime> occurredAt;
   final Value<DateTime> createdAt;
+  final Value<String> originDeviceId;
   final Value<int> rowid;
   const RefrigerationLogsCompanion({
     this.id = const Value.absent(),
@@ -1077,6 +1118,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     this.temperatureCelsius = const Value.absent(),
     this.occurredAt = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.originDeviceId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RefrigerationLogsCompanion.insert({
@@ -1089,6 +1131,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     required double temperatureCelsius,
     required DateTime occurredAt,
     required DateTime createdAt,
+    this.originDeviceId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        movementId = Value(movementId),
@@ -1109,6 +1152,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     Expression<double>? temperatureCelsius,
     Expression<DateTime>? occurredAt,
     Expression<DateTime>? createdAt,
+    Expression<String>? originDeviceId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1122,6 +1166,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
       if (temperatureCelsius != null) 'temperature_celsius': temperatureCelsius,
       if (occurredAt != null) 'occurred_at': occurredAt,
       if (createdAt != null) 'created_at': createdAt,
+      if (originDeviceId != null) 'origin_device_id': originDeviceId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1136,6 +1181,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     Value<double>? temperatureCelsius,
     Value<DateTime>? occurredAt,
     Value<DateTime>? createdAt,
+    Value<String>? originDeviceId,
     Value<int>? rowid,
   }) {
     return RefrigerationLogsCompanion(
@@ -1148,6 +1194,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
       temperatureCelsius: temperatureCelsius ?? this.temperatureCelsius,
       occurredAt: occurredAt ?? this.occurredAt,
       createdAt: createdAt ?? this.createdAt,
+      originDeviceId: originDeviceId ?? this.originDeviceId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1186,6 +1233,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (originDeviceId.present) {
+      map['origin_device_id'] = Variable<String>(originDeviceId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1204,6 +1254,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
           ..write('temperatureCelsius: $temperatureCelsius, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('createdAt: $createdAt, ')
+          ..write('originDeviceId: $originDeviceId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1302,6 +1353,18 @@ class $AlertsTable extends Alerts with TableInfo<$AlertsTable, AlertRow> {
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _originDeviceIdMeta = const VerificationMeta(
+    'originDeviceId',
+  );
+  @override
+  late final GeneratedColumn<String> originDeviceId = GeneratedColumn<String>(
+    'origin_device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1312,6 +1375,7 @@ class $AlertsTable extends Alerts with TableInfo<$AlertsTable, AlertRow> {
     message,
     createdAt,
     acknowledgedAt,
+    originDeviceId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1367,6 +1431,15 @@ class $AlertsTable extends Alerts with TableInfo<$AlertsTable, AlertRow> {
         ),
       );
     }
+    if (data.containsKey('origin_device_id')) {
+      context.handle(
+        _originDeviceIdMeta,
+        originDeviceId.isAcceptableOrUnknown(
+          data['origin_device_id']!,
+          _originDeviceIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1412,6 +1485,10 @@ class $AlertsTable extends Alerts with TableInfo<$AlertsTable, AlertRow> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}acknowledged_at'],
       ),
+      originDeviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_device_id'],
+      )!,
     );
   }
 
@@ -1435,6 +1512,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
   final String message;
   final DateTime createdAt;
   final DateTime? acknowledgedAt;
+  final String originDeviceId;
   const AlertRow({
     required this.id,
     required this.severity,
@@ -1444,6 +1522,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
     required this.message,
     required this.createdAt,
     this.acknowledgedAt,
+    required this.originDeviceId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1468,6 +1547,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
     if (!nullToAbsent || acknowledgedAt != null) {
       map['acknowledged_at'] = Variable<DateTime>(acknowledgedAt);
     }
+    map['origin_device_id'] = Variable<String>(originDeviceId);
     return map;
   }
 
@@ -1487,6 +1567,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
       acknowledgedAt: acknowledgedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(acknowledgedAt),
+      originDeviceId: Value(originDeviceId),
     );
   }
 
@@ -1504,6 +1585,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
       message: serializer.fromJson<String>(json['message']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       acknowledgedAt: serializer.fromJson<DateTime?>(json['acknowledgedAt']),
+      originDeviceId: serializer.fromJson<String>(json['originDeviceId']),
     );
   }
   @override
@@ -1518,6 +1600,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
       'message': serializer.toJson<String>(message),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'acknowledgedAt': serializer.toJson<DateTime?>(acknowledgedAt),
+      'originDeviceId': serializer.toJson<String>(originDeviceId),
     };
   }
 
@@ -1530,6 +1613,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
     String? message,
     DateTime? createdAt,
     Value<DateTime?> acknowledgedAt = const Value.absent(),
+    String? originDeviceId,
   }) => AlertRow(
     id: id ?? this.id,
     severity: severity ?? this.severity,
@@ -1541,6 +1625,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
     acknowledgedAt: acknowledgedAt.present
         ? acknowledgedAt.value
         : this.acknowledgedAt,
+    originDeviceId: originDeviceId ?? this.originDeviceId,
   );
   AlertRow copyWithCompanion(AlertsCompanion data) {
     return AlertRow(
@@ -1554,6 +1639,9 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
       acknowledgedAt: data.acknowledgedAt.present
           ? data.acknowledgedAt.value
           : this.acknowledgedAt,
+      originDeviceId: data.originDeviceId.present
+          ? data.originDeviceId.value
+          : this.originDeviceId,
     );
   }
 
@@ -1567,7 +1655,8 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
           ..write('logId: $logId, ')
           ..write('message: $message, ')
           ..write('createdAt: $createdAt, ')
-          ..write('acknowledgedAt: $acknowledgedAt')
+          ..write('acknowledgedAt: $acknowledgedAt, ')
+          ..write('originDeviceId: $originDeviceId')
           ..write(')'))
         .toString();
   }
@@ -1582,6 +1671,7 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
     message,
     createdAt,
     acknowledgedAt,
+    originDeviceId,
   );
   @override
   bool operator ==(Object other) =>
@@ -1594,7 +1684,8 @@ class AlertRow extends DataClass implements Insertable<AlertRow> {
           other.logId == this.logId &&
           other.message == this.message &&
           other.createdAt == this.createdAt &&
-          other.acknowledgedAt == this.acknowledgedAt);
+          other.acknowledgedAt == this.acknowledgedAt &&
+          other.originDeviceId == this.originDeviceId);
 }
 
 class AlertsCompanion extends UpdateCompanion<AlertRow> {
@@ -1606,6 +1697,7 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
   final Value<String> message;
   final Value<DateTime> createdAt;
   final Value<DateTime?> acknowledgedAt;
+  final Value<String> originDeviceId;
   final Value<int> rowid;
   const AlertsCompanion({
     this.id = const Value.absent(),
@@ -1616,6 +1708,7 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
     this.message = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.acknowledgedAt = const Value.absent(),
+    this.originDeviceId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AlertsCompanion.insert({
@@ -1627,6 +1720,7 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
     required String message,
     required DateTime createdAt,
     this.acknowledgedAt = const Value.absent(),
+    this.originDeviceId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        severity = Value(severity),
@@ -1642,6 +1736,7 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
     Expression<String>? message,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? acknowledgedAt,
+    Expression<String>? originDeviceId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1653,6 +1748,7 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
       if (message != null) 'message': message,
       if (createdAt != null) 'created_at': createdAt,
       if (acknowledgedAt != null) 'acknowledged_at': acknowledgedAt,
+      if (originDeviceId != null) 'origin_device_id': originDeviceId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1666,6 +1762,7 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
     Value<String>? message,
     Value<DateTime>? createdAt,
     Value<DateTime?>? acknowledgedAt,
+    Value<String>? originDeviceId,
     Value<int>? rowid,
   }) {
     return AlertsCompanion(
@@ -1677,6 +1774,7 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
       message: message ?? this.message,
       createdAt: createdAt ?? this.createdAt,
       acknowledgedAt: acknowledgedAt ?? this.acknowledgedAt,
+      originDeviceId: originDeviceId ?? this.originDeviceId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1712,6 +1810,9 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
     if (acknowledgedAt.present) {
       map['acknowledged_at'] = Variable<DateTime>(acknowledgedAt.value);
     }
+    if (originDeviceId.present) {
+      map['origin_device_id'] = Variable<String>(originDeviceId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1729,6 +1830,7 @@ class AlertsCompanion extends UpdateCompanion<AlertRow> {
           ..write('message: $message, ')
           ..write('createdAt: $createdAt, ')
           ..write('acknowledgedAt: $acknowledgedAt, ')
+          ..write('originDeviceId: $originDeviceId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2307,6 +2409,1407 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxRow> {
   }
 }
 
+class $LocalSettingsTable extends LocalSettings
+    with TableInfo<$LocalSettingsTable, LocalSettingsRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalSettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceNameMeta = const VerificationMeta(
+    'deviceName',
+  );
+  @override
+  late final GeneratedColumn<String> deviceName = GeneratedColumn<String>(
+    'device_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _environmentNameMeta = const VerificationMeta(
+    'environmentName',
+  );
+  @override
+  late final GeneratedColumn<String> environmentName = GeneratedColumn<String>(
+    'environment_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverUrlMeta = const VerificationMeta(
+    'serverUrl',
+  );
+  @override
+  late final GeneratedColumn<String> serverUrl = GeneratedColumn<String>(
+    'server_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _serverTokenMeta = const VerificationMeta(
+    'serverToken',
+  );
+  @override
+  late final GeneratedColumn<String> serverToken = GeneratedColumn<String>(
+    'server_token',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _ownerEmailMeta = const VerificationMeta(
+    'ownerEmail',
+  );
+  @override
+  late final GeneratedColumn<String> ownerEmail = GeneratedColumn<String>(
+    'owner_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _dailyReportEnabledMeta =
+      const VerificationMeta('dailyReportEnabled');
+  @override
+  late final GeneratedColumn<bool> dailyReportEnabled = GeneratedColumn<bool>(
+    'daily_report_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("daily_report_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _reportHourMeta = const VerificationMeta(
+    'reportHour',
+  );
+  @override
+  late final GeneratedColumn<int> reportHour = GeneratedColumn<int>(
+    'report_hour',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(21),
+  );
+  static const VerificationMeta _reportMinuteMeta = const VerificationMeta(
+    'reportMinute',
+  );
+  @override
+  late final GeneratedColumn<int> reportMinute = GeneratedColumn<int>(
+    'report_minute',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _syncCursorMeta = const VerificationMeta(
+    'syncCursor',
+  );
+  @override
+  late final GeneratedColumn<int> syncCursor = GeneratedColumn<int>(
+    'sync_cursor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastSyncAtMeta = const VerificationMeta(
+    'lastSyncAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncAt = GeneratedColumn<DateTime>(
+    'last_sync_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSyncErrorMeta = const VerificationMeta(
+    'lastSyncError',
+  );
+  @override
+  late final GeneratedColumn<String> lastSyncError = GeneratedColumn<String>(
+    'last_sync_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    deviceId,
+    deviceName,
+    environmentName,
+    serverUrl,
+    serverToken,
+    ownerEmail,
+    dailyReportEnabled,
+    reportHour,
+    reportMinute,
+    syncCursor,
+    lastSyncAt,
+    lastSyncError,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalSettingsRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('device_name')) {
+      context.handle(
+        _deviceNameMeta,
+        deviceName.isAcceptableOrUnknown(data['device_name']!, _deviceNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceNameMeta);
+    }
+    if (data.containsKey('environment_name')) {
+      context.handle(
+        _environmentNameMeta,
+        environmentName.isAcceptableOrUnknown(
+          data['environment_name']!,
+          _environmentNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_environmentNameMeta);
+    }
+    if (data.containsKey('server_url')) {
+      context.handle(
+        _serverUrlMeta,
+        serverUrl.isAcceptableOrUnknown(data['server_url']!, _serverUrlMeta),
+      );
+    }
+    if (data.containsKey('server_token')) {
+      context.handle(
+        _serverTokenMeta,
+        serverToken.isAcceptableOrUnknown(
+          data['server_token']!,
+          _serverTokenMeta,
+        ),
+      );
+    }
+    if (data.containsKey('owner_email')) {
+      context.handle(
+        _ownerEmailMeta,
+        ownerEmail.isAcceptableOrUnknown(data['owner_email']!, _ownerEmailMeta),
+      );
+    }
+    if (data.containsKey('daily_report_enabled')) {
+      context.handle(
+        _dailyReportEnabledMeta,
+        dailyReportEnabled.isAcceptableOrUnknown(
+          data['daily_report_enabled']!,
+          _dailyReportEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('report_hour')) {
+      context.handle(
+        _reportHourMeta,
+        reportHour.isAcceptableOrUnknown(data['report_hour']!, _reportHourMeta),
+      );
+    }
+    if (data.containsKey('report_minute')) {
+      context.handle(
+        _reportMinuteMeta,
+        reportMinute.isAcceptableOrUnknown(
+          data['report_minute']!,
+          _reportMinuteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_cursor')) {
+      context.handle(
+        _syncCursorMeta,
+        syncCursor.isAcceptableOrUnknown(data['sync_cursor']!, _syncCursorMeta),
+      );
+    }
+    if (data.containsKey('last_sync_at')) {
+      context.handle(
+        _lastSyncAtMeta,
+        lastSyncAt.isAcceptableOrUnknown(
+          data['last_sync_at']!,
+          _lastSyncAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_sync_error')) {
+      context.handle(
+        _lastSyncErrorMeta,
+        lastSyncError.isAcceptableOrUnknown(
+          data['last_sync_error']!,
+          _lastSyncErrorMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalSettingsRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalSettingsRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      deviceName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_name'],
+      )!,
+      environmentName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}environment_name'],
+      )!,
+      serverUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_url'],
+      )!,
+      serverToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_token'],
+      )!,
+      ownerEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_email'],
+      )!,
+      dailyReportEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}daily_report_enabled'],
+      )!,
+      reportHour: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}report_hour'],
+      )!,
+      reportMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}report_minute'],
+      )!,
+      syncCursor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_cursor'],
+      )!,
+      lastSyncAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_sync_at'],
+      ),
+      lastSyncError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_sync_error'],
+      ),
+    );
+  }
+
+  @override
+  $LocalSettingsTable createAlias(String alias) {
+    return $LocalSettingsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalSettingsRow extends DataClass
+    implements Insertable<LocalSettingsRow> {
+  final String id;
+  final String deviceId;
+  final String deviceName;
+  final String environmentName;
+  final String serverUrl;
+  final String serverToken;
+  final String ownerEmail;
+  final bool dailyReportEnabled;
+  final int reportHour;
+  final int reportMinute;
+  final int syncCursor;
+  final DateTime? lastSyncAt;
+  final String? lastSyncError;
+  const LocalSettingsRow({
+    required this.id,
+    required this.deviceId,
+    required this.deviceName,
+    required this.environmentName,
+    required this.serverUrl,
+    required this.serverToken,
+    required this.ownerEmail,
+    required this.dailyReportEnabled,
+    required this.reportHour,
+    required this.reportMinute,
+    required this.syncCursor,
+    this.lastSyncAt,
+    this.lastSyncError,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['device_id'] = Variable<String>(deviceId);
+    map['device_name'] = Variable<String>(deviceName);
+    map['environment_name'] = Variable<String>(environmentName);
+    map['server_url'] = Variable<String>(serverUrl);
+    map['server_token'] = Variable<String>(serverToken);
+    map['owner_email'] = Variable<String>(ownerEmail);
+    map['daily_report_enabled'] = Variable<bool>(dailyReportEnabled);
+    map['report_hour'] = Variable<int>(reportHour);
+    map['report_minute'] = Variable<int>(reportMinute);
+    map['sync_cursor'] = Variable<int>(syncCursor);
+    if (!nullToAbsent || lastSyncAt != null) {
+      map['last_sync_at'] = Variable<DateTime>(lastSyncAt);
+    }
+    if (!nullToAbsent || lastSyncError != null) {
+      map['last_sync_error'] = Variable<String>(lastSyncError);
+    }
+    return map;
+  }
+
+  LocalSettingsCompanion toCompanion(bool nullToAbsent) {
+    return LocalSettingsCompanion(
+      id: Value(id),
+      deviceId: Value(deviceId),
+      deviceName: Value(deviceName),
+      environmentName: Value(environmentName),
+      serverUrl: Value(serverUrl),
+      serverToken: Value(serverToken),
+      ownerEmail: Value(ownerEmail),
+      dailyReportEnabled: Value(dailyReportEnabled),
+      reportHour: Value(reportHour),
+      reportMinute: Value(reportMinute),
+      syncCursor: Value(syncCursor),
+      lastSyncAt: lastSyncAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncAt),
+      lastSyncError: lastSyncError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncError),
+    );
+  }
+
+  factory LocalSettingsRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalSettingsRow(
+      id: serializer.fromJson<String>(json['id']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      deviceName: serializer.fromJson<String>(json['deviceName']),
+      environmentName: serializer.fromJson<String>(json['environmentName']),
+      serverUrl: serializer.fromJson<String>(json['serverUrl']),
+      serverToken: serializer.fromJson<String>(json['serverToken']),
+      ownerEmail: serializer.fromJson<String>(json['ownerEmail']),
+      dailyReportEnabled: serializer.fromJson<bool>(json['dailyReportEnabled']),
+      reportHour: serializer.fromJson<int>(json['reportHour']),
+      reportMinute: serializer.fromJson<int>(json['reportMinute']),
+      syncCursor: serializer.fromJson<int>(json['syncCursor']),
+      lastSyncAt: serializer.fromJson<DateTime?>(json['lastSyncAt']),
+      lastSyncError: serializer.fromJson<String?>(json['lastSyncError']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'deviceName': serializer.toJson<String>(deviceName),
+      'environmentName': serializer.toJson<String>(environmentName),
+      'serverUrl': serializer.toJson<String>(serverUrl),
+      'serverToken': serializer.toJson<String>(serverToken),
+      'ownerEmail': serializer.toJson<String>(ownerEmail),
+      'dailyReportEnabled': serializer.toJson<bool>(dailyReportEnabled),
+      'reportHour': serializer.toJson<int>(reportHour),
+      'reportMinute': serializer.toJson<int>(reportMinute),
+      'syncCursor': serializer.toJson<int>(syncCursor),
+      'lastSyncAt': serializer.toJson<DateTime?>(lastSyncAt),
+      'lastSyncError': serializer.toJson<String?>(lastSyncError),
+    };
+  }
+
+  LocalSettingsRow copyWith({
+    String? id,
+    String? deviceId,
+    String? deviceName,
+    String? environmentName,
+    String? serverUrl,
+    String? serverToken,
+    String? ownerEmail,
+    bool? dailyReportEnabled,
+    int? reportHour,
+    int? reportMinute,
+    int? syncCursor,
+    Value<DateTime?> lastSyncAt = const Value.absent(),
+    Value<String?> lastSyncError = const Value.absent(),
+  }) => LocalSettingsRow(
+    id: id ?? this.id,
+    deviceId: deviceId ?? this.deviceId,
+    deviceName: deviceName ?? this.deviceName,
+    environmentName: environmentName ?? this.environmentName,
+    serverUrl: serverUrl ?? this.serverUrl,
+    serverToken: serverToken ?? this.serverToken,
+    ownerEmail: ownerEmail ?? this.ownerEmail,
+    dailyReportEnabled: dailyReportEnabled ?? this.dailyReportEnabled,
+    reportHour: reportHour ?? this.reportHour,
+    reportMinute: reportMinute ?? this.reportMinute,
+    syncCursor: syncCursor ?? this.syncCursor,
+    lastSyncAt: lastSyncAt.present ? lastSyncAt.value : this.lastSyncAt,
+    lastSyncError: lastSyncError.present
+        ? lastSyncError.value
+        : this.lastSyncError,
+  );
+  LocalSettingsRow copyWithCompanion(LocalSettingsCompanion data) {
+    return LocalSettingsRow(
+      id: data.id.present ? data.id.value : this.id,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      deviceName: data.deviceName.present
+          ? data.deviceName.value
+          : this.deviceName,
+      environmentName: data.environmentName.present
+          ? data.environmentName.value
+          : this.environmentName,
+      serverUrl: data.serverUrl.present ? data.serverUrl.value : this.serverUrl,
+      serverToken: data.serverToken.present
+          ? data.serverToken.value
+          : this.serverToken,
+      ownerEmail: data.ownerEmail.present
+          ? data.ownerEmail.value
+          : this.ownerEmail,
+      dailyReportEnabled: data.dailyReportEnabled.present
+          ? data.dailyReportEnabled.value
+          : this.dailyReportEnabled,
+      reportHour: data.reportHour.present
+          ? data.reportHour.value
+          : this.reportHour,
+      reportMinute: data.reportMinute.present
+          ? data.reportMinute.value
+          : this.reportMinute,
+      syncCursor: data.syncCursor.present
+          ? data.syncCursor.value
+          : this.syncCursor,
+      lastSyncAt: data.lastSyncAt.present
+          ? data.lastSyncAt.value
+          : this.lastSyncAt,
+      lastSyncError: data.lastSyncError.present
+          ? data.lastSyncError.value
+          : this.lastSyncError,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalSettingsRow(')
+          ..write('id: $id, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('deviceName: $deviceName, ')
+          ..write('environmentName: $environmentName, ')
+          ..write('serverUrl: $serverUrl, ')
+          ..write('serverToken: $serverToken, ')
+          ..write('ownerEmail: $ownerEmail, ')
+          ..write('dailyReportEnabled: $dailyReportEnabled, ')
+          ..write('reportHour: $reportHour, ')
+          ..write('reportMinute: $reportMinute, ')
+          ..write('syncCursor: $syncCursor, ')
+          ..write('lastSyncAt: $lastSyncAt, ')
+          ..write('lastSyncError: $lastSyncError')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    deviceId,
+    deviceName,
+    environmentName,
+    serverUrl,
+    serverToken,
+    ownerEmail,
+    dailyReportEnabled,
+    reportHour,
+    reportMinute,
+    syncCursor,
+    lastSyncAt,
+    lastSyncError,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalSettingsRow &&
+          other.id == this.id &&
+          other.deviceId == this.deviceId &&
+          other.deviceName == this.deviceName &&
+          other.environmentName == this.environmentName &&
+          other.serverUrl == this.serverUrl &&
+          other.serverToken == this.serverToken &&
+          other.ownerEmail == this.ownerEmail &&
+          other.dailyReportEnabled == this.dailyReportEnabled &&
+          other.reportHour == this.reportHour &&
+          other.reportMinute == this.reportMinute &&
+          other.syncCursor == this.syncCursor &&
+          other.lastSyncAt == this.lastSyncAt &&
+          other.lastSyncError == this.lastSyncError);
+}
+
+class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
+  final Value<String> id;
+  final Value<String> deviceId;
+  final Value<String> deviceName;
+  final Value<String> environmentName;
+  final Value<String> serverUrl;
+  final Value<String> serverToken;
+  final Value<String> ownerEmail;
+  final Value<bool> dailyReportEnabled;
+  final Value<int> reportHour;
+  final Value<int> reportMinute;
+  final Value<int> syncCursor;
+  final Value<DateTime?> lastSyncAt;
+  final Value<String?> lastSyncError;
+  final Value<int> rowid;
+  const LocalSettingsCompanion({
+    this.id = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.deviceName = const Value.absent(),
+    this.environmentName = const Value.absent(),
+    this.serverUrl = const Value.absent(),
+    this.serverToken = const Value.absent(),
+    this.ownerEmail = const Value.absent(),
+    this.dailyReportEnabled = const Value.absent(),
+    this.reportHour = const Value.absent(),
+    this.reportMinute = const Value.absent(),
+    this.syncCursor = const Value.absent(),
+    this.lastSyncAt = const Value.absent(),
+    this.lastSyncError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalSettingsCompanion.insert({
+    required String id,
+    required String deviceId,
+    required String deviceName,
+    required String environmentName,
+    this.serverUrl = const Value.absent(),
+    this.serverToken = const Value.absent(),
+    this.ownerEmail = const Value.absent(),
+    this.dailyReportEnabled = const Value.absent(),
+    this.reportHour = const Value.absent(),
+    this.reportMinute = const Value.absent(),
+    this.syncCursor = const Value.absent(),
+    this.lastSyncAt = const Value.absent(),
+    this.lastSyncError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       deviceId = Value(deviceId),
+       deviceName = Value(deviceName),
+       environmentName = Value(environmentName);
+  static Insertable<LocalSettingsRow> custom({
+    Expression<String>? id,
+    Expression<String>? deviceId,
+    Expression<String>? deviceName,
+    Expression<String>? environmentName,
+    Expression<String>? serverUrl,
+    Expression<String>? serverToken,
+    Expression<String>? ownerEmail,
+    Expression<bool>? dailyReportEnabled,
+    Expression<int>? reportHour,
+    Expression<int>? reportMinute,
+    Expression<int>? syncCursor,
+    Expression<DateTime>? lastSyncAt,
+    Expression<String>? lastSyncError,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (deviceId != null) 'device_id': deviceId,
+      if (deviceName != null) 'device_name': deviceName,
+      if (environmentName != null) 'environment_name': environmentName,
+      if (serverUrl != null) 'server_url': serverUrl,
+      if (serverToken != null) 'server_token': serverToken,
+      if (ownerEmail != null) 'owner_email': ownerEmail,
+      if (dailyReportEnabled != null)
+        'daily_report_enabled': dailyReportEnabled,
+      if (reportHour != null) 'report_hour': reportHour,
+      if (reportMinute != null) 'report_minute': reportMinute,
+      if (syncCursor != null) 'sync_cursor': syncCursor,
+      if (lastSyncAt != null) 'last_sync_at': lastSyncAt,
+      if (lastSyncError != null) 'last_sync_error': lastSyncError,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalSettingsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? deviceId,
+    Value<String>? deviceName,
+    Value<String>? environmentName,
+    Value<String>? serverUrl,
+    Value<String>? serverToken,
+    Value<String>? ownerEmail,
+    Value<bool>? dailyReportEnabled,
+    Value<int>? reportHour,
+    Value<int>? reportMinute,
+    Value<int>? syncCursor,
+    Value<DateTime?>? lastSyncAt,
+    Value<String?>? lastSyncError,
+    Value<int>? rowid,
+  }) {
+    return LocalSettingsCompanion(
+      id: id ?? this.id,
+      deviceId: deviceId ?? this.deviceId,
+      deviceName: deviceName ?? this.deviceName,
+      environmentName: environmentName ?? this.environmentName,
+      serverUrl: serverUrl ?? this.serverUrl,
+      serverToken: serverToken ?? this.serverToken,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
+      dailyReportEnabled: dailyReportEnabled ?? this.dailyReportEnabled,
+      reportHour: reportHour ?? this.reportHour,
+      reportMinute: reportMinute ?? this.reportMinute,
+      syncCursor: syncCursor ?? this.syncCursor,
+      lastSyncAt: lastSyncAt ?? this.lastSyncAt,
+      lastSyncError: lastSyncError ?? this.lastSyncError,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (deviceName.present) {
+      map['device_name'] = Variable<String>(deviceName.value);
+    }
+    if (environmentName.present) {
+      map['environment_name'] = Variable<String>(environmentName.value);
+    }
+    if (serverUrl.present) {
+      map['server_url'] = Variable<String>(serverUrl.value);
+    }
+    if (serverToken.present) {
+      map['server_token'] = Variable<String>(serverToken.value);
+    }
+    if (ownerEmail.present) {
+      map['owner_email'] = Variable<String>(ownerEmail.value);
+    }
+    if (dailyReportEnabled.present) {
+      map['daily_report_enabled'] = Variable<bool>(dailyReportEnabled.value);
+    }
+    if (reportHour.present) {
+      map['report_hour'] = Variable<int>(reportHour.value);
+    }
+    if (reportMinute.present) {
+      map['report_minute'] = Variable<int>(reportMinute.value);
+    }
+    if (syncCursor.present) {
+      map['sync_cursor'] = Variable<int>(syncCursor.value);
+    }
+    if (lastSyncAt.present) {
+      map['last_sync_at'] = Variable<DateTime>(lastSyncAt.value);
+    }
+    if (lastSyncError.present) {
+      map['last_sync_error'] = Variable<String>(lastSyncError.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalSettingsCompanion(')
+          ..write('id: $id, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('deviceName: $deviceName, ')
+          ..write('environmentName: $environmentName, ')
+          ..write('serverUrl: $serverUrl, ')
+          ..write('serverToken: $serverToken, ')
+          ..write('ownerEmail: $ownerEmail, ')
+          ..write('dailyReportEnabled: $dailyReportEnabled, ')
+          ..write('reportHour: $reportHour, ')
+          ..write('reportMinute: $reportMinute, ')
+          ..write('syncCursor: $syncCursor, ')
+          ..write('lastSyncAt: $lastSyncAt, ')
+          ..write('lastSyncError: $lastSyncError, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DailyReportsTable extends DailyReports
+    with TableInfo<$DailyReportsTable, DailyReportRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyReportsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _environmentNameMeta = const VerificationMeta(
+    'environmentName',
+  );
+  @override
+  late final GeneratedColumn<String> environmentName = GeneratedColumn<String>(
+    'environment_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reportDateMeta = const VerificationMeta(
+    'reportDate',
+  );
+  @override
+  late final GeneratedColumn<String> reportDate = GeneratedColumn<String>(
+    'report_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerEmailMeta = const VerificationMeta(
+    'ownerEmail',
+  );
+  @override
+  late final GeneratedColumn<String> ownerEmail = GeneratedColumn<String>(
+    'owner_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _subjectMeta = const VerificationMeta(
+    'subject',
+  );
+  @override
+  late final GeneratedColumn<String> subject = GeneratedColumn<String>(
+    'subject',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sentAtMeta = const VerificationMeta('sentAt');
+  @override
+  late final GeneratedColumn<DateTime> sentAt = GeneratedColumn<DateTime>(
+    'sent_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastErrorMeta = const VerificationMeta(
+    'lastError',
+  );
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+    'last_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    environmentName,
+    reportDate,
+    ownerEmail,
+    subject,
+    body,
+    status,
+    createdAt,
+    sentAt,
+    lastError,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_reports';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailyReportRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('environment_name')) {
+      context.handle(
+        _environmentNameMeta,
+        environmentName.isAcceptableOrUnknown(
+          data['environment_name']!,
+          _environmentNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_environmentNameMeta);
+    }
+    if (data.containsKey('report_date')) {
+      context.handle(
+        _reportDateMeta,
+        reportDate.isAcceptableOrUnknown(data['report_date']!, _reportDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reportDateMeta);
+    }
+    if (data.containsKey('owner_email')) {
+      context.handle(
+        _ownerEmailMeta,
+        ownerEmail.isAcceptableOrUnknown(data['owner_email']!, _ownerEmailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerEmailMeta);
+    }
+    if (data.containsKey('subject')) {
+      context.handle(
+        _subjectMeta,
+        subject.isAcceptableOrUnknown(data['subject']!, _subjectMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_subjectMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('sent_at')) {
+      context.handle(
+        _sentAtMeta,
+        sentAt.isAcceptableOrUnknown(data['sent_at']!, _sentAtMeta),
+      );
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(
+        _lastErrorMeta,
+        lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {environmentName, reportDate},
+  ];
+  @override
+  DailyReportRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyReportRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      environmentName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}environment_name'],
+      )!,
+      reportDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_date'],
+      )!,
+      ownerEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_email'],
+      )!,
+      subject: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subject'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      sentAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}sent_at'],
+      ),
+      lastError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_error'],
+      ),
+    );
+  }
+
+  @override
+  $DailyReportsTable createAlias(String alias) {
+    return $DailyReportsTable(attachedDatabase, alias);
+  }
+}
+
+class DailyReportRow extends DataClass implements Insertable<DailyReportRow> {
+  final String id;
+  final String environmentName;
+  final String reportDate;
+  final String ownerEmail;
+  final String subject;
+  final String body;
+  final String status;
+  final DateTime createdAt;
+  final DateTime? sentAt;
+  final String? lastError;
+  const DailyReportRow({
+    required this.id,
+    required this.environmentName,
+    required this.reportDate,
+    required this.ownerEmail,
+    required this.subject,
+    required this.body,
+    required this.status,
+    required this.createdAt,
+    this.sentAt,
+    this.lastError,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['environment_name'] = Variable<String>(environmentName);
+    map['report_date'] = Variable<String>(reportDate);
+    map['owner_email'] = Variable<String>(ownerEmail);
+    map['subject'] = Variable<String>(subject);
+    map['body'] = Variable<String>(body);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || sentAt != null) {
+      map['sent_at'] = Variable<DateTime>(sentAt);
+    }
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    return map;
+  }
+
+  DailyReportsCompanion toCompanion(bool nullToAbsent) {
+    return DailyReportsCompanion(
+      id: Value(id),
+      environmentName: Value(environmentName),
+      reportDate: Value(reportDate),
+      ownerEmail: Value(ownerEmail),
+      subject: Value(subject),
+      body: Value(body),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      sentAt: sentAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sentAt),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+    );
+  }
+
+  factory DailyReportRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyReportRow(
+      id: serializer.fromJson<String>(json['id']),
+      environmentName: serializer.fromJson<String>(json['environmentName']),
+      reportDate: serializer.fromJson<String>(json['reportDate']),
+      ownerEmail: serializer.fromJson<String>(json['ownerEmail']),
+      subject: serializer.fromJson<String>(json['subject']),
+      body: serializer.fromJson<String>(json['body']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      sentAt: serializer.fromJson<DateTime?>(json['sentAt']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'environmentName': serializer.toJson<String>(environmentName),
+      'reportDate': serializer.toJson<String>(reportDate),
+      'ownerEmail': serializer.toJson<String>(ownerEmail),
+      'subject': serializer.toJson<String>(subject),
+      'body': serializer.toJson<String>(body),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'sentAt': serializer.toJson<DateTime?>(sentAt),
+      'lastError': serializer.toJson<String?>(lastError),
+    };
+  }
+
+  DailyReportRow copyWith({
+    String? id,
+    String? environmentName,
+    String? reportDate,
+    String? ownerEmail,
+    String? subject,
+    String? body,
+    String? status,
+    DateTime? createdAt,
+    Value<DateTime?> sentAt = const Value.absent(),
+    Value<String?> lastError = const Value.absent(),
+  }) => DailyReportRow(
+    id: id ?? this.id,
+    environmentName: environmentName ?? this.environmentName,
+    reportDate: reportDate ?? this.reportDate,
+    ownerEmail: ownerEmail ?? this.ownerEmail,
+    subject: subject ?? this.subject,
+    body: body ?? this.body,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    sentAt: sentAt.present ? sentAt.value : this.sentAt,
+    lastError: lastError.present ? lastError.value : this.lastError,
+  );
+  DailyReportRow copyWithCompanion(DailyReportsCompanion data) {
+    return DailyReportRow(
+      id: data.id.present ? data.id.value : this.id,
+      environmentName: data.environmentName.present
+          ? data.environmentName.value
+          : this.environmentName,
+      reportDate: data.reportDate.present
+          ? data.reportDate.value
+          : this.reportDate,
+      ownerEmail: data.ownerEmail.present
+          ? data.ownerEmail.value
+          : this.ownerEmail,
+      subject: data.subject.present ? data.subject.value : this.subject,
+      body: data.body.present ? data.body.value : this.body,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      sentAt: data.sentAt.present ? data.sentAt.value : this.sentAt,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyReportRow(')
+          ..write('id: $id, ')
+          ..write('environmentName: $environmentName, ')
+          ..write('reportDate: $reportDate, ')
+          ..write('ownerEmail: $ownerEmail, ')
+          ..write('subject: $subject, ')
+          ..write('body: $body, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('sentAt: $sentAt, ')
+          ..write('lastError: $lastError')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    environmentName,
+    reportDate,
+    ownerEmail,
+    subject,
+    body,
+    status,
+    createdAt,
+    sentAt,
+    lastError,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyReportRow &&
+          other.id == this.id &&
+          other.environmentName == this.environmentName &&
+          other.reportDate == this.reportDate &&
+          other.ownerEmail == this.ownerEmail &&
+          other.subject == this.subject &&
+          other.body == this.body &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.sentAt == this.sentAt &&
+          other.lastError == this.lastError);
+}
+
+class DailyReportsCompanion extends UpdateCompanion<DailyReportRow> {
+  final Value<String> id;
+  final Value<String> environmentName;
+  final Value<String> reportDate;
+  final Value<String> ownerEmail;
+  final Value<String> subject;
+  final Value<String> body;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> sentAt;
+  final Value<String?> lastError;
+  final Value<int> rowid;
+  const DailyReportsCompanion({
+    this.id = const Value.absent(),
+    this.environmentName = const Value.absent(),
+    this.reportDate = const Value.absent(),
+    this.ownerEmail = const Value.absent(),
+    this.subject = const Value.absent(),
+    this.body = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.sentAt = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailyReportsCompanion.insert({
+    required String id,
+    required String environmentName,
+    required String reportDate,
+    required String ownerEmail,
+    required String subject,
+    required String body,
+    required String status,
+    required DateTime createdAt,
+    this.sentAt = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       environmentName = Value(environmentName),
+       reportDate = Value(reportDate),
+       ownerEmail = Value(ownerEmail),
+       subject = Value(subject),
+       body = Value(body),
+       status = Value(status),
+       createdAt = Value(createdAt);
+  static Insertable<DailyReportRow> custom({
+    Expression<String>? id,
+    Expression<String>? environmentName,
+    Expression<String>? reportDate,
+    Expression<String>? ownerEmail,
+    Expression<String>? subject,
+    Expression<String>? body,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? sentAt,
+    Expression<String>? lastError,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (environmentName != null) 'environment_name': environmentName,
+      if (reportDate != null) 'report_date': reportDate,
+      if (ownerEmail != null) 'owner_email': ownerEmail,
+      if (subject != null) 'subject': subject,
+      if (body != null) 'body': body,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (sentAt != null) 'sent_at': sentAt,
+      if (lastError != null) 'last_error': lastError,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailyReportsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? environmentName,
+    Value<String>? reportDate,
+    Value<String>? ownerEmail,
+    Value<String>? subject,
+    Value<String>? body,
+    Value<String>? status,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? sentAt,
+    Value<String?>? lastError,
+    Value<int>? rowid,
+  }) {
+    return DailyReportsCompanion(
+      id: id ?? this.id,
+      environmentName: environmentName ?? this.environmentName,
+      reportDate: reportDate ?? this.reportDate,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
+      subject: subject ?? this.subject,
+      body: body ?? this.body,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      sentAt: sentAt ?? this.sentAt,
+      lastError: lastError ?? this.lastError,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (environmentName.present) {
+      map['environment_name'] = Variable<String>(environmentName.value);
+    }
+    if (reportDate.present) {
+      map['report_date'] = Variable<String>(reportDate.value);
+    }
+    if (ownerEmail.present) {
+      map['owner_email'] = Variable<String>(ownerEmail.value);
+    }
+    if (subject.present) {
+      map['subject'] = Variable<String>(subject.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (sentAt.present) {
+      map['sent_at'] = Variable<DateTime>(sentAt.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyReportsCompanion(')
+          ..write('id: $id, ')
+          ..write('environmentName: $environmentName, ')
+          ..write('reportDate: $reportDate, ')
+          ..write('ownerEmail: $ownerEmail, ')
+          ..write('subject: $subject, ')
+          ..write('body: $body, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('sentAt: $sentAt, ')
+          ..write('lastError: $lastError, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2316,6 +3819,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $RefrigerationLogsTable(this);
   late final $AlertsTable alerts = $AlertsTable(this);
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
+  late final $LocalSettingsTable localSettings = $LocalSettingsTable(this);
+  late final $DailyReportsTable dailyReports = $DailyReportsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2326,6 +3831,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     refrigerationLogs,
     alerts,
     syncOutbox,
+    localSettings,
+    dailyReports,
   ];
 }
 
@@ -3009,6 +4516,7 @@ typedef $$RefrigerationLogsTableCreateCompanionBuilder =
       required double temperatureCelsius,
       required DateTime occurredAt,
       required DateTime createdAt,
+      Value<String> originDeviceId,
       Value<int> rowid,
     });
 typedef $$RefrigerationLogsTableUpdateCompanionBuilder =
@@ -3022,6 +4530,7 @@ typedef $$RefrigerationLogsTableUpdateCompanionBuilder =
       Value<double> temperatureCelsius,
       Value<DateTime> occurredAt,
       Value<DateTime> createdAt,
+      Value<String> originDeviceId,
       Value<int> rowid,
     });
 
@@ -3134,6 +4643,11 @@ class $$RefrigerationLogsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3253,6 +4767,11 @@ class $$RefrigerationLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ProductsTableOrderingComposer get productId {
     final $$ProductsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -3337,6 +4856,11 @@ class $$RefrigerationLogsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
+    builder: (column) => column,
+  );
 
   $$ProductsTableAnnotationComposer get productId {
     final $$ProductsTableAnnotationComposer composer = $composerBuilder(
@@ -3456,6 +4980,7 @@ class $$RefrigerationLogsTableTableManager
                 Value<double> temperatureCelsius = const Value.absent(),
                 Value<DateTime> occurredAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String> originDeviceId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RefrigerationLogsCompanion(
                 id: id,
@@ -3467,6 +4992,7 @@ class $$RefrigerationLogsTableTableManager
                 temperatureCelsius: temperatureCelsius,
                 occurredAt: occurredAt,
                 createdAt: createdAt,
+                originDeviceId: originDeviceId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3480,6 +5006,7 @@ class $$RefrigerationLogsTableTableManager
                 required double temperatureCelsius,
                 required DateTime occurredAt,
                 required DateTime createdAt,
+                Value<String> originDeviceId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RefrigerationLogsCompanion.insert(
                 id: id,
@@ -3491,6 +5018,7 @@ class $$RefrigerationLogsTableTableManager
                 temperatureCelsius: temperatureCelsius,
                 occurredAt: occurredAt,
                 createdAt: createdAt,
+                originDeviceId: originDeviceId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -3603,6 +5131,7 @@ typedef $$AlertsTableCreateCompanionBuilder = AlertsCompanion Function({
   required String message,
   required DateTime createdAt,
   Value<DateTime?> acknowledgedAt,
+  Value<String> originDeviceId,
   Value<int> rowid,
 });
 typedef $$AlertsTableUpdateCompanionBuilder = AlertsCompanion Function({
@@ -3614,6 +5143,7 @@ typedef $$AlertsTableUpdateCompanionBuilder = AlertsCompanion Function({
   Value<String> message,
   Value<DateTime> createdAt,
   Value<DateTime?> acknowledgedAt,
+  Value<String> originDeviceId,
   Value<int> rowid,
 });
 
@@ -3695,6 +5225,11 @@ class $$AlertsTableFilterComposer
 
   ColumnFilters<DateTime> get acknowledgedAt => $composableBuilder(
     column: $table.acknowledgedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3784,6 +5319,11 @@ class $$AlertsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ProductsTableOrderingComposer get productId {
     final $$ProductsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -3857,6 +5397,11 @@ class $$AlertsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get acknowledgedAt => $composableBuilder(
     column: $table.acknowledgedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
     builder: (column) => column,
   );
 
@@ -3944,6 +5489,7 @@ class $$AlertsTableTableManager
                 Value<String> message = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> acknowledgedAt = const Value.absent(),
+                Value<String> originDeviceId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AlertsCompanion(
                 id: id,
@@ -3954,6 +5500,7 @@ class $$AlertsTableTableManager
                 message: message,
                 createdAt: createdAt,
                 acknowledgedAt: acknowledgedAt,
+                originDeviceId: originDeviceId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3966,6 +5513,7 @@ class $$AlertsTableTableManager
                 required String message,
                 required DateTime createdAt,
                 Value<DateTime?> acknowledgedAt = const Value.absent(),
+                Value<String> originDeviceId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AlertsCompanion.insert(
                 id: id,
@@ -3976,6 +5524,7 @@ class $$AlertsTableTableManager
                 message: message,
                 createdAt: createdAt,
                 acknowledgedAt: acknowledgedAt,
+                originDeviceId: originDeviceId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4345,6 +5894,701 @@ typedef $$SyncOutboxTableProcessedTableManager =
       SyncOutboxRow,
       PrefetchHooks Function()
     >;
+typedef $$LocalSettingsTableCreateCompanionBuilder =
+    LocalSettingsCompanion Function({
+      required String id,
+      required String deviceId,
+      required String deviceName,
+      required String environmentName,
+      Value<String> serverUrl,
+      Value<String> serverToken,
+      Value<String> ownerEmail,
+      Value<bool> dailyReportEnabled,
+      Value<int> reportHour,
+      Value<int> reportMinute,
+      Value<int> syncCursor,
+      Value<DateTime?> lastSyncAt,
+      Value<String?> lastSyncError,
+      Value<int> rowid,
+    });
+typedef $$LocalSettingsTableUpdateCompanionBuilder =
+    LocalSettingsCompanion Function({
+      Value<String> id,
+      Value<String> deviceId,
+      Value<String> deviceName,
+      Value<String> environmentName,
+      Value<String> serverUrl,
+      Value<String> serverToken,
+      Value<String> ownerEmail,
+      Value<bool> dailyReportEnabled,
+      Value<int> reportHour,
+      Value<int> reportMinute,
+      Value<int> syncCursor,
+      Value<DateTime?> lastSyncAt,
+      Value<String?> lastSyncError,
+      Value<int> rowid,
+    });
+
+class $$LocalSettingsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalSettingsTable> {
+  $$LocalSettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceName => $composableBuilder(
+    column: $table.deviceName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get environmentName => $composableBuilder(
+    column: $table.environmentName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverUrl => $composableBuilder(
+    column: $table.serverUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverToken => $composableBuilder(
+    column: $table.serverToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerEmail => $composableBuilder(
+    column: $table.ownerEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get dailyReportEnabled => $composableBuilder(
+    column: $table.dailyReportEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reportHour => $composableBuilder(
+    column: $table.reportHour,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reportMinute => $composableBuilder(
+    column: $table.reportMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncCursor => $composableBuilder(
+    column: $table.syncCursor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalSettingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalSettingsTable> {
+  $$LocalSettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceName => $composableBuilder(
+    column: $table.deviceName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get environmentName => $composableBuilder(
+    column: $table.environmentName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverUrl => $composableBuilder(
+    column: $table.serverUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverToken => $composableBuilder(
+    column: $table.serverToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerEmail => $composableBuilder(
+    column: $table.ownerEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get dailyReportEnabled => $composableBuilder(
+    column: $table.dailyReportEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reportHour => $composableBuilder(
+    column: $table.reportHour,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reportMinute => $composableBuilder(
+    column: $table.reportMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncCursor => $composableBuilder(
+    column: $table.syncCursor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalSettingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalSettingsTable> {
+  $$LocalSettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceName => $composableBuilder(
+    column: $table.deviceName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get environmentName => $composableBuilder(
+    column: $table.environmentName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverUrl =>
+      $composableBuilder(column: $table.serverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get serverToken => $composableBuilder(
+    column: $table.serverToken,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ownerEmail => $composableBuilder(
+    column: $table.ownerEmail,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get dailyReportEnabled => $composableBuilder(
+    column: $table.dailyReportEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reportHour => $composableBuilder(
+    column: $table.reportHour,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reportMinute => $composableBuilder(
+    column: $table.reportMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get syncCursor => $composableBuilder(
+    column: $table.syncCursor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastSyncError => $composableBuilder(
+    column: $table.lastSyncError,
+    builder: (column) => column,
+  );
+}
+
+class $$LocalSettingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalSettingsTable,
+          LocalSettingsRow,
+          $$LocalSettingsTableFilterComposer,
+          $$LocalSettingsTableOrderingComposer,
+          $$LocalSettingsTableAnnotationComposer,
+          $$LocalSettingsTableCreateCompanionBuilder,
+          $$LocalSettingsTableUpdateCompanionBuilder,
+          (
+            LocalSettingsRow,
+            BaseReferences<
+              _$AppDatabase,
+              $LocalSettingsTable,
+              LocalSettingsRow
+            >,
+          ),
+          LocalSettingsRow,
+          PrefetchHooks Function()
+        > {
+  $$LocalSettingsTableTableManager(_$AppDatabase db, $LocalSettingsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalSettingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalSettingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalSettingsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String> deviceName = const Value.absent(),
+                Value<String> environmentName = const Value.absent(),
+                Value<String> serverUrl = const Value.absent(),
+                Value<String> serverToken = const Value.absent(),
+                Value<String> ownerEmail = const Value.absent(),
+                Value<bool> dailyReportEnabled = const Value.absent(),
+                Value<int> reportHour = const Value.absent(),
+                Value<int> reportMinute = const Value.absent(),
+                Value<int> syncCursor = const Value.absent(),
+                Value<DateTime?> lastSyncAt = const Value.absent(),
+                Value<String?> lastSyncError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalSettingsCompanion(
+                id: id,
+                deviceId: deviceId,
+                deviceName: deviceName,
+                environmentName: environmentName,
+                serverUrl: serverUrl,
+                serverToken: serverToken,
+                ownerEmail: ownerEmail,
+                dailyReportEnabled: dailyReportEnabled,
+                reportHour: reportHour,
+                reportMinute: reportMinute,
+                syncCursor: syncCursor,
+                lastSyncAt: lastSyncAt,
+                lastSyncError: lastSyncError,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String deviceId,
+                required String deviceName,
+                required String environmentName,
+                Value<String> serverUrl = const Value.absent(),
+                Value<String> serverToken = const Value.absent(),
+                Value<String> ownerEmail = const Value.absent(),
+                Value<bool> dailyReportEnabled = const Value.absent(),
+                Value<int> reportHour = const Value.absent(),
+                Value<int> reportMinute = const Value.absent(),
+                Value<int> syncCursor = const Value.absent(),
+                Value<DateTime?> lastSyncAt = const Value.absent(),
+                Value<String?> lastSyncError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalSettingsCompanion.insert(
+                id: id,
+                deviceId: deviceId,
+                deviceName: deviceName,
+                environmentName: environmentName,
+                serverUrl: serverUrl,
+                serverToken: serverToken,
+                ownerEmail: ownerEmail,
+                dailyReportEnabled: dailyReportEnabled,
+                reportHour: reportHour,
+                reportMinute: reportMinute,
+                syncCursor: syncCursor,
+                lastSyncAt: lastSyncAt,
+                lastSyncError: lastSyncError,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalSettingsTable, LocalSettingsRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalSettingsTable,
+                    LocalSettingsRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalSettingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalSettingsTable,
+      LocalSettingsRow,
+      $$LocalSettingsTableFilterComposer,
+      $$LocalSettingsTableOrderingComposer,
+      $$LocalSettingsTableAnnotationComposer,
+      $$LocalSettingsTableCreateCompanionBuilder,
+      $$LocalSettingsTableUpdateCompanionBuilder,
+      (
+        LocalSettingsRow,
+        BaseReferences<_$AppDatabase, $LocalSettingsTable, LocalSettingsRow>,
+      ),
+      LocalSettingsRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DailyReportsTableCreateCompanionBuilder =
+    DailyReportsCompanion Function({
+      required String id,
+      required String environmentName,
+      required String reportDate,
+      required String ownerEmail,
+      required String subject,
+      required String body,
+      required String status,
+      required DateTime createdAt,
+      Value<DateTime?> sentAt,
+      Value<String?> lastError,
+      Value<int> rowid,
+    });
+typedef $$DailyReportsTableUpdateCompanionBuilder =
+    DailyReportsCompanion Function({
+      Value<String> id,
+      Value<String> environmentName,
+      Value<String> reportDate,
+      Value<String> ownerEmail,
+      Value<String> subject,
+      Value<String> body,
+      Value<String> status,
+      Value<DateTime> createdAt,
+      Value<DateTime?> sentAt,
+      Value<String?> lastError,
+      Value<int> rowid,
+    });
+
+class $$DailyReportsTableFilterComposer
+    extends Composer<_$AppDatabase, $DailyReportsTable> {
+  $$DailyReportsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get environmentName => $composableBuilder(
+    column: $table.environmentName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportDate => $composableBuilder(
+    column: $table.reportDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerEmail => $composableBuilder(
+    column: $table.ownerEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subject => $composableBuilder(
+    column: $table.subject,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get sentAt => $composableBuilder(
+    column: $table.sentAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+    column: $table.lastError,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailyReportsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailyReportsTable> {
+  $$DailyReportsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get environmentName => $composableBuilder(
+    column: $table.environmentName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportDate => $composableBuilder(
+    column: $table.reportDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerEmail => $composableBuilder(
+    column: $table.ownerEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subject => $composableBuilder(
+    column: $table.subject,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get sentAt => $composableBuilder(
+    column: $table.sentAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+    column: $table.lastError,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailyReportsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailyReportsTable> {
+  $$DailyReportsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get environmentName => $composableBuilder(
+    column: $table.environmentName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reportDate => $composableBuilder(
+    column: $table.reportDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ownerEmail => $composableBuilder(
+    column: $table.ownerEmail,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get subject =>
+      $composableBuilder(column: $table.subject, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get sentAt =>
+      $composableBuilder(column: $table.sentAt, builder: (column) => column);
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+}
+
+class $$DailyReportsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DailyReportsTable,
+          DailyReportRow,
+          $$DailyReportsTableFilterComposer,
+          $$DailyReportsTableOrderingComposer,
+          $$DailyReportsTableAnnotationComposer,
+          $$DailyReportsTableCreateCompanionBuilder,
+          $$DailyReportsTableUpdateCompanionBuilder,
+          (
+            DailyReportRow,
+            BaseReferences<_$AppDatabase, $DailyReportsTable, DailyReportRow>,
+          ),
+          DailyReportRow,
+          PrefetchHooks Function()
+        > {
+  $$DailyReportsTableTableManager(_$AppDatabase db, $DailyReportsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyReportsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailyReportsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailyReportsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> environmentName = const Value.absent(),
+                Value<String> reportDate = const Value.absent(),
+                Value<String> ownerEmail = const Value.absent(),
+                Value<String> subject = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> sentAt = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyReportsCompanion(
+                id: id,
+                environmentName: environmentName,
+                reportDate: reportDate,
+                ownerEmail: ownerEmail,
+                subject: subject,
+                body: body,
+                status: status,
+                createdAt: createdAt,
+                sentAt: sentAt,
+                lastError: lastError,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String environmentName,
+                required String reportDate,
+                required String ownerEmail,
+                required String subject,
+                required String body,
+                required String status,
+                required DateTime createdAt,
+                Value<DateTime?> sentAt = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyReportsCompanion.insert(
+                id: id,
+                environmentName: environmentName,
+                reportDate: reportDate,
+                ownerEmail: ownerEmail,
+                subject: subject,
+                body: body,
+                status: status,
+                createdAt: createdAt,
+                sentAt: sentAt,
+                lastError: lastError,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DailyReportsTable, DailyReportRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DailyReportsTable,
+                    DailyReportRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailyReportsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DailyReportsTable,
+      DailyReportRow,
+      $$DailyReportsTableFilterComposer,
+      $$DailyReportsTableOrderingComposer,
+      $$DailyReportsTableAnnotationComposer,
+      $$DailyReportsTableCreateCompanionBuilder,
+      $$DailyReportsTableUpdateCompanionBuilder,
+      (
+        DailyReportRow,
+        BaseReferences<_$AppDatabase, $DailyReportsTable, DailyReportRow>,
+      ),
+      DailyReportRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4359,4 +6603,8 @@ class $AppDatabaseManager {
       $$AlertsTableTableManager(_db, _db.alerts);
   $$SyncOutboxTableTableManager get syncOutbox =>
       $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
+  $$LocalSettingsTableTableManager get localSettings =>
+      $$LocalSettingsTableTableManager(_db, _db.localSettings);
+  $$DailyReportsTableTableManager get dailyReports =>
+      $$DailyReportsTableTableManager(_db, _db.dailyReports);
 }

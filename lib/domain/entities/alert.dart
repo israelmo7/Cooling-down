@@ -9,7 +9,8 @@ enum AlertSeverity {
 }
 
 enum AlertKind {
-  temperatureOutOfRange('temperature_out_of_range');
+  temperatureOutOfRange('temperature_out_of_range'),
+  syncConflict('sync_conflict');
 
   const AlertKind(this.storageValue);
 
@@ -27,6 +28,7 @@ class Alert {
     required this.message,
     required this.createdAt,
     this.acknowledgedAt,
+    this.originDeviceId = '',
   });
 
   final String id;
@@ -37,4 +39,5 @@ class Alert {
   final String message;
   final DateTime createdAt;
   final DateTime? acknowledgedAt;
+  final String originDeviceId;
 }

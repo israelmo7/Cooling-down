@@ -1,0 +1,2 @@
+# Plain Dart package. This file stops the app's Flutter lint include
+# from applying inside server/.

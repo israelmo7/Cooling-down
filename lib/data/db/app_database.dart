@@ -11,7 +11,15 @@ import 'tables.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [Products, Fridges, RefrigerationLogs, Alerts, SyncOutbox],
+  tables: [
+    Products,
+    Fridges,
+    RefrigerationLogs,
+    Alerts,
+    SyncOutbox,
+    LocalSettings,
+    DailyReports,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'cooling_down'));
@@ -19,13 +27,26 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) async {
       await migrator.createAll();
       await _seed();
+    },
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.addColumn(
+          refrigerationLogs,
+          refrigerationLogs.originDeviceId,
+        );
+        await migrator.createTable(localSettings);
+        await migrator.createTable(dailyReports);
+        await migrator.alterTable(
+          TableMigration(alerts, newColumns: [alerts.originDeviceId]),
+        );
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

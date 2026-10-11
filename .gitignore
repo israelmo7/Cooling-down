@@ -46,3 +46,10 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local sync server files
+sync_token.txt
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm

@@ -25,7 +25,8 @@ CREATE TABLE refrigeration_logs (
   event_type text NOT NULL CHECK (event_type IN ('check_in', 'check_out')),
   temperature_celsius double precision NOT NULL,
   occurred_at timestamptz NOT NULL,
-  created_at timestamptz NOT NULL
+  created_at timestamptz NOT NULL,
+  origin_device_id text NOT NULL DEFAULT ''
 );
 
 CREATE INDEX refrigeration_logs_movement_id_idx
@@ -34,12 +35,29 @@ CREATE INDEX refrigeration_logs_movement_id_idx
 CREATE TABLE alerts (
   id uuid PRIMARY KEY,
   severity text NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
-  kind text NOT NULL CHECK (kind IN ('temperature_out_of_range')),
+  kind text NOT NULL CHECK (kind IN ('temperature_out_of_range', 'sync_conflict')),
   product_id uuid REFERENCES products (id),
   log_id uuid REFERENCES refrigeration_logs (id),
   message text NOT NULL,
   created_at timestamptz NOT NULL,
-  acknowledged_at timestamptz
+  acknowledged_at timestamptz,
+  origin_device_id text NOT NULL DEFAULT ''
+);
+
+-- One emailed snapshot per environment per local day. The server keeps this;
+-- tablet settings (token, device name, report time) stay on the device.
+CREATE TABLE daily_reports (
+  id uuid PRIMARY KEY,
+  environment_name text NOT NULL,
+  report_date date NOT NULL,
+  owner_email text NOT NULL,
+  subject text NOT NULL,
+  body text NOT NULL,
+  status text NOT NULL CHECK (status IN ('waiting', 'sent', 'already_sent', 'stored', 'failed')),
+  created_at timestamptz NOT NULL,
+  sent_at timestamptz,
+  last_error text,
+  UNIQUE (environment_name, report_date)
 );
 
 CREATE TABLE sync_outbox (

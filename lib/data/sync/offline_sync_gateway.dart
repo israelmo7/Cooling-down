@@ -1,15 +1,16 @@
 import 'sync_gateway.dart';
 
-/// Keeps queued rows local. Used until a PostgreSQL gateway is configured.
+/// Keeps queued rows on the tablet until a server address is saved.
 class OfflineSyncGateway implements SyncGateway {
   const OfflineSyncGateway();
 
   @override
-  Future<bool> pushInsert({
-    required String entityType,
-    required String entityId,
-    required String payloadJson,
-  }) async {
-    return false;
+  Future<SyncExchange> exchange(SyncRequest request) async {
+    return const SyncExchange.offline();
+  }
+
+  @override
+  Future<ReportPostResult> postReport(ReportPost report) async {
+    return const ReportPostResult.waiting();
   }
 }

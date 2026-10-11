@@ -33,6 +33,7 @@ RefrigerationLog mapLog(RefrigerationLogRow row) {
     temperatureCelsius: row.temperatureCelsius,
     occurredAt: row.occurredAt,
     createdAt: row.createdAt,
+    originDeviceId: row.originDeviceId,
   );
 }
 
@@ -46,5 +47,6 @@ Alert mapAlert(AlertRow row) {
     message: row.message,
     createdAt: row.createdAt,
     acknowledgedAt: row.acknowledgedAt,
+    originDeviceId: row.originDeviceId,
   );
 }
