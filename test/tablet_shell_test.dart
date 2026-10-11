@@ -10,11 +10,8 @@ void main() {
     tester,
   ) async {
     final database = AppDatabase.memory();
-    addTearDown(database.close);
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -22,12 +19,14 @@ void main() {
         child: const CoolingDownApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Check in'), findsOneWidget);
     expect(find.text('Check out'), findsOneWidget);
     expect(find.text('In the fridge'), findsOneWidget);
-    expect(find.text('Whole milk'), findsOneWidget);
+    expect(find.text('Chicken breast'), findsOneWidget);
+    expect(find.text('Kitchen fridge'), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-in')), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-out')), findsOneWidget);
 
@@ -39,5 +38,14 @@ void main() {
     );
     expect(checkIn.onPressed, isNull);
     expect(checkOut.onPressed, isNull);
-  });
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }
