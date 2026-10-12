@@ -233,9 +233,8 @@ class _TabletShellState extends ConsumerState<TabletShell>
     ref.listen(workersProvider, (_, _) => _armWorkerRefresh());
     ref.listen(workerSessionProvider, (_, _) => _armWorkerRefresh());
     ref.listen(settingsProvider, (_, _) => _armWorkerRefresh());
-    final workerLabel = (session?.workerName.trim().isNotEmpty ?? false)
-        ? session!.workerName
-        : 'עובד';
+    final signedIn = session?.workerName.trim().isNotEmpty ?? false;
+    final workerLabel = signedIn ? session!.workerName : 'לא עובד';
     final refresh = settings?.workerRefresh ?? const WorkerRefresh();
     final askOnNextTap =
         workers != null &&
@@ -252,22 +251,26 @@ class _TabletShellState extends ConsumerState<TabletShell>
             appBar: AppBar(
               centerTitle: true,
               toolbarHeight: 72,
-              leadingWidth: 112,
+              leadingWidth: signedIn ? 112 : 156,
               leading: Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: TextButton(
                   key: const Key('current-worker'),
                   onPressed: () => _askForWorker(required: false),
                   style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    foregroundColor: signedIn
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : const Color(0xFF9A3412),
+                    backgroundColor: signedIn ? null : const Color(0xFFFFEDD5),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: signedIn ? 8 : 10,
+                      vertical: signedIn ? 0 : 6,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    textStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
+                    textStyle: TextStyle(
+                      fontSize: signedIn ? 14 : 18,
+                      fontWeight: signedIn ? FontWeight.w400 : FontWeight.w600,
                     ),
                   ),
                   child: Text(
@@ -275,9 +278,11 @@ class _TabletShellState extends ConsumerState<TabletShell>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: signedIn ? 14 : 18,
+                      fontWeight: signedIn ? FontWeight.w400 : FontWeight.w600,
+                      color: signedIn
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : const Color(0xFF9A3412),
                     ),
                   ),
                 ),

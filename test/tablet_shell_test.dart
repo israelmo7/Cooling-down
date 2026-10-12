@@ -55,7 +55,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('current-worker')),
-        matching: find.text('עובד'),
+        matching: find.text('לא עובד'),
       ),
       findsOneWidget,
     );
@@ -139,7 +139,13 @@ void main() {
     expect(
       tester.getTopLeft(find.byKey(const Key('confirm-action'))).dy,
       greaterThan(
-        tester.getTopLeft(find.byKey(const Key('settings-field-שם הסביבה'))).dy,
+        tester.getTopLeft(find.byKey(const Key('settings-product-list'))).dy,
+      ),
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('confirm-action'))).dy,
+      greaterThan(
+        tester.getTopLeft(find.byKey(const Key('settings-worker-list'))).dy,
       ),
     );
     await tester.tap(find.byKey(const Key('settings-product-list')));
@@ -196,8 +202,29 @@ void main() {
       isFalse,
     );
     expect(find.text('שמירה'), findsOneWidget);
+    expect(find.byKey(const Key('confirm-action')), findsNothing);
+    expect(find.text('אימות פעולה'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-field-כתובת המחשב')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.byKey(const Key('settings-field-אסימון גישה')), findsOneWidget);
     expect(find.byKey(const Key('settings-field-כתובת המחשב')), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-field-כתובת המחשב'))).dy,
+      greaterThan(
+        tester.getTopLeft(find.byKey(const Key('worker-refresh'))).dy,
+      ),
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-field-אסימון גישה'))).dy,
+      greaterThan(
+        tester
+            .getTopLeft(find.byKey(const Key('settings-field-כתובת המחשב')))
+            .dy,
+      ),
+    );
     expect(find.byKey(const Key('worker-refresh')), findsOneWidget);
     expect(
       tester
@@ -218,9 +245,17 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
     }
-    await tester.ensureVisible(find.byKey(const Key('add-product')));
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('new-product-name'))),
+      alignment: 0.5,
+    );
     await tester.pump();
     await tester.enterText(find.byKey(const Key('new-product-name')), 'גבינה');
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('add-product'))),
+      alignment: 0.5,
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('add-product')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));

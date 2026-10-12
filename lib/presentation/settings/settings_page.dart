@@ -224,7 +224,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         helper: 'השם שמופיע בראש הטאבלט. עד 20 תווים.',
         inputFormatters: [LengthLimitingTextInputFormatter(20)],
       ),
+      ProductCatalogEditor(
+        key: const ValueKey('product-catalog'),
+        unlocked: _canEdit,
+      ),
+      const SizedBox(height: 8),
+      WorkerCatalogEditor(
+        key: const ValueKey('worker-catalog'),
+        unlocked: _canEdit,
+      ),
       if (_unlocked) ...[
+        const SizedBox(height: 8),
+        _workerRefreshControl(),
         _field(
           controller: _serverUrl,
           label: 'כתובת המחשב',
@@ -235,19 +246,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           label: 'אסימון גישה',
           helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
         ),
-        _workerRefreshControl(),
+      ] else ...[
+        const SizedBox(height: 8),
+        _confirmActionControl(),
       ],
-      _confirmActionControl(),
-      const SizedBox(height: 8),
-      ProductCatalogEditor(
-        key: const ValueKey('product-catalog'),
-        unlocked: _canEdit,
-      ),
-      const SizedBox(height: 8),
-      WorkerCatalogEditor(
-        key: const ValueKey('worker-catalog'),
-        unlocked: _canEdit,
-      ),
     ];
     final actions = <Widget>[
       if (!_unlocked)
