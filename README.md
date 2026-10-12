@@ -42,7 +42,7 @@ Email is off until these are set in the server process environment: `OWNER_EMAIL
 
 `PORT` defaults to 8080. `DATA_PATH` defaults to `cooling_down_server.sqlite`.
 
-On each tablet, enter that address, the token, and that tablet's own environment name. Tablets do not copy each other's logs. The computer keeps each environment separately. The app bar shows that environment name. Settings stay locked until שינוי הגדרות is pressed. With no password saved, that opens editing directly. A password typed into סיסמה and saved is required the next time. Until then the computer address and access token stay hidden. The product list in Settings is what check-in search uses. לוח ניהול at the bottom of Settings opens `http://<server>:8080/admin`.
+On each tablet, enter that address, the token, and that tablet's own environment name. Tablets do not copy each other's logs. The computer keeps each environment separately. The app bar shows that environment name. Settings stay locked until שינוי הגדרות is pressed. A blank סיסמה means no password, and saving it blank clears one. Any password saved there is required the next time. Until then the computer address and access token stay hidden. The product list in Settings is what check-in search uses. לוח ניהול at the bottom of Settings opens `http://<server>:8080/admin`.
 
 Set `ADMIN_USER` and `ADMIN_PASSWORD` when starting the computer. That page can change the owner email for one environment without touching another. At 00:00 the computer emails that environment's owner a Hebrew report of the previous day. If a tablet was offline, its rows stay on that tablet and upload on the next successful sync. The first successful email for a day wins.
 

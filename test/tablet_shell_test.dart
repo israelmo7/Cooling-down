@@ -944,7 +944,7 @@ void main() {
     tester.view.resetDevicePixelRatio();
   }, timeout: const Timeout(Duration(seconds: 30)));
 
-  testWidgets('a saved settings password replaces the built-in one', (
+  testWidgets('a blank settings password is none and any saved one works', (
     tester,
   ) async {
     final database = AppDatabase.memory();
@@ -988,7 +988,7 @@ void main() {
     );
     await tester.enterText(
       find.byKey(const Key('settings-field-סיסמה')),
-      '1111',
+      '123459876',
     );
     await tester.tap(find.text('שמירה'));
     await tester.pump();
@@ -997,15 +997,15 @@ void main() {
 
     await tester.tap(find.byKey(const Key('unlock-settings')));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const Key('settings-password')),
-      '123459876',
-    );
+    await tester.enterText(find.byKey(const Key('settings-password')), '1111');
     await tester.tap(find.byKey(const Key('confirm-settings-password')));
     await tester.pump();
     expect(find.text('הסיסמה שגויה.'), findsOneWidget);
 
-    await tester.enterText(find.byKey(const Key('settings-password')), '1111');
+    await tester.enterText(
+      find.byKey(const Key('settings-password')),
+      '123459876',
+    );
     await tester.tap(find.byKey(const Key('confirm-settings-password')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -1014,6 +1014,26 @@ void main() {
       tester.element(find.byKey(const Key('settings-field-שם הסביבה'))),
     );
     unlockedScroll.position.jumpTo(unlockedScroll.position.maxScrollExtent);
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('settings-field-סיסמה')))
+          .controller
+          ?.text,
+      '123459876',
+    );
+    await tester.enterText(find.byKey(const Key('settings-field-סיסמה')), '');
+    await tester.tap(find.text('שמירה'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byKey(const Key('unlock-settings')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('settings-password')), findsNothing);
+    final clearedScroll = Scrollable.of(
+      tester.element(find.byKey(const Key('settings-field-שם הסביבה'))),
+    );
+    clearedScroll.position.jumpTo(clearedScroll.position.maxScrollExtent);
     await tester.pump();
     expect(
       tester

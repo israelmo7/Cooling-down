@@ -74,6 +74,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _refreshMode = settings.workerRefreshMode;
       _promptStyle = settings.workerPromptStyle;
       _confirmAction = settings.confirmAction;
+      _settingsPassword.text = settings.settingsPassword;
       _loaded = true;
     });
   }
@@ -92,11 +93,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _refreshHours.text = '$intervalHours';
     _refreshStart.text = formatClockMinutes(startMinute);
     _refreshEnd.text = formatClockMinutes(endMinute);
-    final typedPassword = _settingsPassword.text.trim();
-    final settingsPassword = typedPassword.isEmpty
-        ? current.settingsPassword
-        : typedPassword;
-    _settingsPassword.clear();
+    final settingsPassword = _settingsPassword.text.trim();
     final next = current.copyWith(
       environmentName: clipEnvironmentName(_environment.text),
       serverUrl: _serverUrl.text,
@@ -266,6 +263,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         _field(
           controller: _settingsPassword,
           label: 'סיסמה',
+          hint: 'ללא סיסמה',
           obscure: true,
           keyboard: TextInputType.number,
           inputFormatters: [
@@ -375,6 +373,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required TextEditingController controller,
     required String label,
     String helper = '',
+    String hint = '',
     bool obscure = false,
     TextInputType? keyboard,
     List<TextInputFormatter>? inputFormatters,
@@ -393,6 +392,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         style: const TextStyle(fontSize: 18),
         decoration: InputDecoration(
           labelText: label,
+          hintText: hint.isEmpty ? null : hint,
           helperText: helper.isEmpty ? null : helper,
           helperMaxLines: 3,
           border: const OutlineInputBorder(),
@@ -609,8 +609,7 @@ class _PasswordDialogState extends State<_PasswordDialog> {
   }
 
   void _submit() {
-    final entered = _controller.text.replaceAll(RegExp(r'\D'), '');
-    if (entered == widget.password) {
+    if (_controller.text.trim() == widget.password) {
       Navigator.of(context).pop(true);
       return;
     }
