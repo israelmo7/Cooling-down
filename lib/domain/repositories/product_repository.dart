@@ -15,8 +15,8 @@ abstract class ProductRepository {
 
   Future<void> renameProduct(String id, String name);
 
-  /// Returns false when a log already points at this product.
-  Future<bool> deleteProduct(String id);
+  /// Removes the name from the list. A product already used on a log is hidden.
+  Future<void> deleteProduct(String id);
 
   Future<Product?> findById(String id);
 

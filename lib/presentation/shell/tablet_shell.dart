@@ -222,6 +222,8 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final pendingCount = ref.watch(pendingSyncCountProvider).asData?.value ?? 0;
     final settings = ref.watch(settingsProvider).asData?.value;
     final sharing = settings?.hasServer ?? false;
+    final offline =
+        !sharing || (settings?.lastSyncError?.trim().isNotEmpty ?? false);
     final environment = settings?.environmentName.trim() ?? '';
     final session = ref.watch(workerSessionProvider).asData?.value;
     final workers = ref.watch(workersProvider).asData?.value;
@@ -294,11 +296,18 @@ class _TabletShellState extends ConsumerState<TabletShell>
               actions: [
                 Center(
                   child: Text(
-                    _syncLabel(pendingCount: pendingCount, sharing: sharing),
+                    key: const Key('sync-status'),
+                    _syncLabel(
+                      pendingCount: pendingCount,
+                      sharing: sharing,
+                      offline: offline,
+                    ),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: offline
+                          ? const Color(0xFFB91C1C)
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -359,11 +368,13 @@ class _TabletShellState extends ConsumerState<TabletShell>
     );
   }
 
-  String _syncLabel({required int pendingCount, required bool sharing}) {
-    if (!sharing) {
-      return pendingCount == 0
-          ? 'נשמר בטאבלט'
-          : 'נשמר בטאבלט · $pendingCount ממתינים לסנכרון';
+  String _syncLabel({
+    required int pendingCount,
+    required bool sharing,
+    required bool offline,
+  }) {
+    if (offline || !sharing) {
+      return 'לא מסונכרן';
     }
     return pendingCount == 0 ? 'מסונכרן' : '$pendingCount ממתינים לסנכרון';
   }

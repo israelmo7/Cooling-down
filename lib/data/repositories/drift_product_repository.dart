@@ -149,17 +149,17 @@ class DriftProductRepository implements ProductRepository {
   }
 
   @override
-  Future<bool> deleteProduct(String id) async {
+  Future<void> deleteProduct(String id) async {
     try {
       await (_db.delete(
         _db.products,
       )..where((table) => table.id.equals(id))).go();
-      return true;
     } on Object catch (error) {
-      if (error.toString().contains('FOREIGN KEY')) {
-        return false;
+      if (!error.toString().contains('FOREIGN KEY')) {
+        rethrow;
       }
-      rethrow;
+      await (_db.update(_db.products)..where((table) => table.id.equals(id)))
+          .write(const ProductsCompanion(listed: Value(false)));
     }
   }
 

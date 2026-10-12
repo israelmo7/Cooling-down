@@ -62,4 +62,29 @@ void main() {
       expect(searched.single.name, 'חיסון');
     },
   );
+
+  test('a used product leaves the list and the log keeps its name', () async {
+    await logs.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+    );
+
+    await products.deleteProduct(SeedIds.wholeMilk);
+    await products.deleteProduct(SeedIds.vaccine);
+
+    final listed = await products.watchAll().first;
+    expect(listed.map((product) => product.name), isNot(contains('חלב')));
+    expect(listed.map((product) => product.name), isNot(contains('חיסון')));
+    expect(await products.findById(SeedIds.wholeMilk), isNotNull);
+    expect(await products.findById(SeedIds.vaccine), isNull);
+
+    final again = await products.addProduct('חלב');
+    expect(again?.id, SeedIds.wholeMilk);
+    expect(
+      (await products.watchAll().first).map((product) => product.name),
+      contains('חלב'),
+    );
+  });
 }

@@ -356,7 +356,11 @@ void main() {
     await tester.tap(find.text('ביטול'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('נשמר בטאבלט'), findsOneWidget);
+    expect(find.text('לא מסונכרן'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('sync-status'))).style?.color,
+      const Color(0xFFB91C1C),
+    );
     expect(find.text('4.0 °C'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('confirm-check-in')));
@@ -366,7 +370,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
-    expect(find.text('נשמר בטאבלט · 1 ממתינים לסנכרון'), findsOneWidget);
+    expect(find.text('לא מסונכרן'), findsOneWidget);
     expect(find.textContaining('נקלט'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();
@@ -391,7 +395,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
-    expect(find.text('נשמר בטאבלט · 2 ממתינים לסנכרון'), findsOneWidget);
+    expect(find.text('לא מסונכרן'), findsOneWidget);
     expect(find.text('אין כרגע פריטים במקרר.'), findsWidgets);
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/product.dart';
 import '../providers.dart';
-import '../widgets/transient_notice.dart';
 
 class ProductCatalogEditor extends ConsumerStatefulWidget {
   const ProductCatalogEditor({super.key, required this.unlocked});
@@ -49,17 +48,8 @@ class _ProductCatalogEditorState extends ConsumerState<ProductCatalogEditor> {
         .renameProduct(product.id, renamed);
   }
 
-  Future<void> _delete(Product product) async {
-    final removed = await ref
-        .read(productRepositoryProvider)
-        .deleteProduct(product.id);
-    if (!mounted || removed) {
-      return;
-    }
-    showTransientNotice(
-      context,
-      'אי אפשר למחוק מוצר שכבר נרשם. אפשר לשנות את השם.',
-    );
+  Future<void> _delete(Product product) {
+    return ref.read(productRepositoryProvider).deleteProduct(product.id);
   }
 
   @override
