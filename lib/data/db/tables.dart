@@ -118,6 +118,8 @@ class LocalSettings extends Table {
   TextColumn get lastSyncError => text().named('last_sync_error').nullable()();
   BoolColumn get hubEnabled =>
       boolean().named('hub_enabled').withDefault(const Constant(false))();
+  BoolColumn get confirmAction =>
+      boolean().named('confirm_action').withDefault(const Constant(false))();
   TextColumn get smtpHost =>
       text().named('smtp_host').withDefault(const Constant(''))();
   IntColumn get smtpPort =>

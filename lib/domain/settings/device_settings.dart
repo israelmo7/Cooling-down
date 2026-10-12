@@ -14,6 +14,7 @@ class DeviceSettings {
     this.lastSyncAt,
     this.lastSyncError,
     this.hubEnabled = false,
+    this.confirmAction = false,
     this.smtpHost = '',
     this.smtpPort = 587,
     this.smtpUser = '',
@@ -34,6 +35,7 @@ class DeviceSettings {
   final DateTime? lastSyncAt;
   final String? lastSyncError;
   final bool hubEnabled;
+  final bool confirmAction;
   final String smtpHost;
   final int smtpPort;
   final String smtpUser;
@@ -55,6 +57,7 @@ class DeviceSettings {
     DateTime? lastSyncAt,
     String? lastSyncError,
     bool? hubEnabled,
+    bool? confirmAction,
     String? smtpHost,
     int? smtpPort,
     String? smtpUser,
@@ -79,6 +82,7 @@ class DeviceSettings {
           ? null
           : lastSyncError ?? this.lastSyncError,
       hubEnabled: hubEnabled ?? this.hubEnabled,
+      confirmAction: confirmAction ?? this.confirmAction,
       smtpHost: smtpHost ?? this.smtpHost,
       smtpPort: smtpPort ?? this.smtpPort,
       smtpUser: smtpUser ?? this.smtpUser,

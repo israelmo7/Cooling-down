@@ -50,6 +50,7 @@ class DriftSettingsRepository implements SettingsRepository {
             ? const Value.absent()
             : const Value(0),
         hubEnabled: Value(settings.hubEnabled),
+        confirmAction: Value(settings.confirmAction),
         smtpHost: Value(settings.smtpHost.trim()),
         smtpPort: Value(settings.smtpPort.clamp(1, 65535).toInt()),
         smtpUser: Value(settings.smtpUser.trim()),
@@ -97,6 +98,7 @@ class DriftSettingsRepository implements SettingsRepository {
       lastSyncAt: row.lastSyncAt,
       lastSyncError: row.lastSyncError,
       hubEnabled: row.hubEnabled,
+      confirmAction: row.confirmAction,
       smtpHost: row.smtpHost,
       smtpPort: row.smtpPort,
       smtpUser: row.smtpUser,

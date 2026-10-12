@@ -26,6 +26,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   var _loaded = false;
   var _unlocked = false;
   var _busy = false;
+  var _confirmAction = false;
 
   @override
   void initState() {
@@ -52,6 +53,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _deviceName.text = settings.deviceName;
       _serverUrl.text = settings.serverUrl;
       _token.text = settings.serverToken;
+      _confirmAction = settings.confirmAction;
       _loaded = true;
     });
   }
@@ -67,6 +69,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       reportHour: 0,
       reportMinute: 0,
       hubEnabled: false,
+      confirmAction: _confirmAction,
     );
     await ref.read(settingsRepositoryProvider).save(next);
     return ref.read(settingsRepositoryProvider).ensure();
@@ -153,6 +156,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         style: Theme.of(context).textTheme.titleMedium,
       ),
       const SizedBox(height: 24),
+      SwitchListTile(
+        key: const Key('confirm-action'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('אימות פעולה', style: TextStyle(fontSize: 18)),
+        subtitle: const Text(
+          'לפני כל קליטה או הוצאה תופיע השאלה ״האם אתה בטוח?״ יחד עם תיאור הפעולה.',
+        ),
+        value: _confirmAction,
+        onChanged: _canEdit
+            ? (value) => setState(() => _confirmAction = value)
+            : null,
+      ),
+      const SizedBox(height: 8),
       _field(
         controller: _environment,
         label: 'שם הסביבה',

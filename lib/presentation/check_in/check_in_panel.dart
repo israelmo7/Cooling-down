@@ -9,6 +9,7 @@ import '../../domain/entities/product.dart';
 import '../../domain/failures.dart';
 import '../format.dart';
 import '../providers.dart';
+import '../widgets/confirm_action_dialog.dart';
 import '../widgets/station_widgets.dart';
 
 class CheckInPanel extends ConsumerStatefulWidget {
@@ -49,6 +50,15 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
       ref.read(fridgesProvider).asData?.value ?? const [],
     );
     if (product == null || fridge == null || _saving) {
+      return;
+    }
+    final accepted = await confirmRecordedAction(
+      context,
+      enabled:
+          ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
+      action: 'קליטה: ${product.name} ב-${formatCelsius(_temperature)}',
+    );
+    if (!accepted || !mounted) {
       return;
     }
     setState(() => _saving = true);

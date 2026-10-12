@@ -7,6 +7,7 @@ import '../../domain/entities/open_holding.dart';
 import '../../domain/failures.dart';
 import '../format.dart';
 import '../providers.dart';
+import '../widgets/confirm_action_dialog.dart';
 import '../widgets/station_widgets.dart';
 
 class CheckOutPanel extends ConsumerStatefulWidget {
@@ -25,6 +26,26 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
   Future<void> _confirm() async {
     final movementId = _selectedMovementId;
     if (movementId == null || _saving) {
+      return;
+    }
+    final holdings = ref.read(openHoldingsProvider).asData?.value ?? const [];
+    OpenHolding? holding;
+    for (final item in holdings) {
+      if (item.movementId == movementId) {
+        holding = item;
+        break;
+      }
+    }
+    if (holding == null) {
+      return;
+    }
+    final accepted = await confirmRecordedAction(
+      context,
+      enabled:
+          ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
+      action: 'הוצאה: ${holding.productName} ב-${formatCelsius(_temperature)}',
+    );
+    if (!accepted || !mounted) {
       return;
     }
     setState(() => _saving = true);
