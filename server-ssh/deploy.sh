@@ -58,31 +58,24 @@ docker save "$image" | ssh "$target" docker load
 ssh "$target" "mkdir -p ~/${remote_dir}/data"
 scp "$compose" "${target}:${remote_dir}/docker-compose.yml"
 scp "$root/server-ssh/ssh-window.sh" "${target}:${remote_dir}/ssh-window.sh"
-ssh "$target" "chmod 755 ~/${remote_dir}/ssh-window.sh"
+scp "$root/server-ssh/apply.sh" "${target}:${remote_dir}/apply.sh"
+ssh "$target" "chmod 755 ~/${remote_dir}/ssh-window.sh ~/${remote_dir}/apply.sh"
 
-if ssh "$target" "test -f ~/${remote_dir}/data/.env"; then
-  echo "Keeping the .env already on the computer."
+if ssh "$target" "test -f ~/${remote_dir}/shop.json"; then
+  echo "Keeping the shop.json already on the computer."
 else
-  scp "$root/server-ssh/.env.example" "${target}:${remote_dir}/data/.env"
-  echo "Created data/.env from the example."
+  scp "$root/server-ssh/shop.json" "${target}:${remote_dir}/shop.json"
+  echo "Created shop.json on the computer."
 fi
 
-ssh "$target" "cd ~/${remote_dir} && docker compose up -d"
-echo
-ssh "$target" "cd ~/${remote_dir} && docker compose logs --tail 40"
+ssh "$target" "sh ~/${remote_dir}/apply.sh"
 
 cat << EOF
 
-The shop computer is listening on port 8080.
+Listening on port 8080. The token is printed above.
 Tablets use http://<that-computer>:8080. They do not use SSH.
-
-Still done on site, not by this script:
-- Copy SYNC_TOKEN from the log above, or from ~/${remote_dir}/data/.env on the shop computer.
-- Set ADMIN_USER, ADMIN_PASSWORD, and the mail fields in that file. Then run:
-  ssh ${target} 'cd ~/${remote_dir} && docker compose up -d --force-recreate'
-- Allow port 8080 from the shop Wi-Fi only.
-- Install the tablet app from tablets/ on each device, and enter the address, the token, and the environment name.
-- If the shop computer has no Docker or SSH, use the server-usb folder on a USB stick. See FIELD.md.
-- Later visits: at the shop computer, run sudo sh ~/${remote_dir}/ssh-window.sh 30
-  That opens SSH for 30 minutes and then closes it. Run it from the computer itself.
+Edit ~/${remote_dir}/shop.json on the shop computer, then run: sh ~/${remote_dir}/apply.sh
+A later deploy keeps that shop.json.
+Linux only: sudo sh ~/${remote_dir}/ssh-window.sh 30 opens SSH for 30 minutes.
+A Windows shop PC does not use this script. See guide.txt.
 EOF

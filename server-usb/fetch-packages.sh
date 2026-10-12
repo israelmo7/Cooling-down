@@ -27,6 +27,7 @@ apt-get install -y --download-only \
   -o "Dir::Cache=$cache" \
   -o "Dir::Cache::archives=$packages" \
   docker.io \
+  docker-compose-v2 \
   openssh-server
 
 if command -v lsb_release >/dev/null 2>&1; then

@@ -1,6 +1,6 @@
 # Cooling-down
 
-Field install is in `FIELD.md`.
+Field install is in `guide.txt`.
 
 Version 0.1. A Hebrew tablet logs refrigerator check-in and check-out. The shop computer keeps the archive and sends the midnight report. Each confirm writes to SQLite on the tablet first. If the shop Wi-Fi is down, the row stays on the tablet and syncs when the shop computer is reachable again. The computer keeps the shared database and emails the owner at 00:00 with a report of the day that just ended.
 
@@ -39,10 +39,10 @@ dart pub get
 dart run bin/server.dart
 ```
 
-Field steps are in `FIELD.md`.
+Field steps are in `guide.txt`. Settings for the shop computer are `server-ssh/shop.json`.
 
 ## Layout
 
 - `tablets/` — one Flutter app for Android and iOS. `android/` and `ios/` are the install shells for each store.
-- `server-ssh/` — the shop program, its image, and the SSH deploy
-- `server-usb/` — Docker and SSH installers for a shop PC that does not have them
+- `server-ssh/` — the shop program, its image, the SSH deploy, and the Windows pack
+- `server-usb/` — Docker and SSH installers for a Linux shop PC that does not have them

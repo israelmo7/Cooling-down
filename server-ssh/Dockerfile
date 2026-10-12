@@ -15,6 +15,8 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /out/bundle /opt/cooling-down
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 WORKDIR /data
 EXPOSE 8080
-ENTRYPOINT ["/opt/cooling-down/bin/server"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

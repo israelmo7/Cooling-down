@@ -1,0 +1,13 @@
+{
+  "_readme": "Empty SYNC_TOKEN is filled on first apply and printed. Empty ADMIN_USER or ADMIN_PASSWORD turns /admin off. Empty SMTP_HOST turns mail off; the report is still stored. TZ is the midnight clock.",
+  "SYNC_TOKEN": "",
+  "ADMIN_USER": "",
+  "ADMIN_PASSWORD": "",
+  "OWNER_EMAIL": "",
+  "SMTP_HOST": "",
+  "SMTP_PORT": "587",
+  "SMTP_USER": "",
+  "SMTP_PASSWORD": "",
+  "SMTP_FROM": "",
+  "TZ": "Asia/Jerusalem"
+}

@@ -11,7 +11,11 @@ import 'package:cooling_down_server/mailer.dart';
 import 'package:cooling_down_server/server_config.dart';
 import 'package:cooling_down_server/sync_store.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  if (args.contains('--apply-shop')) {
+    _applyShop();
+    return;
+  }
   final envFile = resolveEnvFile();
   final config = ServerConfig.fromMaps(
     file: loadEnvFile(envFile),
@@ -40,19 +44,22 @@ Future<void> main() async {
     'Cooling down server on http://${server.address.host}:${server.port}',
   );
   stdout.writeln('Settings file: ${envFile.path}');
+  stdout.writeln('Clock zone: ${Platform.environment['TZ'] ?? 'system'}');
   if (!config.mail.emailEnabled) {
-    stdout.writeln('Email is off. Set the mail fields in .env or on /admin.');
+    stdout.writeln(
+      'Email is off. Set the mail fields in shop.json or on /admin.',
+    );
   } else {
     stdout.writeln('Email is on via ${config.mail.smtpHost}.');
   }
   if (config.mail.ownerEmail.contains('@')) {
     stdout.writeln('Midnight reports go to ${config.mail.ownerEmail}.');
   } else {
-    stdout.writeln('Set the owner email in .env or on /admin.');
+    stdout.writeln('Set the owner email in shop.json or on /admin.');
   }
   if (config.adminUser.isEmpty || config.adminPassword.isEmpty) {
     stdout.writeln(
-      'Admin page is off. Set ADMIN_USER and ADMIN_PASSWORD in .env.',
+      'Admin page is off. Set ADMIN_USER and ADMIN_PASSWORD in shop.json.',
     );
   } else {
     stdout.writeln('Admin page is /admin for ${config.adminUser}.');
@@ -82,7 +89,31 @@ Future<String> _loadToken(String configured, File envFile) async {
   }
   final created = const Uuid().v4();
   writeEnvKeys(envFile, {'SYNC_TOKEN': created});
+  rememberShopToken(
+    File('${envFile.parent.path}${Platform.pathSeparator}shop.json'),
+    created,
+  );
   stdout.writeln('Wrote a new access token to ${envFile.path}');
   stdout.writeln(created);
   return created;
+}
+
+void _applyShop() {
+  final envFile = resolveEnvFile();
+  final shop = File('${envFile.parent.path}${Platform.pathSeparator}shop.json');
+  if (!shop.existsSync()) {
+    stderr.writeln('shop.json was not found next to ${envFile.path}.');
+    exit(1);
+  }
+  try {
+    applyShopJson(shopFile: shop, envFile: envFile);
+  } on FormatException catch (error) {
+    stderr.writeln(error.message);
+    exit(1);
+  }
+  final token = loadEnvFile(envFile)['SYNC_TOKEN'] ?? '';
+  stdout.writeln('Applied ${shop.path} to ${envFile.path}.');
+  if (token.isNotEmpty) {
+    stdout.writeln('SYNC_TOKEN=$token');
+  }
 }

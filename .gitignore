@@ -58,3 +58,6 @@ sync_token.txt
 # USB packages downloaded for a shop PC
 server-usb/packages/*
 !server-usb/packages/.gitkeep
+
+# Windows folder produced by pack-windows.sh (image tar is large)
+server-ssh/dist/

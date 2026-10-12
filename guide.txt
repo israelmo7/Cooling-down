@@ -1,0 +1,48 @@
+Cooling down 0.1
+
+Android tablet
+  cd tablets && flutter build apk --release
+  Copy only tablets/build/app/outputs/flutter-apk/app-release.apk
+  Keep the same signing key for the next update. A new key means uninstall first.
+
+iPhone
+  A USB stick cannot install it. On a Mac, with an Apple developer account: flutter build ipa.
+
+Shop settings — server-ssh/shop.json
+  Empty SYNC_TOKEN: first apply creates one and prints it. Put that token on every tablet.
+  Empty ADMIN_USER or ADMIN_PASSWORD: http://<shop-pc>:8080/admin stays off.
+  Empty SMTP_HOST: no mail. The report is still stored. SMTP_PORT defaults to 587.
+  TZ defaults to Asia/Jerusalem. Midnight follows it.
+  Tablet address: http://<shop-pc>:8080
+  The program reads .env. apply writes .env from shop.json. /admin can change mail until the next apply.
+
+Windows shop PC
+  The server is a Linux image. Docker Desktop runs it. No Ubuntu install, and no Windows rewrite.
+  Install Docker Desktop once and leave it running.
+  On a 64-bit Intel or AMD computer that already has Docker: bash server-ssh/pack-windows.sh
+  Copy server-ssh/dist/cooling-down to the PC. Edit shop.json there.
+  powershell -ExecutionPolicy Bypass -File .\start.ps1
+  If Windows asks, allow Docker on the private shop network. Tablets need port 8080.
+  server-usb and ssh-window.sh are Linux only. Tablets do not use SSH.
+
+Linux shop PC
+  Already possible. Nothing else has to be written.
+  If Docker, Compose, or SSH is missing: on Ubuntu of the same version, sudo sh server-usb/fetch-packages.sh
+  Copy server-usb to a USB stick. On the PC: sudo sh install.sh
+  Log out and back in. Then, from a computer with the same chip: server-ssh/deploy.sh user@shop-pc
+  The first deploy copies shop.json. Later deploys keep the copy on the PC.
+  Edit ~/cooling-down/shop.json, then: sh ~/cooling-down/apply.sh
+  Next visit, at the PC: sudo sh ~/cooling-down/ssh-window.sh 30
+  SSH stays open 30 minutes, then closes, including after a reboot.
+
+On site
+  Fixed Wi-Fi address for the PC. One environment name per fridge area, the same on each tablet there.
+  Products and workers are typed on each tablet. Confirm stays off until a worker is signed in.
+
+When it fails
+  לא מסונכרן: the PC address changed, the token does not match, or Wi-Fi blocks device-to-device traffic.
+  Deleting data/.env creates a new token. Tablets need the new one.
+  Two environment names split the archive.
+  Wrong SMTP stores the report and does not send it. Wrong TZ moves midnight.
+  USB packages must match that Ubuntu version. Windows does not use them.
+  Pack the Windows folder on a 64-bit Intel or AMD computer.

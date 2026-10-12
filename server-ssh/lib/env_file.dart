@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:uuid/uuid.dart';
 
 final _key = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
 final _assignment = RegExp(
@@ -89,6 +92,104 @@ String _decode(String raw) {
     out.write(char);
   }
   return out.toString();
+}
+
+/// Settings the shop file is allowed to write. Anything else in the JSON is kept
+/// for the reader and is not copied into `.env`.
+const shopSettingKeys = <String>[
+  'SYNC_TOKEN',
+  'ADMIN_USER',
+  'ADMIN_PASSWORD',
+  'OWNER_EMAIL',
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'SMTP_PASSWORD',
+  'SMTP_FROM',
+  'TZ',
+];
+
+/// Copies [shopFile] into [envFile].
+///
+/// An empty `SYNC_TOKEN` keeps a token already stored in `.env`, or creates one
+/// and writes it back into [shopFile]. Any other empty value is written as
+/// empty, so clearing a field in the JSON clears it in `.env`.
+void applyShopJson({required File shopFile, required File envFile}) {
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(shopFile.readAsStringSync());
+  } on FormatException {
+    throw const FormatException('shop.json is not valid JSON.');
+  }
+  if (decoded is! Map) {
+    throw const FormatException('shop.json must be a JSON object.');
+  }
+
+  final existing = loadEnvFile(envFile);
+  final updates = <String, String>{};
+  String? tokenToRemember;
+  for (final key in shopSettingKeys) {
+    if (!decoded.containsKey(key)) {
+      continue;
+    }
+    final raw = decoded[key];
+    if (raw != null && raw is! String && raw is! num) {
+      throw FormatException('$key in shop.json must be text.');
+    }
+    var value = raw == null ? '' : '$raw';
+    if (key == 'SMTP_PORT' && value.trim().isEmpty) {
+      value = '587';
+    }
+    if (key == 'TZ' && value.trim().isEmpty) {
+      value = 'Asia/Jerusalem';
+    }
+    if (key == 'SYNC_TOKEN' && value.trim().isEmpty) {
+      final kept = existing['SYNC_TOKEN']?.trim() ?? '';
+      if (kept.isNotEmpty) {
+        tokenToRemember = kept;
+        continue;
+      }
+      final created = const Uuid().v4();
+      tokenToRemember = created;
+      value = created;
+    }
+    updates[key] = value;
+  }
+
+  if (!envFile.existsSync()) {
+    envFile.parent.createSync(recursive: true);
+    envFile.writeAsStringSync('# Written from shop.json.\n');
+  }
+  writeEnvKeys(envFile, updates);
+  if (tokenToRemember != null) {
+    rememberShopToken(shopFile, tokenToRemember);
+  }
+}
+
+/// Fills an empty `SYNC_TOKEN` in [shopFile] so the edited file shows the token.
+void rememberShopToken(File shopFile, String token) {
+  final trimmed = token.trim();
+  if (!shopFile.existsSync() || trimmed.isEmpty) {
+    return;
+  }
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(shopFile.readAsStringSync());
+  } on FormatException {
+    return;
+  }
+  if (decoded is! Map) {
+    return;
+  }
+  final current = decoded['SYNC_TOKEN'];
+  final text = current == null ? '' : current.toString().trim();
+  if (text.isNotEmpty) {
+    return;
+  }
+  decoded['SYNC_TOKEN'] = trimmed;
+  shopFile.writeAsStringSync(
+    '${const JsonEncoder.withIndent('  ').convert(decoded)}\n',
+  );
 }
 
 String _encode(String value) {
