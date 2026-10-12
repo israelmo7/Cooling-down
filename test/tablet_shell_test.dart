@@ -250,10 +250,15 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('מי עובד עכשיו?'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('worker-name')), 'דנה');
+    await tester.tap(find.byKey(const Key('confirm-worker-name')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
-    expect(find.text('קליטה: חזה עוף ב-4.0 °C'), findsOneWidget);
+    expect(find.text('קליטה: חזה עוף ב-4.0 °C · דנה'), findsOneWidget);
     await tester.tap(find.text('ביטול'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -287,7 +292,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
-    expect(find.text('הוצאה: חזה עוף ב-4.0 °C'), findsOneWidget);
+    expect(find.text('הוצאה: חזה עוף ב-4.0 °C · דנה'), findsOneWidget);
     await tester.tap(find.byKey(const Key('confirm-recorded-action')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -393,7 +398,11 @@ void main() {
     }
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.enterText(find.byKey(const Key('worker-name')), 'דנה');
+    await tester.tap(find.byKey(const Key('confirm-worker-name')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.textContaining('מחוץ לטווח'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 4));

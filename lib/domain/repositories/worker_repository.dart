@@ -5,6 +5,8 @@ import '../workers/worker_session.dart';
 abstract class WorkerRepository {
   Stream<List<Worker>> watchAll();
 
+  Future<List<Worker>> listWorkers();
+
   Stream<WorkerSession> watchSession();
 
   Future<WorkerSession> readSession();

@@ -32,6 +32,17 @@ class DriftWorkerRepository implements WorkerRepository {
   }
 
   @override
+  Future<List<Worker>> listWorkers() async {
+    final rows = await (_db.select(
+      _db.workers,
+    )..orderBy([(table) => OrderingTerm(expression: table.name)])).get();
+    return [
+      for (final row in rows)
+        Worker(id: row.id, name: row.name, createdAt: row.createdAt),
+    ];
+  }
+
+  @override
   Stream<WorkerSession> watchSession() {
     final controller = StreamController<WorkerSession>();
     LocalSettingsRow? settings;

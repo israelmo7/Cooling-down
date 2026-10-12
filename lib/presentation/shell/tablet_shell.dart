@@ -88,6 +88,10 @@ class _TabletShellState extends ConsumerState<TabletShell>
   }
 
   void _noteActivity() {
+    final session = ref.read(workerSessionProvider).asData?.value;
+    if (session == null || !session.isActive(DateTime.now())) {
+      return;
+    }
     final now = DateTime.now().toUtc();
     _lastTouch = now;
     final previous = _lastPersisted;
@@ -115,20 +119,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
       return;
     }
     final session = sessionAsync.value ?? const WorkerSession();
-    final now = DateTime.now();
-    final touched = _lastTouch;
-    final stored = session.activeAt;
-    final latest = touched == null
-        ? stored
-        : stored == null || touched.isAfter(stored)
-        ? touched
-        : stored;
-    final fresh = WorkerSession(
-      workerId: session.workerId,
-      workerName: session.workerName,
-      activeAt: latest,
-    ).isActive(now);
-    if (fresh) {
+    if (session.isActive(DateTime.now())) {
       return;
     }
     await _askForWorker(required: true);
