@@ -10,6 +10,7 @@ import '../../domain/settings/device_settings.dart';
 import '../db/app_database.dart';
 import '../sync/gateway_factory.dart';
 import '../sync/sync_gateway.dart';
+import 'hub_report.dart';
 
 class DailyReportService {
   DailyReportService(
@@ -100,20 +101,34 @@ class DailyReportService {
       );
     }
 
-    if (!current.hasServer) {
+    final ReportPostResult result;
+    if (current.hubEnabled) {
+      result = await acceptOwnerReport(
+        db: _db,
+        settings: current,
+        report: ReportPost(
+          id: id,
+          environment: current.environmentName,
+          reportDate: date,
+          ownerEmail: current.ownerEmail.trim(),
+          subject: content.subject,
+          body: content.body,
+        ),
+      );
+    } else if (!current.hasServer) {
       return 'Saved on this tablet. Add a server to email it.';
+    } else {
+      result = await _gatewayFor(current).postReport(
+        ReportPost(
+          id: id,
+          environment: current.environmentName,
+          reportDate: date,
+          ownerEmail: current.ownerEmail.trim(),
+          subject: content.subject,
+          body: content.body,
+        ),
+      );
     }
-
-    final result = await _gatewayFor(current).postReport(
-      ReportPost(
-        id: id,
-        environment: current.environmentName,
-        reportDate: date,
-        ownerEmail: current.ownerEmail.trim(),
-        subject: content.subject,
-        body: content.body,
-      ),
-    );
     final emailed =
         result.status == ReportStatus.sent ||
         result.status == ReportStatus.alreadySent;
@@ -126,6 +141,9 @@ class DailyReportService {
         lastError: Value(result.error),
       ),
     );
+    if (current.hubEnabled && result.status == ReportStatus.stored) {
+      return 'Saved on this tablet. Add the mail server in Settings to email it.';
+    }
     return _message(result);
   }
 

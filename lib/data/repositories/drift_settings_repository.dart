@@ -30,21 +30,31 @@ class DriftSettingsRepository implements SettingsRepository {
 
   @override
   Future<void> save(DeviceSettings settings) async {
-    await ensure();
+    final previous = await ensure();
     final environment = settings.environmentName.trim();
     final deviceName = settings.deviceName.trim();
+    final serverUrl = normalizeServerUrl(settings.serverUrl);
     await (_db.update(
       _db.localSettings,
     )..where((table) => table.id.equals(localSettingsId))).write(
       LocalSettingsCompanion(
         deviceName: Value(deviceName.isEmpty ? 'This tablet' : deviceName),
         environmentName: Value(environment.isEmpty ? 'Kitchen' : environment),
-        serverUrl: Value(normalizeServerUrl(settings.serverUrl)),
+        serverUrl: Value(serverUrl),
         serverToken: Value(settings.serverToken.trim()),
         ownerEmail: Value(settings.ownerEmail.trim()),
         dailyReportEnabled: Value(settings.dailyReportEnabled),
-        reportHour: Value(settings.reportHour.clamp(0, 23)),
-        reportMinute: Value(settings.reportMinute.clamp(0, 59)),
+        reportHour: Value(settings.reportHour.clamp(0, 23).toInt()),
+        reportMinute: Value(settings.reportMinute.clamp(0, 59).toInt()),
+        syncCursor: serverUrl == previous.serverUrl
+            ? const Value.absent()
+            : const Value(0),
+        hubEnabled: Value(settings.hubEnabled),
+        smtpHost: Value(settings.smtpHost.trim()),
+        smtpPort: Value(settings.smtpPort.clamp(1, 65535).toInt()),
+        smtpUser: Value(settings.smtpUser.trim()),
+        smtpPassword: Value(settings.smtpPassword),
+        smtpFrom: Value(settings.smtpFrom.trim()),
       ),
     );
   }
@@ -86,6 +96,12 @@ class DriftSettingsRepository implements SettingsRepository {
       syncCursor: row.syncCursor,
       lastSyncAt: row.lastSyncAt,
       lastSyncError: row.lastSyncError,
+      hubEnabled: row.hubEnabled,
+      smtpHost: row.smtpHost,
+      smtpPort: row.smtpPort,
+      smtpUser: row.smtpUser,
+      smtpPassword: row.smtpPassword,
+      smtpFrom: row.smtpFrom,
     );
   }
 }

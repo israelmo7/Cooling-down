@@ -22,7 +22,7 @@ class TabletMaintenance {
       return;
     }
     final current = await settingsRepository.ensure();
-    if (current.hasServer) {
+    if (!current.hubEnabled && current.hasServer) {
       await syncRepository.trySync();
     }
     await reportService.deliverToday(manual: false);

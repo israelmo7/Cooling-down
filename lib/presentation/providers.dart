@@ -12,6 +12,7 @@ import '../data/repositories/drift_settings_repository.dart';
 import '../data/repositories/drift_sync_repository.dart';
 import '../data/sync/gateway_factory.dart';
 import '../data/sync/sync_gateway.dart';
+import '../data/sync/tablet_hub.dart';
 import '../domain/entities/alert.dart';
 import '../domain/entities/fridge.dart';
 import '../domain/entities/open_holding.dart';
@@ -79,6 +80,22 @@ final dailyReportServiceProvider = Provider<DailyReportService>((ref) {
     clock: ref.watch(clockProvider),
     gatewayFor: ref.watch(syncGatewayFactoryProvider),
   );
+});
+
+final tabletHubProvider = Provider<TabletHub>((ref) {
+  final hub = TabletHub(
+    ref.watch(appDatabaseProvider),
+    ref.watch(settingsRepositoryProvider),
+  );
+  ref.onDispose(hub.dispose);
+  ref.listen(settingsProvider, (_, next) {
+    hub.apply(next.asData?.value);
+  }, fireImmediately: true);
+  return hub;
+});
+
+final hubStatusProvider = StreamProvider<HubStatus>((ref) {
+  return ref.watch(tabletHubProvider).watch();
 });
 
 final tabletMaintenanceProvider = Provider<TabletMaintenance>((ref) {

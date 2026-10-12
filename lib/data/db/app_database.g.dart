@@ -2565,6 +2565,81 @@ class $LocalSettingsTable extends LocalSettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hubEnabledMeta = const VerificationMeta(
+    'hubEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> hubEnabled = GeneratedColumn<bool>(
+    'hub_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hub_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _smtpHostMeta = const VerificationMeta(
+    'smtpHost',
+  );
+  @override
+  late final GeneratedColumn<String> smtpHost = GeneratedColumn<String>(
+    'smtp_host',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _smtpPortMeta = const VerificationMeta(
+    'smtpPort',
+  );
+  @override
+  late final GeneratedColumn<int> smtpPort = GeneratedColumn<int>(
+    'smtp_port',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(587),
+  );
+  static const VerificationMeta _smtpUserMeta = const VerificationMeta(
+    'smtpUser',
+  );
+  @override
+  late final GeneratedColumn<String> smtpUser = GeneratedColumn<String>(
+    'smtp_user',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _smtpPasswordMeta = const VerificationMeta(
+    'smtpPassword',
+  );
+  @override
+  late final GeneratedColumn<String> smtpPassword = GeneratedColumn<String>(
+    'smtp_password',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _smtpFromMeta = const VerificationMeta(
+    'smtpFrom',
+  );
+  @override
+  late final GeneratedColumn<String> smtpFrom = GeneratedColumn<String>(
+    'smtp_from',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2580,6 +2655,12 @@ class $LocalSettingsTable extends LocalSettings
     syncCursor,
     lastSyncAt,
     lastSyncError,
+    hubEnabled,
+    smtpHost,
+    smtpPort,
+    smtpUser,
+    smtpPassword,
+    smtpFrom,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2694,6 +2775,45 @@ class $LocalSettingsTable extends LocalSettings
         ),
       );
     }
+    if (data.containsKey('hub_enabled')) {
+      context.handle(
+        _hubEnabledMeta,
+        hubEnabled.isAcceptableOrUnknown(data['hub_enabled']!, _hubEnabledMeta),
+      );
+    }
+    if (data.containsKey('smtp_host')) {
+      context.handle(
+        _smtpHostMeta,
+        smtpHost.isAcceptableOrUnknown(data['smtp_host']!, _smtpHostMeta),
+      );
+    }
+    if (data.containsKey('smtp_port')) {
+      context.handle(
+        _smtpPortMeta,
+        smtpPort.isAcceptableOrUnknown(data['smtp_port']!, _smtpPortMeta),
+      );
+    }
+    if (data.containsKey('smtp_user')) {
+      context.handle(
+        _smtpUserMeta,
+        smtpUser.isAcceptableOrUnknown(data['smtp_user']!, _smtpUserMeta),
+      );
+    }
+    if (data.containsKey('smtp_password')) {
+      context.handle(
+        _smtpPasswordMeta,
+        smtpPassword.isAcceptableOrUnknown(
+          data['smtp_password']!,
+          _smtpPasswordMeta,
+        ),
+      );
+    }
+    if (data.containsKey('smtp_from')) {
+      context.handle(
+        _smtpFromMeta,
+        smtpFrom.isAcceptableOrUnknown(data['smtp_from']!, _smtpFromMeta),
+      );
+    }
     return context;
   }
 
@@ -2755,6 +2875,30 @@ class $LocalSettingsTable extends LocalSettings
         DriftSqlType.string,
         data['${effectivePrefix}last_sync_error'],
       ),
+      hubEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hub_enabled'],
+      )!,
+      smtpHost: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}smtp_host'],
+      )!,
+      smtpPort: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}smtp_port'],
+      )!,
+      smtpUser: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}smtp_user'],
+      )!,
+      smtpPassword: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}smtp_password'],
+      )!,
+      smtpFrom: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}smtp_from'],
+      )!,
     );
   }
 
@@ -2779,6 +2923,12 @@ class LocalSettingsRow extends DataClass
   final int syncCursor;
   final DateTime? lastSyncAt;
   final String? lastSyncError;
+  final bool hubEnabled;
+  final String smtpHost;
+  final int smtpPort;
+  final String smtpUser;
+  final String smtpPassword;
+  final String smtpFrom;
   const LocalSettingsRow({
     required this.id,
     required this.deviceId,
@@ -2793,6 +2943,12 @@ class LocalSettingsRow extends DataClass
     required this.syncCursor,
     this.lastSyncAt,
     this.lastSyncError,
+    required this.hubEnabled,
+    required this.smtpHost,
+    required this.smtpPort,
+    required this.smtpUser,
+    required this.smtpPassword,
+    required this.smtpFrom,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2814,6 +2970,12 @@ class LocalSettingsRow extends DataClass
     if (!nullToAbsent || lastSyncError != null) {
       map['last_sync_error'] = Variable<String>(lastSyncError);
     }
+    map['hub_enabled'] = Variable<bool>(hubEnabled);
+    map['smtp_host'] = Variable<String>(smtpHost);
+    map['smtp_port'] = Variable<int>(smtpPort);
+    map['smtp_user'] = Variable<String>(smtpUser);
+    map['smtp_password'] = Variable<String>(smtpPassword);
+    map['smtp_from'] = Variable<String>(smtpFrom);
     return map;
   }
 
@@ -2836,6 +2998,12 @@ class LocalSettingsRow extends DataClass
       lastSyncError: lastSyncError == null && nullToAbsent
           ? const Value.absent()
           : Value(lastSyncError),
+      hubEnabled: Value(hubEnabled),
+      smtpHost: Value(smtpHost),
+      smtpPort: Value(smtpPort),
+      smtpUser: Value(smtpUser),
+      smtpPassword: Value(smtpPassword),
+      smtpFrom: Value(smtpFrom),
     );
   }
 
@@ -2858,6 +3026,12 @@ class LocalSettingsRow extends DataClass
       syncCursor: serializer.fromJson<int>(json['syncCursor']),
       lastSyncAt: serializer.fromJson<DateTime?>(json['lastSyncAt']),
       lastSyncError: serializer.fromJson<String?>(json['lastSyncError']),
+      hubEnabled: serializer.fromJson<bool>(json['hubEnabled']),
+      smtpHost: serializer.fromJson<String>(json['smtpHost']),
+      smtpPort: serializer.fromJson<int>(json['smtpPort']),
+      smtpUser: serializer.fromJson<String>(json['smtpUser']),
+      smtpPassword: serializer.fromJson<String>(json['smtpPassword']),
+      smtpFrom: serializer.fromJson<String>(json['smtpFrom']),
     );
   }
   @override
@@ -2877,6 +3051,12 @@ class LocalSettingsRow extends DataClass
       'syncCursor': serializer.toJson<int>(syncCursor),
       'lastSyncAt': serializer.toJson<DateTime?>(lastSyncAt),
       'lastSyncError': serializer.toJson<String?>(lastSyncError),
+      'hubEnabled': serializer.toJson<bool>(hubEnabled),
+      'smtpHost': serializer.toJson<String>(smtpHost),
+      'smtpPort': serializer.toJson<int>(smtpPort),
+      'smtpUser': serializer.toJson<String>(smtpUser),
+      'smtpPassword': serializer.toJson<String>(smtpPassword),
+      'smtpFrom': serializer.toJson<String>(smtpFrom),
     };
   }
 
@@ -2894,6 +3074,12 @@ class LocalSettingsRow extends DataClass
     int? syncCursor,
     Value<DateTime?> lastSyncAt = const Value.absent(),
     Value<String?> lastSyncError = const Value.absent(),
+    bool? hubEnabled,
+    String? smtpHost,
+    int? smtpPort,
+    String? smtpUser,
+    String? smtpPassword,
+    String? smtpFrom,
   }) => LocalSettingsRow(
     id: id ?? this.id,
     deviceId: deviceId ?? this.deviceId,
@@ -2910,6 +3096,12 @@ class LocalSettingsRow extends DataClass
     lastSyncError: lastSyncError.present
         ? lastSyncError.value
         : this.lastSyncError,
+    hubEnabled: hubEnabled ?? this.hubEnabled,
+    smtpHost: smtpHost ?? this.smtpHost,
+    smtpPort: smtpPort ?? this.smtpPort,
+    smtpUser: smtpUser ?? this.smtpUser,
+    smtpPassword: smtpPassword ?? this.smtpPassword,
+    smtpFrom: smtpFrom ?? this.smtpFrom,
   );
   LocalSettingsRow copyWithCompanion(LocalSettingsCompanion data) {
     return LocalSettingsRow(
@@ -2946,6 +3138,16 @@ class LocalSettingsRow extends DataClass
       lastSyncError: data.lastSyncError.present
           ? data.lastSyncError.value
           : this.lastSyncError,
+      hubEnabled: data.hubEnabled.present
+          ? data.hubEnabled.value
+          : this.hubEnabled,
+      smtpHost: data.smtpHost.present ? data.smtpHost.value : this.smtpHost,
+      smtpPort: data.smtpPort.present ? data.smtpPort.value : this.smtpPort,
+      smtpUser: data.smtpUser.present ? data.smtpUser.value : this.smtpUser,
+      smtpPassword: data.smtpPassword.present
+          ? data.smtpPassword.value
+          : this.smtpPassword,
+      smtpFrom: data.smtpFrom.present ? data.smtpFrom.value : this.smtpFrom,
     );
   }
 
@@ -2964,7 +3166,13 @@ class LocalSettingsRow extends DataClass
           ..write('reportMinute: $reportMinute, ')
           ..write('syncCursor: $syncCursor, ')
           ..write('lastSyncAt: $lastSyncAt, ')
-          ..write('lastSyncError: $lastSyncError')
+          ..write('lastSyncError: $lastSyncError, ')
+          ..write('hubEnabled: $hubEnabled, ')
+          ..write('smtpHost: $smtpHost, ')
+          ..write('smtpPort: $smtpPort, ')
+          ..write('smtpUser: $smtpUser, ')
+          ..write('smtpPassword: $smtpPassword, ')
+          ..write('smtpFrom: $smtpFrom')
           ..write(')'))
         .toString();
   }
@@ -2984,6 +3192,12 @@ class LocalSettingsRow extends DataClass
     syncCursor,
     lastSyncAt,
     lastSyncError,
+    hubEnabled,
+    smtpHost,
+    smtpPort,
+    smtpUser,
+    smtpPassword,
+    smtpFrom,
   );
   @override
   bool operator ==(Object other) =>
@@ -3001,7 +3215,13 @@ class LocalSettingsRow extends DataClass
           other.reportMinute == this.reportMinute &&
           other.syncCursor == this.syncCursor &&
           other.lastSyncAt == this.lastSyncAt &&
-          other.lastSyncError == this.lastSyncError);
+          other.lastSyncError == this.lastSyncError &&
+          other.hubEnabled == this.hubEnabled &&
+          other.smtpHost == this.smtpHost &&
+          other.smtpPort == this.smtpPort &&
+          other.smtpUser == this.smtpUser &&
+          other.smtpPassword == this.smtpPassword &&
+          other.smtpFrom == this.smtpFrom);
 }
 
 class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
@@ -3018,6 +3238,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
   final Value<int> syncCursor;
   final Value<DateTime?> lastSyncAt;
   final Value<String?> lastSyncError;
+  final Value<bool> hubEnabled;
+  final Value<String> smtpHost;
+  final Value<int> smtpPort;
+  final Value<String> smtpUser;
+  final Value<String> smtpPassword;
+  final Value<String> smtpFrom;
   final Value<int> rowid;
   const LocalSettingsCompanion({
     this.id = const Value.absent(),
@@ -3033,6 +3259,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.syncCursor = const Value.absent(),
     this.lastSyncAt = const Value.absent(),
     this.lastSyncError = const Value.absent(),
+    this.hubEnabled = const Value.absent(),
+    this.smtpHost = const Value.absent(),
+    this.smtpPort = const Value.absent(),
+    this.smtpUser = const Value.absent(),
+    this.smtpPassword = const Value.absent(),
+    this.smtpFrom = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalSettingsCompanion.insert({
@@ -3049,6 +3281,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.syncCursor = const Value.absent(),
     this.lastSyncAt = const Value.absent(),
     this.lastSyncError = const Value.absent(),
+    this.hubEnabled = const Value.absent(),
+    this.smtpHost = const Value.absent(),
+    this.smtpPort = const Value.absent(),
+    this.smtpUser = const Value.absent(),
+    this.smtpPassword = const Value.absent(),
+    this.smtpFrom = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        deviceId = Value(deviceId),
@@ -3068,6 +3306,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Expression<int>? syncCursor,
     Expression<DateTime>? lastSyncAt,
     Expression<String>? lastSyncError,
+    Expression<bool>? hubEnabled,
+    Expression<String>? smtpHost,
+    Expression<int>? smtpPort,
+    Expression<String>? smtpUser,
+    Expression<String>? smtpPassword,
+    Expression<String>? smtpFrom,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3085,6 +3329,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       if (syncCursor != null) 'sync_cursor': syncCursor,
       if (lastSyncAt != null) 'last_sync_at': lastSyncAt,
       if (lastSyncError != null) 'last_sync_error': lastSyncError,
+      if (hubEnabled != null) 'hub_enabled': hubEnabled,
+      if (smtpHost != null) 'smtp_host': smtpHost,
+      if (smtpPort != null) 'smtp_port': smtpPort,
+      if (smtpUser != null) 'smtp_user': smtpUser,
+      if (smtpPassword != null) 'smtp_password': smtpPassword,
+      if (smtpFrom != null) 'smtp_from': smtpFrom,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3103,6 +3353,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Value<int>? syncCursor,
     Value<DateTime?>? lastSyncAt,
     Value<String?>? lastSyncError,
+    Value<bool>? hubEnabled,
+    Value<String>? smtpHost,
+    Value<int>? smtpPort,
+    Value<String>? smtpUser,
+    Value<String>? smtpPassword,
+    Value<String>? smtpFrom,
     Value<int>? rowid,
   }) {
     return LocalSettingsCompanion(
@@ -3119,6 +3375,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       syncCursor: syncCursor ?? this.syncCursor,
       lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       lastSyncError: lastSyncError ?? this.lastSyncError,
+      hubEnabled: hubEnabled ?? this.hubEnabled,
+      smtpHost: smtpHost ?? this.smtpHost,
+      smtpPort: smtpPort ?? this.smtpPort,
+      smtpUser: smtpUser ?? this.smtpUser,
+      smtpPassword: smtpPassword ?? this.smtpPassword,
+      smtpFrom: smtpFrom ?? this.smtpFrom,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3165,6 +3427,24 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     if (lastSyncError.present) {
       map['last_sync_error'] = Variable<String>(lastSyncError.value);
     }
+    if (hubEnabled.present) {
+      map['hub_enabled'] = Variable<bool>(hubEnabled.value);
+    }
+    if (smtpHost.present) {
+      map['smtp_host'] = Variable<String>(smtpHost.value);
+    }
+    if (smtpPort.present) {
+      map['smtp_port'] = Variable<int>(smtpPort.value);
+    }
+    if (smtpUser.present) {
+      map['smtp_user'] = Variable<String>(smtpUser.value);
+    }
+    if (smtpPassword.present) {
+      map['smtp_password'] = Variable<String>(smtpPassword.value);
+    }
+    if (smtpFrom.present) {
+      map['smtp_from'] = Variable<String>(smtpFrom.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3187,6 +3467,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
           ..write('syncCursor: $syncCursor, ')
           ..write('lastSyncAt: $lastSyncAt, ')
           ..write('lastSyncError: $lastSyncError, ')
+          ..write('hubEnabled: $hubEnabled, ')
+          ..write('smtpHost: $smtpHost, ')
+          ..write('smtpPort: $smtpPort, ')
+          ..write('smtpUser: $smtpUser, ')
+          ..write('smtpPassword: $smtpPassword, ')
+          ..write('smtpFrom: $smtpFrom, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3810,6 +4096,376 @@ class DailyReportsCompanion extends UpdateCompanion<DailyReportRow> {
   }
 }
 
+class $SyncFeedTable extends SyncFeed
+    with TableInfo<$SyncFeedTable, SyncFeedRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncFeedTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _seqMeta = const VerificationMeta('seq');
+  @override
+  late final GeneratedColumn<int> seq = GeneratedColumn<int>(
+    'seq',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _originDeviceIdMeta = const VerificationMeta(
+    'originDeviceId',
+  );
+  @override
+  late final GeneratedColumn<String> originDeviceId = GeneratedColumn<String>(
+    'origin_device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    seq,
+    entityType,
+    entityId,
+    originDeviceId,
+    payloadJson,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_feed';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncFeedRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('seq')) {
+      context.handle(
+        _seqMeta,
+        seq.isAcceptableOrUnknown(data['seq']!, _seqMeta),
+      );
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('origin_device_id')) {
+      context.handle(
+        _originDeviceIdMeta,
+        originDeviceId.isAcceptableOrUnknown(
+          data['origin_device_id']!,
+          _originDeviceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {seq};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {entityType, entityId},
+  ];
+  @override
+  SyncFeedRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncFeedRow(
+      seq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}seq'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      originDeviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_device_id'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncFeedTable createAlias(String alias) {
+    return $SyncFeedTable(attachedDatabase, alias);
+  }
+}
+
+class SyncFeedRow extends DataClass implements Insertable<SyncFeedRow> {
+  final int seq;
+  final String entityType;
+  final String entityId;
+  final String originDeviceId;
+  final String payloadJson;
+  const SyncFeedRow({
+    required this.seq,
+    required this.entityType,
+    required this.entityId,
+    required this.originDeviceId,
+    required this.payloadJson,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['seq'] = Variable<int>(seq);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['origin_device_id'] = Variable<String>(originDeviceId);
+    map['payload_json'] = Variable<String>(payloadJson);
+    return map;
+  }
+
+  SyncFeedCompanion toCompanion(bool nullToAbsent) {
+    return SyncFeedCompanion(
+      seq: Value(seq),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      originDeviceId: Value(originDeviceId),
+      payloadJson: Value(payloadJson),
+    );
+  }
+
+  factory SyncFeedRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncFeedRow(
+      seq: serializer.fromJson<int>(json['seq']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      originDeviceId: serializer.fromJson<String>(json['originDeviceId']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'seq': serializer.toJson<int>(seq),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'originDeviceId': serializer.toJson<String>(originDeviceId),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+    };
+  }
+
+  SyncFeedRow copyWith({
+    int? seq,
+    String? entityType,
+    String? entityId,
+    String? originDeviceId,
+    String? payloadJson,
+  }) => SyncFeedRow(
+    seq: seq ?? this.seq,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    originDeviceId: originDeviceId ?? this.originDeviceId,
+    payloadJson: payloadJson ?? this.payloadJson,
+  );
+  SyncFeedRow copyWithCompanion(SyncFeedCompanion data) {
+    return SyncFeedRow(
+      seq: data.seq.present ? data.seq.value : this.seq,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      originDeviceId: data.originDeviceId.present
+          ? data.originDeviceId.value
+          : this.originDeviceId,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncFeedRow(')
+          ..write('seq: $seq, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('originDeviceId: $originDeviceId, ')
+          ..write('payloadJson: $payloadJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(seq, entityType, entityId, originDeviceId, payloadJson);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncFeedRow &&
+          other.seq == this.seq &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.originDeviceId == this.originDeviceId &&
+          other.payloadJson == this.payloadJson);
+}
+
+class SyncFeedCompanion extends UpdateCompanion<SyncFeedRow> {
+  final Value<int> seq;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String> originDeviceId;
+  final Value<String> payloadJson;
+  const SyncFeedCompanion({
+    this.seq = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.originDeviceId = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+  });
+  SyncFeedCompanion.insert({
+    this.seq = const Value.absent(),
+    required String entityType,
+    required String entityId,
+    this.originDeviceId = const Value.absent(),
+    required String payloadJson,
+  }) : entityType = Value(entityType),
+       entityId = Value(entityId),
+       payloadJson = Value(payloadJson);
+  static Insertable<SyncFeedRow> custom({
+    Expression<int>? seq,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? originDeviceId,
+    Expression<String>? payloadJson,
+  }) {
+    return RawValuesInsertable({
+      if (seq != null) 'seq': seq,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (originDeviceId != null) 'origin_device_id': originDeviceId,
+      if (payloadJson != null) 'payload_json': payloadJson,
+    });
+  }
+
+  SyncFeedCompanion copyWith({
+    Value<int>? seq,
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<String>? originDeviceId,
+    Value<String>? payloadJson,
+  }) {
+    return SyncFeedCompanion(
+      seq: seq ?? this.seq,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      originDeviceId: originDeviceId ?? this.originDeviceId,
+      payloadJson: payloadJson ?? this.payloadJson,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (seq.present) {
+      map['seq'] = Variable<int>(seq.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (originDeviceId.present) {
+      map['origin_device_id'] = Variable<String>(originDeviceId.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncFeedCompanion(')
+          ..write('seq: $seq, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('originDeviceId: $originDeviceId, ')
+          ..write('payloadJson: $payloadJson')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3821,6 +4477,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
   late final $LocalSettingsTable localSettings = $LocalSettingsTable(this);
   late final $DailyReportsTable dailyReports = $DailyReportsTable(this);
+  late final $SyncFeedTable syncFeed = $SyncFeedTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3833,6 +4490,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncOutbox,
     localSettings,
     dailyReports,
+    syncFeed,
   ];
 }
 
@@ -5909,6 +6567,12 @@ typedef $$LocalSettingsTableCreateCompanionBuilder =
       Value<int> syncCursor,
       Value<DateTime?> lastSyncAt,
       Value<String?> lastSyncError,
+      Value<bool> hubEnabled,
+      Value<String> smtpHost,
+      Value<int> smtpPort,
+      Value<String> smtpUser,
+      Value<String> smtpPassword,
+      Value<String> smtpFrom,
       Value<int> rowid,
     });
 typedef $$LocalSettingsTableUpdateCompanionBuilder =
@@ -5926,6 +6590,12 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder =
       Value<int> syncCursor,
       Value<DateTime?> lastSyncAt,
       Value<String?> lastSyncError,
+      Value<bool> hubEnabled,
+      Value<String> smtpHost,
+      Value<int> smtpPort,
+      Value<String> smtpUser,
+      Value<String> smtpPassword,
+      Value<String> smtpFrom,
       Value<int> rowid,
     });
 
@@ -6000,6 +6670,36 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get lastSyncError => $composableBuilder(
     column: $table.lastSyncError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hubEnabled => $composableBuilder(
+    column: $table.hubEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get smtpHost => $composableBuilder(
+    column: $table.smtpHost,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get smtpPort => $composableBuilder(
+    column: $table.smtpPort,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get smtpUser => $composableBuilder(
+    column: $table.smtpUser,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get smtpPassword => $composableBuilder(
+    column: $table.smtpPassword,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get smtpFrom => $composableBuilder(
+    column: $table.smtpFrom,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6077,6 +6777,36 @@ class $$LocalSettingsTableOrderingComposer
     column: $table.lastSyncError,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get hubEnabled => $composableBuilder(
+    column: $table.hubEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get smtpHost => $composableBuilder(
+    column: $table.smtpHost,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get smtpPort => $composableBuilder(
+    column: $table.smtpPort,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get smtpUser => $composableBuilder(
+    column: $table.smtpUser,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get smtpPassword => $composableBuilder(
+    column: $table.smtpPassword,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get smtpFrom => $composableBuilder(
+    column: $table.smtpFrom,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalSettingsTableAnnotationComposer
@@ -6146,6 +6876,28 @@ class $$LocalSettingsTableAnnotationComposer
     column: $table.lastSyncError,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get hubEnabled => $composableBuilder(
+    column: $table.hubEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get smtpHost =>
+      $composableBuilder(column: $table.smtpHost, builder: (column) => column);
+
+  GeneratedColumn<int> get smtpPort =>
+      $composableBuilder(column: $table.smtpPort, builder: (column) => column);
+
+  GeneratedColumn<String> get smtpUser =>
+      $composableBuilder(column: $table.smtpUser, builder: (column) => column);
+
+  GeneratedColumn<String> get smtpPassword => $composableBuilder(
+    column: $table.smtpPassword,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get smtpFrom =>
+      $composableBuilder(column: $table.smtpFrom, builder: (column) => column);
 }
 
 class $$LocalSettingsTableTableManager
@@ -6196,6 +6948,12 @@ class $$LocalSettingsTableTableManager
                 Value<int> syncCursor = const Value.absent(),
                 Value<DateTime?> lastSyncAt = const Value.absent(),
                 Value<String?> lastSyncError = const Value.absent(),
+                Value<bool> hubEnabled = const Value.absent(),
+                Value<String> smtpHost = const Value.absent(),
+                Value<int> smtpPort = const Value.absent(),
+                Value<String> smtpUser = const Value.absent(),
+                Value<String> smtpPassword = const Value.absent(),
+                Value<String> smtpFrom = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSettingsCompanion(
                 id: id,
@@ -6211,6 +6969,12 @@ class $$LocalSettingsTableTableManager
                 syncCursor: syncCursor,
                 lastSyncAt: lastSyncAt,
                 lastSyncError: lastSyncError,
+                hubEnabled: hubEnabled,
+                smtpHost: smtpHost,
+                smtpPort: smtpPort,
+                smtpUser: smtpUser,
+                smtpPassword: smtpPassword,
+                smtpFrom: smtpFrom,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6228,6 +6992,12 @@ class $$LocalSettingsTableTableManager
                 Value<int> syncCursor = const Value.absent(),
                 Value<DateTime?> lastSyncAt = const Value.absent(),
                 Value<String?> lastSyncError = const Value.absent(),
+                Value<bool> hubEnabled = const Value.absent(),
+                Value<String> smtpHost = const Value.absent(),
+                Value<int> smtpPort = const Value.absent(),
+                Value<String> smtpUser = const Value.absent(),
+                Value<String> smtpPassword = const Value.absent(),
+                Value<String> smtpFrom = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSettingsCompanion.insert(
                 id: id,
@@ -6243,6 +7013,12 @@ class $$LocalSettingsTableTableManager
                 syncCursor: syncCursor,
                 lastSyncAt: lastSyncAt,
                 lastSyncError: lastSyncError,
+                hubEnabled: hubEnabled,
+                smtpHost: smtpHost,
+                smtpPort: smtpPort,
+                smtpUser: smtpUser,
+                smtpPassword: smtpPassword,
+                smtpFrom: smtpFrom,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6589,6 +7365,210 @@ typedef $$DailyReportsTableProcessedTableManager =
       DailyReportRow,
       PrefetchHooks Function()
     >;
+typedef $$SyncFeedTableCreateCompanionBuilder = SyncFeedCompanion Function({
+  Value<int> seq,
+  required String entityType,
+  required String entityId,
+  Value<String> originDeviceId,
+  required String payloadJson,
+});
+typedef $$SyncFeedTableUpdateCompanionBuilder = SyncFeedCompanion Function({
+  Value<int> seq,
+  Value<String> entityType,
+  Value<String> entityId,
+  Value<String> originDeviceId,
+  Value<String> payloadJson,
+});
+
+class $$SyncFeedTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncFeedTable> {
+  $$SyncFeedTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncFeedTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncFeedTable> {
+  $$SyncFeedTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncFeedTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncFeedTable> {
+  $$SyncFeedTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get seq =>
+      $composableBuilder(column: $table.seq, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get originDeviceId => $composableBuilder(
+    column: $table.originDeviceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncFeedTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncFeedTable,
+          SyncFeedRow,
+          $$SyncFeedTableFilterComposer,
+          $$SyncFeedTableOrderingComposer,
+          $$SyncFeedTableAnnotationComposer,
+          $$SyncFeedTableCreateCompanionBuilder,
+          $$SyncFeedTableUpdateCompanionBuilder,
+          (
+            SyncFeedRow,
+            BaseReferences<_$AppDatabase, $SyncFeedTable, SyncFeedRow>,
+          ),
+          SyncFeedRow,
+          PrefetchHooks Function()
+        > {
+  $$SyncFeedTableTableManager(_$AppDatabase db, $SyncFeedTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncFeedTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncFeedTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncFeedTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> seq = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String> originDeviceId = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+              }) => SyncFeedCompanion(
+                seq: seq,
+                entityType: entityType,
+                entityId: entityId,
+                originDeviceId: originDeviceId,
+                payloadJson: payloadJson,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> seq = const Value.absent(),
+                required String entityType,
+                required String entityId,
+                Value<String> originDeviceId = const Value.absent(),
+                required String payloadJson,
+              }) => SyncFeedCompanion.insert(
+                seq: seq,
+                entityType: entityType,
+                entityId: entityId,
+                originDeviceId: originDeviceId,
+                payloadJson: payloadJson,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncFeedTable, SyncFeedRow>(table),
+                  BaseReferences<_$AppDatabase, $SyncFeedTable, SyncFeedRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncFeedTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncFeedTable,
+      SyncFeedRow,
+      $$SyncFeedTableFilterComposer,
+      $$SyncFeedTableOrderingComposer,
+      $$SyncFeedTableAnnotationComposer,
+      $$SyncFeedTableCreateCompanionBuilder,
+      $$SyncFeedTableUpdateCompanionBuilder,
+      (SyncFeedRow, BaseReferences<_$AppDatabase, $SyncFeedTable, SyncFeedRow>),
+      SyncFeedRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6607,4 +7587,6 @@ class $AppDatabaseManager {
       $$LocalSettingsTableTableManager(_db, _db.localSettings);
   $$DailyReportsTableTableManager get dailyReports =>
       $$DailyReportsTableTableManager(_db, _db.dailyReports);
+  $$SyncFeedTableTableManager get syncFeed =>
+      $$SyncFeedTableTableManager(_db, _db.syncFeed);
 }

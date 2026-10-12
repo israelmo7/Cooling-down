@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../data/sync/tablet_hub.dart';
 import '../../domain/reports/daily_report.dart';
 import '../../domain/settings/device_settings.dart';
 import '../providers.dart';
@@ -18,8 +20,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _serverUrl = TextEditingController();
   final _token = TextEditingController();
   final _email = TextEditingController();
+  final _smtpHost = TextEditingController();
+  final _smtpPort = TextEditingController(text: '587');
+  final _smtpUser = TextEditingController();
+  final _smtpPassword = TextEditingController();
+  final _smtpFrom = TextEditingController();
   var _loaded = false;
   var _reportEnabled = false;
+  var _hubEnabled = false;
   var _hour = 21;
   var _minute = 0;
   var _busy = false;
@@ -37,6 +45,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _serverUrl.dispose();
     _token.dispose();
     _email.dispose();
+    _smtpHost.dispose();
+    _smtpPort.dispose();
+    _smtpUser.dispose();
+    _smtpPassword.dispose();
+    _smtpFrom.dispose();
     super.dispose();
   }
 
@@ -51,7 +64,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _serverUrl.text = settings.serverUrl;
       _token.text = settings.serverToken;
       _email.text = settings.ownerEmail;
+      _smtpHost.text = settings.smtpHost;
+      _smtpPort.text = settings.smtpPort.toString();
+      _smtpUser.text = settings.smtpUser;
+      _smtpPassword.text = settings.smtpPassword;
+      _smtpFrom.text = settings.smtpFrom;
       _reportEnabled = settings.dailyReportEnabled;
+      _hubEnabled = settings.hubEnabled;
       _hour = settings.reportHour;
       _minute = settings.reportMinute;
       _loaded = true;
@@ -65,15 +84,27 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _show('Enter a full email address.');
       return null;
     }
+    var token = _token.text.trim();
+    if (_hubEnabled && token.isEmpty) {
+      token = const Uuid().v4();
+      _token.text = token;
+    }
+    final port = int.tryParse(_smtpPort.text.trim()) ?? 587;
     final next = current.copyWith(
       deviceName: _deviceName.text,
       environmentName: _environment.text,
-      serverUrl: _serverUrl.text,
-      serverToken: _token.text,
+      serverUrl: _hubEnabled ? '' : _serverUrl.text,
+      serverToken: token,
       ownerEmail: email,
       dailyReportEnabled: _reportEnabled,
       reportHour: _hour,
       reportMinute: _minute,
+      hubEnabled: _hubEnabled,
+      smtpHost: _smtpHost.text,
+      smtpPort: port,
+      smtpUser: _smtpUser.text,
+      smtpPassword: _smtpPassword.text,
+      smtpFrom: _smtpFrom.text,
     );
     await ref.read(settingsRepositoryProvider).save(next);
     return ref.read(settingsRepositoryProvider).ensure();
@@ -228,6 +259,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ],
       ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('This tablet is the shared copy'),
+        subtitle: const Text(
+          'Leave this app open. Other tablets use the address below and the token above. This is the same on iPhone and Android.',
+        ),
+        value: _hubEnabled,
+        onChanged: _busy
+            ? null
+            : (value) => setState(() => _hubEnabled = value),
+      ),
+      if (_hubEnabled)
+        ..._hubFields(ref.watch(hubStatusProvider).asData?.value),
     ];
     final actions = <Widget>[
       FilledButton(
@@ -293,6 +337,38 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             )
           : const Center(child: CircularProgressIndicator()),
     );
+  }
+
+  List<Widget> _hubFields(HubStatus? status) {
+    final address = status?.listening == true ? status!.address : status?.error;
+    return [
+      const SizedBox(height: 8),
+      Text(
+        address == null
+            ? 'Save to start sharing on this Wi-Fi.'
+            : 'Other tablets use $address',
+      ),
+      const SizedBox(height: 16),
+      _field(
+        controller: _smtpHost,
+        label: 'Mail server',
+        helper: 'Optional. Used when this Wi-Fi can reach the internet.',
+      ),
+      _field(controller: _smtpPort, label: 'Mail port', helper: 'Usually 587.'),
+      _field(controller: _smtpUser, label: 'Mail username', helper: ''),
+      _field(
+        controller: _smtpPassword,
+        label: 'Mail password',
+        helper: 'Stays on this tablet.',
+        obscure: true,
+      ),
+      _field(
+        controller: _smtpFrom,
+        label: 'Mail from address',
+        helper: 'The address the owner sees as the sender.',
+        keyboard: TextInputType.emailAddress,
+      ),
+    ];
   }
 
   Widget _field({

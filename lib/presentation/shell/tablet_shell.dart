@@ -39,6 +39,10 @@ class _TabletShellState extends ConsumerState<TabletShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      final current = ref.read(settingsProvider).asData?.value;
+      if (current?.hubEnabled == true) {
+        ref.read(tabletHubProvider).apply(current, restart: true);
+      }
       _tick();
     }
   }
@@ -61,6 +65,8 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final pendingCount = ref.watch(pendingSyncCountProvider).asData?.value ?? 0;
     final settings = ref.watch(settingsProvider).asData?.value;
     final sharing = settings?.hasServer ?? false;
+    final hub = settings?.hubEnabled ?? false;
+    ref.watch(tabletHubProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -68,7 +74,11 @@ class _TabletShellState extends ConsumerState<TabletShell>
         actions: [
           Center(
             child: Text(
-              _syncLabel(pendingCount: pendingCount, sharing: sharing),
+              _syncLabel(
+                pendingCount: pendingCount,
+                sharing: sharing,
+                hub: hub,
+              ),
             ),
           ),
           IconButton(
@@ -88,6 +98,23 @@ class _TabletShellState extends ConsumerState<TabletShell>
       ),
       body: Column(
         children: [
+          if (hub)
+            Material(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                child: Text(
+                  'This tablet is the shared copy. Leave it open on the Wi-Fi.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
           if (alerts.isNotEmpty)
             Material(
               color: Theme.of(context).colorScheme.errorContainer,
@@ -140,7 +167,14 @@ class _TabletShellState extends ConsumerState<TabletShell>
     );
   }
 
-  String _syncLabel({required int pendingCount, required bool sharing}) {
+  String _syncLabel({
+    required int pendingCount,
+    required bool sharing,
+    required bool hub,
+  }) {
+    if (hub) {
+      return 'Sharing on this Wi-Fi';
+    }
     if (!sharing) {
       return pendingCount == 0
           ? 'Saved on this tablet'

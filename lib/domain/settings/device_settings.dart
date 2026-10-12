@@ -13,6 +13,12 @@ class DeviceSettings {
     required this.syncCursor,
     this.lastSyncAt,
     this.lastSyncError,
+    this.hubEnabled = false,
+    this.smtpHost = '',
+    this.smtpPort = 587,
+    this.smtpUser = '',
+    this.smtpPassword = '',
+    this.smtpFrom = '',
   });
 
   final String deviceId;
@@ -27,6 +33,12 @@ class DeviceSettings {
   final int syncCursor;
   final DateTime? lastSyncAt;
   final String? lastSyncError;
+  final bool hubEnabled;
+  final String smtpHost;
+  final int smtpPort;
+  final String smtpUser;
+  final String smtpPassword;
+  final String smtpFrom;
 
   bool get hasServer => serverUrl.trim().isNotEmpty;
 
@@ -42,6 +54,12 @@ class DeviceSettings {
     int? syncCursor,
     DateTime? lastSyncAt,
     String? lastSyncError,
+    bool? hubEnabled,
+    String? smtpHost,
+    int? smtpPort,
+    String? smtpUser,
+    String? smtpPassword,
+    String? smtpFrom,
     bool clearLastSyncAt = false,
     bool clearLastSyncError = false,
   }) {
@@ -60,6 +78,12 @@ class DeviceSettings {
       lastSyncError: clearLastSyncError
           ? null
           : lastSyncError ?? this.lastSyncError,
+      hubEnabled: hubEnabled ?? this.hubEnabled,
+      smtpHost: smtpHost ?? this.smtpHost,
+      smtpPort: smtpPort ?? this.smtpPort,
+      smtpUser: smtpUser ?? this.smtpUser,
+      smtpPassword: smtpPassword ?? this.smtpPassword,
+      smtpFrom: smtpFrom ?? this.smtpFrom,
     );
   }
 }

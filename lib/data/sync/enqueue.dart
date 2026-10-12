@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../db/app_database.dart';
 import '../db/converters.dart';
+import 'feed.dart';
 
 const _uuid = Uuid();
 
@@ -13,8 +14,9 @@ Future<void> enqueueInsert(
   required String entityId,
   required Map<String, Object?> payload,
   required DateTime createdAt,
-}) {
-  return db
+  String originDeviceId = '',
+}) async {
+  await db
       .into(db.syncOutbox)
       .insert(
         SyncOutboxCompanion.insert(
@@ -27,4 +29,12 @@ Future<void> enqueueInsert(
           createdAt: createdAt,
         ),
       );
+  final origin = payload['origin_device_id'];
+  await rememberFeed(
+    db,
+    entityType: entityType,
+    entityId: entityId,
+    originDeviceId: origin is String ? origin : originDeviceId,
+    payload: payload,
+  );
 }

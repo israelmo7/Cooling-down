@@ -19,6 +19,7 @@ part 'app_database.g.dart';
     SyncOutbox,
     LocalSettings,
     DailyReports,
+    SyncFeed,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -27,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -46,6 +47,15 @@ class AppDatabase extends _$AppDatabase {
         await migrator.alterTable(
           TableMigration(alerts, newColumns: [alerts.originDeviceId]),
         );
+      }
+      if (from < 3) {
+        await migrator.addColumn(localSettings, localSettings.hubEnabled);
+        await migrator.addColumn(localSettings, localSettings.smtpHost);
+        await migrator.addColumn(localSettings, localSettings.smtpPort);
+        await migrator.addColumn(localSettings, localSettings.smtpUser);
+        await migrator.addColumn(localSettings, localSettings.smtpPassword);
+        await migrator.addColumn(localSettings, localSettings.smtpFrom);
+        await migrator.createTable(syncFeed);
       }
     },
     beforeOpen: (details) async {

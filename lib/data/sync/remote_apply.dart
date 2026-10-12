@@ -4,6 +4,7 @@ import '../../domain/entities/alert.dart';
 import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/sync/checkout_conflict.dart';
 import '../db/app_database.dart';
+import 'feed.dart';
 import 'sync_gateway.dart';
 
 /// Copies another tablet's rows into this database without queueing them again.
@@ -74,6 +75,14 @@ class RemoteApplier {
             ),
           ),
         );
+    await rememberFeed(
+      _db,
+      entityType: 'refrigeration_log',
+      entityId: id,
+      originDeviceId:
+          _optionalString(payload, 'origin_device_id') ?? change.deviceId,
+      payload: payload,
+    );
 
     if (eventType == LogEventType.checkOut) {
       await _ensureConflictForLog(id);
@@ -109,6 +118,14 @@ class RemoteApplier {
             ),
           ),
         );
+    await rememberFeed(
+      _db,
+      entityType: 'alert',
+      entityId: id,
+      originDeviceId:
+          _optionalString(payload, 'origin_device_id') ?? change.deviceId,
+      payload: payload,
+    );
   }
 
   Future<void> _applyProduct(SyncChange change) async {
@@ -196,6 +213,22 @@ class RemoteApplier {
             originDeviceId: Value(log.originDeviceId),
           ),
         );
+    await rememberFeed(
+      _db,
+      entityType: 'alert',
+      entityId: alertId,
+      originDeviceId: log.originDeviceId,
+      payload: {
+        'id': alertId,
+        'severity': AlertSeverity.warning.storageValue,
+        'kind': AlertKind.syncConflict.storageValue,
+        'product_id': log.productId,
+        'log_id': log.id,
+        'message': checkoutConflictMessage(log.productNameSnapshot),
+        'created_at': log.createdAt.toUtc().toIso8601String(),
+        'origin_device_id': log.originDeviceId,
+      },
+    );
   }
 }
 

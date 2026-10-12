@@ -21,7 +21,13 @@ flutter analyze
 flutter test
 ```
 
-## Optional server
+## One tablet shares with the others
+
+Pick one tablet and leave Cooling down open on the shop Wi-Fi. In Settings, turn on "This tablet is the shared copy". The page shows an address such as `http://192.168.1.20:8080` and the access token. On every other tablet, iPhone or Android, enter that same environment name, that address, and that token. They push their logs and pull the shared tablet's record. A log is never overwritten.
+
+The shared tablet has to stay on this app. Locking it or leaving the app stops sharing until it is opened again. Mailing the owner from that tablet needs the mail server fields in Settings and a Wi-Fi that can reach the internet. Without those fields, the report stays on the tablet.
+
+## Optional computer server
 
 From `server/`:
 

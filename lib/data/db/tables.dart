@@ -116,6 +116,18 @@ class LocalSettings extends Table {
   DateTimeColumn get lastSyncAt =>
       dateTime().named('last_sync_at').nullable()();
   TextColumn get lastSyncError => text().named('last_sync_error').nullable()();
+  BoolColumn get hubEnabled =>
+      boolean().named('hub_enabled').withDefault(const Constant(false))();
+  TextColumn get smtpHost =>
+      text().named('smtp_host').withDefault(const Constant(''))();
+  IntColumn get smtpPort =>
+      integer().named('smtp_port').withDefault(const Constant(587))();
+  TextColumn get smtpUser =>
+      text().named('smtp_user').withDefault(const Constant(''))();
+  TextColumn get smtpPassword =>
+      text().named('smtp_password').withDefault(const Constant(''))();
+  TextColumn get smtpFrom =>
+      text().named('smtp_from').withDefault(const Constant(''))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -174,5 +186,24 @@ class SyncOutbox extends Table {
   List<String> get customConstraints => [
     "CHECK (operation IN ('insert'))",
     "CHECK (status IN ('pending', 'in_flight', 'synced', 'failed'))",
+  ];
+}
+
+/// Ordered copy of every log and alert this tablet can hand to others.
+@DataClassName('SyncFeedRow')
+class SyncFeed extends Table {
+  @override
+  String get tableName => 'sync_feed';
+
+  IntColumn get seq => integer().autoIncrement()();
+  TextColumn get entityType => text().named('entity_type')();
+  TextColumn get entityId => text().named('entity_id')();
+  TextColumn get originDeviceId =>
+      text().named('origin_device_id').withDefault(const Constant(''))();
+  TextColumn get payloadJson => text().named('payload_json')();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {entityType, entityId},
   ];
 }
