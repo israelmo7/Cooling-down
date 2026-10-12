@@ -14,8 +14,6 @@ import '../widgets/transient_notice.dart';
 import 'product_catalog.dart';
 import 'worker_catalog.dart';
 
-const settingsEditPassword = '123459876';
-
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
@@ -175,11 +173,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return;
     }
     final saved = settings.settingsPassword.trim();
+    if (saved.isEmpty) {
+      setState(() => _unlocked = true);
+      return;
+    }
     final unlocked = await showDialog<bool>(
       context: context,
-      builder: (context) => _PasswordDialog(
-        password: saved.isEmpty ? settingsEditPassword : saved,
-      ),
+      builder: (context) => _PasswordDialog(password: saved),
     );
     if (unlocked == true && mounted) {
       setState(() => _unlocked = true);

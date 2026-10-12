@@ -192,24 +192,8 @@ void main() {
 
     await tester.tap(find.byKey(const Key('unlock-settings')));
     await tester.pump();
-    await tester.enterText(find.byKey(const Key('settings-password')), 'nope');
-    await tester.tap(find.byKey(const Key('confirm-settings-password')));
-    await tester.pump();
-    expect(find.text('הסיסמה שגויה.'), findsOneWidget);
-    expect(
-      tester
-          .widget<TextField>(find.byKey(const Key('settings-field-שם הסביבה')))
-          .readOnly,
-      isTrue,
-    );
-
-    await tester.enterText(
-      find.byKey(const Key('settings-password')),
-      '123459876',
-    );
-    await tester.tap(find.byKey(const Key('confirm-settings-password')));
-    await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('settings-password')), findsNothing);
     expect(
       tester
           .widget<TextField>(find.byKey(const Key('settings-field-שם הסביבה')))
@@ -550,12 +534,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.byKey(const Key('unlock-settings')));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const Key('settings-password')),
-      '123459876',
-    );
-    await tester.tap(find.byKey(const Key('confirm-settings-password')));
-    await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
     await tester.scrollUntilVisible(
@@ -802,13 +780,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.byKey(const Key('unlock-settings')));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const Key('settings-password')),
-      '123459876',
-    );
-    await tester.tap(find.byKey(const Key('confirm-settings-password')));
-    await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('settings-password')), findsNothing);
 
     expect(
       tester
@@ -993,13 +966,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.byKey(const Key('unlock-settings')));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const Key('settings-password')),
-      '123459876',
-    );
-    await tester.tap(find.byKey(const Key('confirm-settings-password')));
-    await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('settings-password')), findsNothing);
 
     final fieldsScroll = Scrollable.of(
       tester.element(find.byKey(const Key('settings-field-שם הסביבה'))),
