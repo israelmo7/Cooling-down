@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/db/seed_ids.dart';
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/failures.dart';
@@ -21,7 +22,6 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
   final _searchController = TextEditingController();
   String _query = '';
   Product? _selectedProduct;
-  Fridge? _selectedFridge;
   double _temperature = 4;
   bool _saving = false;
 
@@ -31,9 +31,23 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     super.dispose();
   }
 
+  Fridge? _environmentFridge(List<Fridge> items) {
+    for (final fridge in items) {
+      if (fridge.id == SeedIds.kitchenFridge) {
+        return fridge;
+      }
+    }
+    if (items.isEmpty) {
+      return null;
+    }
+    return items.first;
+  }
+
   Future<void> _confirm() async {
     final product = _selectedProduct;
-    final fridge = _selectedFridge;
+    final fridge = _environmentFridge(
+      ref.read(fridgesProvider).asData?.value ?? const [],
+    );
     if (product == null || fridge == null || _saving) {
       return;
     }
@@ -88,8 +102,10 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
   Widget build(BuildContext context) {
     final products = ref.watch(productSearchProvider(_query));
     final fridges = ref.watch(fridgesProvider);
-    final canConfirm =
-        _selectedProduct != null && _selectedFridge != null && !_saving;
+    final fridge = fridges.asData == null
+        ? null
+        : _environmentFridge(fridges.asData!.value);
+    final canConfirm = _selectedProduct != null && fridge != null && !_saving;
 
     return ScreenBody(
       child: LayoutBuilder(
@@ -105,12 +121,9 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
           );
           final controls = _CheckInControls(
             fridges: fridges,
-            selectedFridgeId: _selectedFridge?.id,
             temperature: _temperature,
             canConfirm: canConfirm,
             saving: _saving,
-            expandChoices: wide,
-            onFridgeSelected: _selectFridge,
             onTemperatureChanged: (value) =>
                 setState(() => _temperature = value),
             onConfirm: _confirm,
@@ -137,12 +150,6 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     );
   }
 
-  void _selectFridge(Fridge fridge) {
-    setState(() {
-      _selectedFridge = fridge;
-      _temperature = (fridge.minCelsius + fridge.maxCelsius) / 2;
-    });
-  }
 }
 
 class _CatalogPane extends StatelessWidget {
@@ -227,23 +234,17 @@ class _CatalogPane extends StatelessWidget {
 class _CheckInControls extends StatelessWidget {
   const _CheckInControls({
     required this.fridges,
-    required this.selectedFridgeId,
     required this.temperature,
     required this.canConfirm,
     required this.saving,
-    required this.expandChoices,
-    required this.onFridgeSelected,
     required this.onTemperatureChanged,
     required this.onConfirm,
   });
 
   final AsyncValue<List<Fridge>> fridges;
-  final String? selectedFridgeId;
   final double temperature;
   final bool canConfirm;
   final bool saving;
-  final bool expandChoices;
-  final ValueChanged<Fridge> onFridgeSelected;
   final ValueChanged<double> onTemperatureChanged;
   final VoidCallback onConfirm;
 
@@ -252,31 +253,11 @@ class _CheckInControls extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('מקרר', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 16),
         fridges.when(
           loading: () => const LinearProgressIndicator(),
-          error: (error, _) => Text('לא ניתן לטעון מקררים: $error'),
-          data: (items) {
-            final choices = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var index = 0; index < items.length; index++) ...[
-                  if (index > 0) const SizedBox(height: 16),
-                  if (expandChoices)
-                    Expanded(child: _fridgeButton(items[index]))
-                  else
-                    SizedBox(height: 80, child: _fridgeButton(items[index])),
-                ],
-              ],
-            );
-            if (!expandChoices) {
-              return choices;
-            }
-            return Expanded(child: choices);
-          },
+          error: (error, _) => Text('לא ניתן לטעון את הסביבה: $error'),
+          data: (_) => const SizedBox.shrink(),
         ),
-        const SizedBox(height: 28),
         TemperatureStepper(
           temperature: temperature,
           onChanged: onTemperatureChanged,
@@ -293,21 +274,6 @@ class _CheckInControls extends StatelessWidget {
           onPressed: canConfirm ? onConfirm : null,
         ),
       ],
-    );
-  }
-
-  Widget _fridgeButton(Fridge fridge) {
-    final selected = fridge.id == selectedFridgeId;
-    final child = Text(fridge.name, textAlign: TextAlign.center);
-    if (selected) {
-      return FilledButton(
-        onPressed: () => onFridgeSelected(fridge),
-        child: child,
-      );
-    }
-    return FilledButton.tonal(
-      onPressed: () => onFridgeSelected(fridge),
-      child: child,
     );
   }
 }

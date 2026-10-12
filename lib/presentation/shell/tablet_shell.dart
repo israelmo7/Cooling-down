@@ -66,12 +66,11 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final settings = ref.watch(settingsProvider).asData?.value;
     final sharing = settings?.hasServer ?? false;
     final hub = settings?.hubEnabled ?? false;
-    final environment = settings?.environmentName.trim() ?? '';
     ref.watch(tabletHubProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(environment.isEmpty ? 'קירור' : environment),
+        title: const Text('קירור'),
         actions: [
           Center(
             child: Text(

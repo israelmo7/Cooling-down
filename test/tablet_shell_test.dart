@@ -31,7 +31,9 @@ void main() {
     expect(find.text('הוצאה'), findsOneWidget);
     expect(find.text('במקרר'), findsOneWidget);
     expect(find.text('חזה עוף'), findsOneWidget);
-    expect(find.text('מקרר מטבח'), findsOneWidget);
+    expect(find.text('מקרר'), findsNothing);
+    expect(find.text('מקרר מטבח'), findsNothing);
+    expect(find.text('קירור'), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-in')), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-out')), findsNothing);
 
@@ -39,6 +41,15 @@ void main() {
       find.byKey(const Key('confirm-check-in')),
     );
     expect(checkIn.onPressed, isNull);
+
+    await tester.tap(find.text('חזה עוף'));
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('confirm-check-in')))
+          .onPressed,
+      isNotNull,
+    );
 
     await tester.tap(find.text('הוצאה'));
     await tester.pump();
@@ -84,7 +95,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('מטבח'), findsWidgets);
+    expect(find.text('קירור'), findsOneWidget);
     expect(find.text('שם הסביבה'), findsOneWidget);
     expect(find.text('אימייל הבעלים'), findsNothing);
     expect(find.text('מוצרים'), findsOneWidget);
@@ -145,7 +156,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('גבינה'), findsOneWidget);
-    expect(find.text('מטבח'), findsOneWidget);
+    expect(find.text('קירור'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
