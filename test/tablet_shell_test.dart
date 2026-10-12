@@ -87,7 +87,41 @@ void main() {
     expect(find.text('שם הסביבה'), findsOneWidget);
     expect(find.text('אימייל הבעלים'), findsOneWidget);
     expect(find.text('שליחת דוח בחצות'), findsOneWidget);
-    expect(find.text('שליחת הדוח היומי'), findsOneWidget);
+    expect(find.text('שליחת הדוח היומי'), findsNothing);
+    expect(find.text('שינוי הגדרות'), findsOneWidget);
+
+    final locked = tester.widget<TextField>(
+      find.byKey(const Key('settings-field-שם הסביבה')),
+    );
+    expect(locked.readOnly, isTrue);
+
+    await tester.tap(find.byKey(const Key('unlock-settings')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('settings-password')), 'nope');
+    await tester.tap(find.byKey(const Key('confirm-settings-password')));
+    await tester.pump();
+    expect(find.text('הסיסמה שגויה.'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('settings-field-שם הסביבה')))
+          .readOnly,
+      isTrue,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('settings-password')),
+      '123459876',
+    );
+    await tester.tap(find.byKey(const Key('confirm-settings-password')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('settings-field-שם הסביבה')))
+          .readOnly,
+      isFalse,
+    );
+    expect(find.text('שמירה'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

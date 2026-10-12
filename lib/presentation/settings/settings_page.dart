@@ -7,6 +7,8 @@ import '../../domain/reports/daily_report.dart';
 import '../../domain/settings/device_settings.dart';
 import '../providers.dart';
 
+const settingsEditPassword = '123459876';
+
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
@@ -26,6 +28,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _smtpPassword = TextEditingController();
   final _smtpFrom = TextEditingController();
   var _loaded = false;
+  var _unlocked = false;
   var _reportEnabled = true;
   var _hubEnabled = false;
   var _busy = false;
@@ -130,20 +133,56 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     });
   }
 
-  Future<void> _sendReport() async {
-    await _run(() async {
-      final saved = await _save();
-      if (saved == null) {
-        return;
-      }
-      final message = await ref
-          .read(dailyReportServiceProvider)
-          .deliverToday(manual: true);
-      if (!mounted || message.isEmpty) {
-        return;
-      }
-      _show(message);
-    });
+  Future<void> _promptUnlock() async {
+    final controller = TextEditingController();
+    var wrong = false;
+    final unlocked = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            void submit() {
+              if (controller.text.trim() == settingsEditPassword) {
+                Navigator.of(dialogContext).pop(true);
+                return;
+              }
+              setDialogState(() => wrong = true);
+            }
+
+            return AlertDialog(
+              title: const Text('שינוי הגדרות'),
+              content: TextField(
+                key: const Key('settings-password'),
+                controller: controller,
+                obscureText: true,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'סיסמה',
+                  errorText: wrong ? 'הסיסמה שגויה.' : null,
+                ),
+                onSubmitted: (_) => submit(),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('ביטול'),
+                ),
+                FilledButton(
+                  key: const Key('confirm-settings-password'),
+                  onPressed: submit,
+                  child: const Text('אישור'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    controller.dispose();
+    if (unlocked == true && mounted) {
+      setState(() => _unlocked = true);
+    }
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -213,9 +252,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         title: const Text('שליחת דוח בחצות'),
         subtitle: const Text('ב-00:00 נשלח דוח על היום שהסתיים.'),
         value: _reportEnabled,
-        onChanged: _busy
-            ? null
-            : (value) => setState(() => _reportEnabled = value),
+        onChanged: _canEdit
+            ? (value) => setState(() => _reportEnabled = value)
+            : null,
       ),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
@@ -224,34 +263,37 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           'השאירו את האפליקציה פתוחה. טאבלטים אחרים משתמשים בכתובת שמופיעה כאן ובאסימון למעלה.',
         ),
         value: _hubEnabled,
-        onChanged: _busy
-            ? null
-            : (value) => setState(() => _hubEnabled = value),
+        onChanged: _canEdit
+            ? (value) => setState(() => _hubEnabled = value)
+            : null,
       ),
       if (_hubEnabled)
         ..._hubFields(ref.watch(hubStatusProvider).asData?.value),
     ];
     final actions = <Widget>[
-      FilledButton(
-        onPressed: _busy
-            ? null
-            : () => _run(() async {
-                final saved = await _save();
-                if (saved != null && mounted) {
-                  _show('ההגדרות נשמרו.');
-                }
-              }),
-        child: const Text('שמירה'),
-      ),
+      if (!_unlocked)
+        OutlinedButton(
+          key: const Key('unlock-settings'),
+          onPressed: _busy ? null : _promptUnlock,
+          child: const Text('שינוי הגדרות'),
+        ),
+      if (_unlocked)
+        FilledButton(
+          onPressed: _busy
+              ? null
+              : () => _run(() async {
+                  final saved = await _save();
+                  if (saved != null && mounted) {
+                    setState(() => _unlocked = false);
+                    _show('ההגדרות נשמרו.');
+                  }
+                }),
+          child: const Text('שמירה'),
+        ),
       const SizedBox(height: 12),
       OutlinedButton(
         onPressed: _busy ? null : _syncNow,
         child: const Text('סנכרון עכשיו'),
-      ),
-      const SizedBox(height: 12),
-      OutlinedButton(
-        onPressed: _busy ? null : _sendReport,
-        child: const Text('שליחת הדוח היומי'),
       ),
       const SizedBox(height: 28),
       Text('סנכרון אחרון: ${_lastSync(settings)}'),
@@ -339,9 +381,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextField(
+        key: Key('settings-field-$label'),
         controller: controller,
         obscureText: obscure,
         keyboardType: keyboard,
+        readOnly: !_unlocked,
         enabled: !_busy,
         style: const TextStyle(fontSize: 18),
         decoration: InputDecoration(
@@ -353,6 +397,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       ),
     );
   }
+
+  bool get _canEdit => _unlocked && !_busy;
 
   String _lastSync(DeviceSettings? settings) {
     if (settings == null || settings.lastSyncAt == null) {
