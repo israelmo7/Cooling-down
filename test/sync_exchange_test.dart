@@ -83,7 +83,7 @@ void main() {
     },
   );
 
-  test('sync pulls another tablet and marks the local outbox synced', () async {
+  test('sync uploads this tablet and leaves another tablet out', () async {
     final database = AppDatabase.memory();
     addTearDown(database.close);
     final settings = DriftSettingsRepository(database);
@@ -129,9 +129,10 @@ void main() {
     final saved = await settings.ensure();
 
     expect(attempt.synced, 1);
-    expect(attempt.pulled, 1);
+    expect(attempt.pulled, 0);
     expect(attempt.remaining, 0);
-    expect(holdings.map((row) => row.productName), contains('Insulin'));
+    expect(holdings.map((row) => row.productName), isNot(contains('Insulin')));
+    expect(holdings.map((row) => row.productName), contains('חזה עוף'));
     expect(outbox.single.status.name, 'synced');
     expect(saved.syncCursor, 8);
     expect(saved.lastSyncError, isNull);

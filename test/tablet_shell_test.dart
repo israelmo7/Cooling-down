@@ -94,6 +94,8 @@ void main() {
     expect(find.text('שרת דואר'), findsNothing);
     expect(find.text('שליחת הדוח היומי'), findsNothing);
     expect(find.byKey(const Key('settings-field-אסימון גישה')), findsNothing);
+    expect(find.byKey(const Key('settings-field-כתובת המחשב')), findsNothing);
+    expect(find.text('לוח ניהול'), findsOneWidget);
     expect(find.text('שינוי הגדרות'), findsOneWidget);
 
     final locked = tester.widget<TextField>(
@@ -129,6 +131,7 @@ void main() {
     );
     expect(find.text('שמירה'), findsOneWidget);
     expect(find.byKey(const Key('settings-field-אסימון גישה')), findsOneWidget);
+    expect(find.byKey(const Key('settings-field-כתובת המחשב')), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const Key('add-product')));
     await tester.pump();
