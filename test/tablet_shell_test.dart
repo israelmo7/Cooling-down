@@ -49,6 +49,7 @@ void main() {
     expect(find.text('מקרר'), findsNothing);
     expect(find.text('מקרר מטבח'), findsNothing);
     expect(find.text('מטבח'), findsOneWidget);
+    expect(find.byKey(const Key('settings-section-catalog')), findsNothing);
     expect(find.byKey(const Key('confirm-check-in')), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-out')), findsNothing);
     expect(find.text('מי עובד עכשיו?'), findsNothing);
@@ -125,6 +126,19 @@ void main() {
       isFalse,
     );
     expect(find.text('שם הסביבה'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-section-catalog'))).dy,
+      greaterThan(
+        tester.getTopLeft(find.byKey(const Key('settings-field-שם הסביבה'))).dy,
+      ),
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-product-list'))).dy,
+      greaterThan(
+        tester.getTopLeft(find.byKey(const Key('settings-section-catalog'))).dy,
+      ),
+    );
+    expect(find.byKey(const Key('settings-section-admin')), findsOneWidget);
     expect(find.text('שם המכשיר'), findsNothing);
     expect(find.text('מזהה: מטבח'), findsOneWidget);
     expect(find.text('אימייל הבעלים'), findsNothing);
@@ -558,8 +572,17 @@ void main() {
     await tester.tap(find.byKey(const Key('settings-worker-list')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.ensureVisible(find.byKey(const Key('add-worker')));
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('new-worker-name'))),
+      alignment: 0.5,
+    );
+    await tester.pump();
     await tester.enterText(find.byKey(const Key('new-worker-name')), 'דנה');
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('add-worker'))),
+      alignment: 0.5,
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('add-worker')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));

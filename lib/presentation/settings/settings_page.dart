@@ -9,6 +9,7 @@ import '../../domain/settings/device_settings.dart';
 import '../../domain/workers/worker_refresh.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
+import '../widgets/station_widgets.dart';
 import '../widgets/transient_notice.dart';
 import 'product_catalog.dart';
 import 'worker_catalog.dart';
@@ -232,13 +233,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         'הטאבלט שומר כל קליטה והוצאה גם כשאין רשת. כשהמחשב בחנות זמין, הנתונים עולים אליו. בחצות המחשב שולח לבעלים דוח על היום שהסתיים.',
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      const SizedBox(height: 24),
+      const _SectionRule('settings-section-place'),
       _field(
         controller: _environment,
         label: 'שם הסביבה',
         helper: 'השם שמופיע בראש הטאבלט. עד 20 תווים.',
         inputFormatters: [LengthLimitingTextInputFormatter(20)],
       ),
+      const _SectionRule('settings-section-catalog'),
       ProductCatalogEditor(
         key: const ValueKey('product-catalog'),
         unlocked: _canEdit,
@@ -248,8 +250,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         key: const ValueKey('worker-catalog'),
         unlocked: _canEdit,
       ),
+      const _SectionRule('settings-section-secure'),
       if (_unlocked) ...[
-        const SizedBox(height: 8),
         _workerRefreshControl(),
         _field(
           controller: _serverUrl,
@@ -271,10 +273,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             LengthLimitingTextInputFormatter(12),
           ],
         ),
-      ] else ...[
-        const SizedBox(height: 8),
+      ] else
         _confirmActionControl(),
-      ],
     ];
     final actions = <Widget>[
       if (!_unlocked)
@@ -301,7 +301,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         onPressed: _busy ? null : _syncNow,
         child: const Text('סנכרון עכשיו'),
       ),
-      const SizedBox(height: 28),
+      const _SectionRule('settings-section-status'),
       Text('סנכרון אחרון: ${_lastSync(settings)}'),
       const SizedBox(height: 8),
       Text('דוח אחרון: ${_lastReport(report)}'),
@@ -348,8 +348,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     },
                   ),
                 ),
+                const Divider(
+                  key: Key('settings-section-admin'),
+                  height: 1,
+                  thickness: 1,
+                  color: stationLine,
+                ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 0, 32, 24),
+                  padding: const EdgeInsets.fromLTRB(32, 16, 32, 24),
                   child: SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
@@ -519,6 +525,25 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return 'עדיין אין';
     }
     return '${report.reportDate} · ${_reportStatus(report.status)}';
+  }
+}
+
+class _SectionRule extends StatelessWidget {
+  const _SectionRule(this.ruleKey);
+
+  final String ruleKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 20),
+      child: Divider(
+        key: Key(ruleKey),
+        height: 1,
+        thickness: 1,
+        color: stationLine,
+      ),
+    );
   }
 }
 
