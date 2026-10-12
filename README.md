@@ -4,7 +4,7 @@ Tablet app, in Hebrew, for logging refrigerator check-in and check-out temperatu
 
 Check-in and check-out stay separate rows. A log is never edited. If two tablets check the same item out, both temperatures are kept, an alert is recorded, and the earliest check-out is the one that closes the item.
 
-Check-in, check-out, and the fridge list are three full-screen Hebrew tabs. The settings button on the top bar holds the computer address, token, and owner email. The daily report is fixed at midnight.
+Check-in, check-out, and the fridge list are three full-screen Hebrew tabs. The settings button on the top bar holds the computer address and token. The owner email and the mail server are set on the shop computer. The daily report is fixed at midnight.
 
 ## Run
 
@@ -21,30 +21,27 @@ flutter analyze
 flutter test
 ```
 
-## One tablet shares with the others
-
-Pick one tablet and leave Cooling down open on the shop Wi-Fi. In Settings, turn on "This tablet is the shared copy". The page shows an address such as `http://192.168.1.20:8080` and the access token. On every other tablet, iPhone or Android, enter that same environment name, that address, and that token. They push their logs and pull the shared tablet's record. A log is never overwritten.
-
-The shared tablet has to stay on this app. Locking it or leaving the app stops sharing until it is opened again. Mailing the owner from that tablet needs the mail server fields in Settings and a Wi-Fi that can reach the internet. Without those fields, the report stays on the tablet.
-
 ## Shop computer
+
+The shop computer is the local server. Tablets upload to it. They do not share through another tablet.
 
 From `server/`:
 
 ```bash
+cp .env.example .env
 dart pub get
-SYNC_TOKEN=choose-a-long-secret dart run bin/server.dart
+dart run bin/server.dart
 ```
 
-If `SYNC_TOKEN` is unset, the process writes `sync_token.txt` and prints the token once. Put that token, and `http://<server>:8080`, into Settings on each tablet. Use the same environment name on every tablet that should share one kitchen or pharmacy. Keep the server on a network you trust; the token stays on the tablet.
+Fill `.env` before the first real run. `SYNC_TOKEN` is the tablet access token. `ADMIN_USER` and `ADMIN_PASSWORD` open `/admin`. If `SYNC_TOKEN` is empty, the process writes one into `.env` and prints it once. Put that token, and `http://<computer>:8080`, into Settings on each tablet. Use the same environment name on every tablet that should share one kitchen or pharmacy. Keep `.env` and `cooling_down_server.sqlite` on that computer. Do not commit them.
 
-Email is off until these are set in the server process environment: `OWNER_EMAIL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. `OWNER_EMAIL` is the address that receives the midnight report. It is saved on the computer, not on the tablets. Without the mail settings, the report is stored on the computer. Do not commit those values.
+`PORT` defaults to 8080. `DATA_PATH` defaults to `cooling_down_server.sqlite`. A process variable with the same name overrides the file.
 
-`PORT` defaults to 8080. `DATA_PATH` defaults to `cooling_down_server.sqlite`.
+The mail fields in `.env` are `OWNER_EMAIL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. `/admin` can change those and writes them back to `.env`, so a restart keeps the change. `OWNER_EMAIL` is the default owner address. Each environment on that page can have its own address. A place that already has a different address is left as it is. Without the mail server fields, the report is stored on the computer.
 
 On each tablet, enter that address, the token, and that tablet's own environment name. Tablets do not copy each other's logs. The computer keeps each environment separately. The app bar shows that environment name. Settings stay locked until שינוי הגדרות is pressed. A blank סיסמה means no password, and saving it blank clears one. Any password saved there is required the next time. Until then the computer address and access token stay hidden. The product list in Settings is what check-in search uses. לוח ניהול at the bottom of Settings opens `http://<server>:8080/admin`.
 
-Set `ADMIN_USER` and `ADMIN_PASSWORD` when starting the computer. That page can change the owner email for one environment without touching another. At 00:00 the computer emails that environment's owner a Hebrew report of the previous day. If a tablet was offline, its rows stay on that tablet and upload on the next successful sync. The first successful email for a day wins.
+At 00:00 the computer emails that environment's owner a Hebrew report of the previous day. If a tablet was offline, its rows stay on that tablet and upload on the next successful sync. The first successful email for a day wins.
 
 ## Layout
 

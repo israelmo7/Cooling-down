@@ -5,83 +5,84 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:sqlite3/sqlite3.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:cooling_down_server/env_file.dart';
 import 'package:cooling_down_server/handler.dart';
 import 'package:cooling_down_server/mailer.dart';
+import 'package:cooling_down_server/server_config.dart';
 import 'package:cooling_down_server/sync_store.dart';
 
 Future<void> main() async {
-  final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
-  final dataPath =
-      Platform.environment['DATA_PATH'] ?? 'cooling_down_server.sqlite';
-  final token = await _loadToken();
-  final ownerEmail = Platform.environment['OWNER_EMAIL']?.trim() ?? '';
-  final adminUser = Platform.environment['ADMIN_USER']?.trim() ?? '';
-  final adminPassword = Platform.environment['ADMIN_PASSWORD'] ?? '';
-  final database = sqlite3.open(dataPath);
+  final envFile = resolveEnvFile();
+  final config = ServerConfig.fromMaps(
+    file: loadEnvFile(envFile),
+    platform: Platform.environment,
+  );
+  final token = await _loadToken(config.syncToken, envFile);
+  final database = sqlite3.open(config.dataPath);
   final store = SyncStore(
     database,
-    mailer: const EnvReportMailer(),
-    ownerEmail: ownerEmail,
+    mailer: EnvReportMailer(config.mail),
+    ownerEmail: config.mail.ownerEmail,
   );
   final server = await shelf_io.serve(
     buildHandler(
       store: store,
       token: token,
-      adminUser: adminUser,
-      adminPassword: adminPassword,
+      adminUser: config.adminUser,
+      adminPassword: config.adminPassword,
+      mail: config.mail,
+      envFile: envFile,
     ),
     InternetAddress.anyIPv4,
-    port,
+    config.port,
   );
   stdout.writeln(
     'Cooling down server on http://${server.address.host}:${server.port}',
   );
-  final smtpHost = Platform.environment['SMTP_HOST'];
-  if (smtpHost == null || smtpHost.isEmpty) {
+  stdout.writeln('Settings file: ${envFile.path}');
+  if (!config.mail.emailEnabled) {
+    stdout.writeln('Email is off. Set the mail fields in .env or on /admin.');
+  } else {
+    stdout.writeln('Email is on via ${config.mail.smtpHost}.');
+  }
+  if (config.mail.ownerEmail.contains('@')) {
+    stdout.writeln('Midnight reports go to ${config.mail.ownerEmail}.');
+  } else {
+    stdout.writeln('Set the owner email in .env or on /admin.');
+  }
+  if (config.adminUser.isEmpty || config.adminPassword.isEmpty) {
     stdout.writeln(
-      'Email is off. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM to send reports.',
+      'Admin page is off. Set ADMIN_USER and ADMIN_PASSWORD in .env.',
     );
   } else {
-    stdout.writeln('Email is on via $smtpHost.');
+    stdout.writeln('Admin page is /admin for ${config.adminUser}.');
   }
-  if (ownerEmail.contains('@')) {
-    stdout.writeln('Midnight reports go to $ownerEmail.');
-  } else {
-    stdout.writeln(
-      'Set OWNER_EMAIL to the address that receives the midnight report.',
-    );
-  }
-  if (adminUser.isEmpty || adminPassword.isEmpty) {
-    stdout.writeln(
-      'Admin page is off. Set ADMIN_USER and ADMIN_PASSWORD to open /admin.',
-    );
-  } else {
-    stdout.writeln('Admin page is /admin for $adminUser.');
-  }
-  stdout.writeln('A daily report is emailed at 00:00 for the day that just ended.');
+  stdout.writeln(
+    'A daily report is emailed at 00:00 for the day that just ended.',
+  );
   unawaited(store.sendClosedDay(DateTime.now()));
   Timer.periodic(const Duration(minutes: 1), (_) {
     unawaited(store.sendClosedDay(DateTime.now()));
   });
 }
 
-Future<String> _loadToken() async {
-  final fromEnv = Platform.environment['SYNC_TOKEN'];
-  if (fromEnv != null && fromEnv.trim().isNotEmpty) {
-    stdout.writeln('Using the access token from SYNC_TOKEN.');
-    return fromEnv.trim();
+Future<String> _loadToken(String configured, File envFile) async {
+  if (configured.trim().isNotEmpty) {
+    stdout.writeln('Using the access token from .env or SYNC_TOKEN.');
+    return configured.trim();
   }
   final file = File('sync_token.txt');
   if (file.existsSync()) {
     final existing = file.readAsStringSync().trim();
     if (existing.isNotEmpty) {
       stdout.writeln('Using the access token in sync_token.txt.');
+      writeEnvKeys(envFile, {'SYNC_TOKEN': existing});
       return existing;
     }
   }
   final created = const Uuid().v4();
-  file.writeAsStringSync('$created\n');
-  stdout.writeln('Wrote a new access token to sync_token.txt');
+  writeEnvKeys(envFile, {'SYNC_TOKEN': created});
+  stdout.writeln('Wrote a new access token to ${envFile.path}');
   stdout.writeln(created);
   return created;
 }

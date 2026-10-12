@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cooling_down_server/env_file.dart';
 import 'package:cooling_down_server/handler.dart';
 import 'package:cooling_down_server/mailer.dart';
 import 'package:cooling_down_server/sync_store.dart';
@@ -192,31 +193,24 @@ void main() {
     final client = HttpClient();
     addTearDown(client.close);
 
-    final denied = await _form(
-      client,
-      server.port,
-      '/admin/login',
-      {'user': 'owner', 'password': 'wrong'},
-    );
+    final denied = await _form(client, server.port, '/admin/login', {
+      'user': 'owner',
+      'password': 'wrong',
+    });
     expect(denied.status, 302);
     expect(denied.cookie, isNull);
 
-    final allowed = await _form(
-      client,
-      server.port,
-      '/admin/login',
-      {'user': 'owner', 'password': 'panel-secret'},
-    );
+    final allowed = await _form(client, server.port, '/admin/login', {
+      'user': 'owner',
+      'password': 'panel-secret',
+    });
     expect(allowed.status, 302);
     expect(allowed.cookie, isNotNull);
 
-    final saved = await _form(
-      client,
-      server.port,
-      '/admin/email',
-      {'environment': 'מטבח', 'owner_email': 'new-kitchen@shop.test'},
-      cookie: allowed.cookie,
-    );
+    final saved = await _form(client, server.port, '/admin/email', {
+      'environment': 'מטבח',
+      'owner_email': 'new-kitchen@shop.test',
+    }, cookie: allowed.cookie);
     expect(saved.status, 302);
     final rows = store.environmentSummaries();
     expect(
@@ -264,6 +258,93 @@ void main() {
     expect(mailer.lastBody, contains('חלב'));
     expect(mailer.lastBody, contains('דנה'));
     expect(mailer.lastBody, contains('מסקנה:'));
+  });
+
+  test('admin mail settings are saved to the env file', () async {
+    final store = SyncStore.memory(ownerEmail: 'owner@shop.test');
+    addTearDown(store.close);
+    store.setOwnerEmail('מטבח', 'owner@shop.test');
+    store.setOwnerEmail('בית מרקחת', 'pharmacy@shop.test');
+    final envFile = File(
+      '${Directory.systemTemp.path}/cooling-admin-${DateTime.now().microsecondsSinceEpoch}.env',
+    );
+    addTearDown(() {
+      if (envFile.existsSync()) {
+        envFile.deleteSync();
+      }
+    });
+    envFile.writeAsStringSync('SYNC_TOKEN=secret\nADMIN_USER=owner\n');
+    final mail = MailSettings(
+      ownerEmail: 'owner@shop.test',
+      smtpHost: 'smtp.shop.test',
+      smtpPort: 587,
+      smtpFrom: 'reports@shop.test',
+    );
+    final server = await shelf_io.serve(
+      buildHandler(
+        store: store,
+        token: 'secret',
+        adminUser: 'owner',
+        adminPassword: 'panel-secret',
+        mail: mail,
+        envFile: envFile,
+      ),
+      InternetAddress.loopbackIPv4,
+      0,
+    );
+    addTearDown(server.close);
+    final client = HttpClient();
+    addTearDown(client.close);
+
+    final allowed = await _form(client, server.port, '/admin/login', {
+      'user': 'owner',
+      'password': 'panel-secret',
+    });
+    final page = await _get(
+      client,
+      server.port,
+      '/admin',
+      cookie: allowed.cookie,
+    );
+    expect(page.body, contains('owner@shop.test'));
+    expect(page.body, contains('smtp.shop.test'));
+
+    final rejected = await _form(client, server.port, '/admin/mail', {
+      'owner_email': 'not-an-email',
+      'smtp_host': 'smtp.shop.test',
+      'smtp_port': '587',
+      'smtp_user': '',
+      'smtp_password': '',
+      'smtp_from': 'reports@shop.test',
+    }, cookie: allowed.cookie);
+    expect(rejected.status, 302);
+    expect(store.ownerEmail, 'owner@shop.test');
+    expect(loadEnvFile(envFile)['OWNER_EMAIL'], isNull);
+
+    final saved = await _form(client, server.port, '/admin/mail', {
+      'owner_email': 'new-owner@shop.test',
+      'smtp_host': 'smtp.shop.test',
+      'smtp_port': '2525',
+      'smtp_user': 'mailer',
+      'smtp_password': 'secret pass',
+      'smtp_from': 'reports@shop.test',
+    }, cookie: allowed.cookie);
+    expect(saved.status, 302);
+    expect(mail.ownerEmail, 'new-owner@shop.test');
+    expect(mail.smtpPort, 2525);
+    expect(mail.smtpPassword, 'secret pass');
+    expect(loadEnvFile(envFile)['OWNER_EMAIL'], 'new-owner@shop.test');
+    expect(loadEnvFile(envFile)['SMTP_PASSWORD'], 'secret pass');
+    expect(loadEnvFile(envFile)['SYNC_TOKEN'], 'secret');
+    final rows = store.environmentSummaries();
+    expect(
+      rows.firstWhere((row) => row['name'] == 'מטבח')['owner_email'],
+      'new-owner@shop.test',
+    );
+    expect(
+      rows.firstWhere((row) => row['name'] == 'בית מרקחת')['owner_email'],
+      'pharmacy@shop.test',
+    );
   });
 }
 
@@ -317,7 +398,9 @@ Future<({int status, String? cookie})> _form(
   Map<String, String> fields, {
   String? cookie,
 }) async {
-  final request = await client.postUrl(Uri.parse('http://127.0.0.1:$port$path'));
+  final request = await client.postUrl(
+    Uri.parse('http://127.0.0.1:$port$path'),
+  );
   request.followRedirects = false;
   if (cookie != null) {
     request.headers.set(HttpHeaders.cookieHeader, cookie);
@@ -335,6 +418,22 @@ Future<({int status, String? cookie})> _form(
       ? null
       : setCookie.split(';').first;
   return (status: response.statusCode, cookie: session);
+}
+
+Future<({int status, String body})> _get(
+  HttpClient client,
+  int port,
+  String path, {
+  String? cookie,
+}) async {
+  final request = await client.getUrl(Uri.parse('http://127.0.0.1:$port$path'));
+  request.followRedirects = false;
+  if (cookie != null) {
+    request.headers.set(HttpHeaders.cookieHeader, cookie);
+  }
+  final response = await request.close();
+  final body = await response.transform(utf8.decoder).join();
+  return (status: response.statusCode, body: body);
 }
 
 Future<({int status, Map<String, dynamic> json})> _post(

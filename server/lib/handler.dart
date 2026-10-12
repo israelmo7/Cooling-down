@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import 'admin.dart';
+import 'mailer.dart';
 import 'sync_store.dart';
 
 Handler buildHandler({
@@ -11,12 +13,20 @@ Handler buildHandler({
   required String token,
   String adminUser = '',
   String adminPassword = '',
+  MailSettings? mail,
+  File? envFile,
 }) {
   final gate = AdminGate(user: adminUser, password: adminPassword);
   final router = Router()
     ..post('/v1/sync', (Request request) => _sync(request, store))
     ..post('/v1/reports', (Request request) => _report(request, store));
-  mountAdmin(router, store: store, gate: gate);
+  mountAdmin(
+    router,
+    store: store,
+    gate: gate,
+    mail: mail ?? MailSettings(),
+    envFile: envFile,
+  );
 
   return (Request request) {
     final path = request.url.path;

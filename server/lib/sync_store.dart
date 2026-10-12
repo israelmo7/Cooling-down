@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS environments (
 
   final Database _db;
   final ReportMailer _mailer;
-  final String ownerEmail;
+  String ownerEmail;
   final Set<String> _sending = {};
   final Uuid _uuid = const Uuid();
 
@@ -274,6 +274,25 @@ WHERE environment = ? AND report_date = ?
       return;
     }
     _writeOwner(name, address);
+  }
+
+  /// The address new environments inherit. Places still using the previous
+  /// default, or with no address yet, follow the new one.
+  void setDefaultOwnerEmail(String email) {
+    final next = email.trim();
+    final previous = ownerEmail.trim();
+    ownerEmail = next;
+    if (!next.contains('@')) {
+      return;
+    }
+    for (final row in environmentSummaries()) {
+      final current = (row['owner_email'] as String?)?.trim() ?? '';
+      final followsDefault =
+          current.isEmpty || !current.contains('@') || current == previous;
+      if (followsDefault) {
+        _writeOwner(row['name'] as String, next);
+      }
+    }
   }
 
   List<Map<String, Object?>> environmentSummaries() {

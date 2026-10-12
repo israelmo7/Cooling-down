@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import 'env_file.dart';
+import 'mailer.dart';
 import 'sync_store.dart';
 
 /// Login for the shop-computer page. The username and password come from
@@ -56,23 +59,34 @@ void mountAdmin(
   Router router, {
   required SyncStore store,
   required AdminGate gate,
+  required MailSettings mail,
+  File? envFile,
 }) {
   router
-    ..get('/admin', (Request request) => _page(request, store, gate))
+    ..get('/admin', (Request request) => _page(request, store, gate, mail))
     ..post('/admin/login', (Request request) => _login(request, gate))
     ..post('/admin/logout', (Request request) => _logout(request, gate))
     ..post(
       '/admin/email',
       (Request request) => _saveEmail(request, store, gate),
+    )
+    ..post(
+      '/admin/mail',
+      (Request request) => _saveMail(request, store, gate, mail, envFile),
     );
 }
 
-Response _page(Request request, SyncStore store, AdminGate gate) {
+Response _page(
+  Request request,
+  SyncStore store,
+  AdminGate gate,
+  MailSettings mail,
+) {
   if (!gate.configured) {
     return _html(
       _shell(
         'לוח ניהול',
-        '<p>הגדירו ADMIN_USER ו-ADMIN_PASSWORD כשמפעילים את המחשב.</p>',
+        '<p>הגדירו ADMIN_USER ו-ADMIN_PASSWORD בקובץ .env.</p>',
       ),
     );
   }
@@ -81,7 +95,14 @@ Response _page(Request request, SyncStore store, AdminGate gate) {
       _loginForm(failed: request.url.queryParameters['error'] == '1'),
     );
   }
-  final sections = StringBuffer();
+  final notice = switch (request.url.queryParameters['notice']) {
+    'saved' => '<p>הגדרות הדואר נשמרו.</p>',
+    'mail' => '<p class="error">בדקו את כתובות האימייל ואת פורט הדואר.</p>',
+    _ => '',
+  };
+  final sections = StringBuffer()
+    ..writeln(notice)
+    ..writeln(_mailForm(mail));
   final environments = store.environmentSummaries();
   if (environments.isEmpty) {
     sections.writeln(
@@ -154,6 +175,79 @@ Response _logout(Request request, AdminGate gate) {
     '/admin',
     headers: {'set-cookie': 'admin_session=; HttpOnly; Path=/admin; Max-Age=0'},
   );
+}
+
+Future<Response> _saveMail(
+  Request request,
+  SyncStore store,
+  AdminGate gate,
+  MailSettings mail,
+  File? envFile,
+) async {
+  if (!gate.allows(request)) {
+    return _redirect('/admin');
+  }
+  final form = await _form(request);
+  final next = MailSettings(
+    ownerEmail: (form['owner_email'] ?? '').trim(),
+    smtpHost: (form['smtp_host'] ?? '').trim(),
+    smtpPort: int.tryParse((form['smtp_port'] ?? '').trim()) ?? 587,
+    smtpUser: form['smtp_user'] ?? '',
+    smtpPassword: form['smtp_password'] ?? '',
+    smtpFrom: (form['smtp_from'] ?? '').trim(),
+  );
+  if (!_mailIsValid(next)) {
+    return _redirect('/admin?notice=mail');
+  }
+  if (envFile != null) {
+    writeEnvKeys(envFile, next.toEnv());
+  }
+  mail.replaceWith(next);
+  store.setDefaultOwnerEmail(next.ownerEmail);
+  return _redirect('/admin?notice=saved');
+}
+
+bool _mailIsValid(MailSettings mail) {
+  if (mail.ownerEmail.isNotEmpty && !mail.ownerEmail.contains('@')) {
+    return false;
+  }
+  if (!mail.emailEnabled) {
+    return true;
+  }
+  if (mail.smtpPort < 1 || mail.smtpPort > 65535) {
+    return false;
+  }
+  return mail.smtpFrom.contains('@');
+}
+
+String _mailForm(MailSettings mail) {
+  return '''
+<section>
+  <h2>דואר</h2>
+  <p>האסימון וסיסמת הניהול נשארים בקובץ .env. שאר שדות הדואר נשמרים שם מכאן.</p>
+  <form method="post" action="/admin/mail">
+    <label>אימייל הבעלים
+      <input name="owner_email" type="email" value="${_escape(mail.ownerEmail)}">
+    </label>
+    <label>שרת דואר
+      <input name="smtp_host" value="${_escape(mail.smtpHost)}">
+    </label>
+    <label>פורט
+      <input name="smtp_port" inputmode="numeric" value="${mail.smtpPort}">
+    </label>
+    <label>משתמש
+      <input name="smtp_user" value="${_escape(mail.smtpUser)}">
+    </label>
+    <label>סיסמה
+      <input name="smtp_password" type="password" value="${_escape(mail.smtpPassword)}">
+    </label>
+    <label>נשלח מאת
+      <input name="smtp_from" type="email" value="${_escape(mail.smtpFrom)}">
+    </label>
+    <button type="submit">שמירת הדואר</button>
+  </form>
+</section>
+''';
 }
 
 Future<Response> _saveEmail(

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:mailer/mailer.dart' as mail;
 import 'package:mailer/smtp_server.dart';
 
@@ -27,8 +25,51 @@ class DisabledMailer implements ReportMailer {
   }
 }
 
+/// Mail values the admin page can change. The server keeps them in `.env`.
+class MailSettings {
+  MailSettings({
+    this.ownerEmail = '',
+    this.smtpHost = '',
+    this.smtpPort = 587,
+    this.smtpUser = '',
+    this.smtpPassword = '',
+    this.smtpFrom = '',
+  });
+
+  String ownerEmail;
+  String smtpHost;
+  int smtpPort;
+  String smtpUser;
+  String smtpPassword;
+  String smtpFrom;
+
+  bool get emailEnabled => smtpHost.trim().isNotEmpty;
+
+  void replaceWith(MailSettings other) {
+    ownerEmail = other.ownerEmail;
+    smtpHost = other.smtpHost;
+    smtpPort = other.smtpPort;
+    smtpUser = other.smtpUser;
+    smtpPassword = other.smtpPassword;
+    smtpFrom = other.smtpFrom;
+  }
+
+  Map<String, String> toEnv() {
+    return {
+      'OWNER_EMAIL': ownerEmail,
+      'SMTP_HOST': smtpHost,
+      'SMTP_PORT': '$smtpPort',
+      'SMTP_USER': smtpUser,
+      'SMTP_PASSWORD': smtpPassword,
+      'SMTP_FROM': smtpFrom,
+    };
+  }
+}
+
 class EnvReportMailer implements ReportMailer {
-  const EnvReportMailer();
+  const EnvReportMailer(this.settings);
+
+  final MailSettings settings;
 
   @override
   Future<bool> send({
@@ -36,15 +77,15 @@ class EnvReportMailer implements ReportMailer {
     required String subject,
     required String body,
   }) async {
-    final host = Platform.environment['SMTP_HOST'];
-    if (host == null || host.isEmpty) {
+    final host = settings.smtpHost.trim();
+    if (host.isEmpty) {
       return false;
     }
-    final port = int.tryParse(Platform.environment['SMTP_PORT'] ?? '') ?? 587;
-    final username = Platform.environment['SMTP_USER'] ?? '';
-    final password = Platform.environment['SMTP_PASSWORD'] ?? '';
-    final from = Platform.environment['SMTP_FROM'];
-    if (from == null || from.isEmpty) {
+    final port = settings.smtpPort;
+    final username = settings.smtpUser;
+    final password = settings.smtpPassword;
+    final from = settings.smtpFrom.trim();
+    if (from.isEmpty) {
       throw StateError('Set SMTP_FROM to the address reports are sent from.');
     }
     final smtp = SmtpServer(
