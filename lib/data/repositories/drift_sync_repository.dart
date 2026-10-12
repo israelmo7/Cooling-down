@@ -74,7 +74,7 @@ class DriftSyncRepository implements SyncRepository {
           deviceId: current.deviceId,
           environment: current.environmentName,
           cursor: current.syncCursor,
-          ownerEmail: current.ownerEmail,
+          ownerEmail: '',
           push: [
             for (final row in pending)
               SyncPushItem(

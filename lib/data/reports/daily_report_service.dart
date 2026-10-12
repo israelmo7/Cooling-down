@@ -68,7 +68,7 @@ class DailyReportService {
       return 'הדוח ליום הזה כבר נשלח.';
     }
     if (current.ownerEmail.trim().isEmpty) {
-      return 'יש להוסיף את אימייל הבעלים בהגדרות.';
+      return '';
     }
 
     final content = await _compose(current, day);

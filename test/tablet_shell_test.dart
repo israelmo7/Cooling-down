@@ -86,7 +86,7 @@ void main() {
 
     expect(find.text('מטבח'), findsWidgets);
     expect(find.text('שם הסביבה'), findsOneWidget);
-    expect(find.text('אימייל הבעלים'), findsOneWidget);
+    expect(find.text('אימייל הבעלים'), findsNothing);
     expect(find.text('מוצרים'), findsOneWidget);
     expect(find.text('חלב'), findsWidgets);
     expect(find.text('שליחת דוח בחצות'), findsNothing);

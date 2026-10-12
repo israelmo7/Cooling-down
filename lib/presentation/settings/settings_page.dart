@@ -21,7 +21,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _deviceName = TextEditingController();
   final _serverUrl = TextEditingController();
   final _token = TextEditingController();
-  final _email = TextEditingController();
   var _loaded = false;
   var _unlocked = false;
   var _busy = false;
@@ -38,7 +37,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _deviceName.dispose();
     _serverUrl.dispose();
     _token.dispose();
-    _email.dispose();
     super.dispose();
   }
 
@@ -52,24 +50,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _deviceName.text = settings.deviceName;
       _serverUrl.text = settings.serverUrl;
       _token.text = settings.serverToken;
-      _email.text = settings.ownerEmail;
       _loaded = true;
     });
   }
 
   Future<DeviceSettings?> _save() async {
     final current = await ref.read(settingsRepositoryProvider).ensure();
-    final email = _email.text.trim();
-    if (email.isNotEmpty && !email.contains('@')) {
-      _show('יש להזין כתובת אימייל מלאה.');
-      return null;
-    }
     final next = current.copyWith(
       deviceName: _deviceName.text,
       environmentName: _environment.text,
       serverUrl: _serverUrl.text,
       serverToken: _token.text.trim(),
-      ownerEmail: email,
       dailyReportEnabled: true,
       reportHour: 0,
       reportMinute: 0,
@@ -169,12 +160,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           label: 'אסימון גישה',
           helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
         ),
-      _field(
-        controller: _email,
-        label: 'אימייל הבעלים',
-        helper: 'הדוח היומי נשלח לכאן מהמחשב בחצות.',
-        keyboard: TextInputType.emailAddress,
-      ),
       const SizedBox(height: 8),
       ProductCatalogEditor(unlocked: _canEdit),
     ];

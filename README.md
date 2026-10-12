@@ -38,11 +38,11 @@ SYNC_TOKEN=choose-a-long-secret dart run bin/server.dart
 
 If `SYNC_TOKEN` is unset, the process writes `sync_token.txt` and prints the token once. Put that token, and `http://<server>:8080`, into Settings on each tablet. Use the same environment name on every tablet that should share one kitchen or pharmacy. Keep the server on a network you trust; the token stays on the tablet.
 
-Email is off until these are set in the server process environment: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. Without them, the report is stored and the tablet says email is not set up. Do not commit those values.
+Email is off until these are set in the server process environment: `OWNER_EMAIL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. `OWNER_EMAIL` is the address that receives the midnight report. It is saved on the computer, not on the tablets. Without the mail settings, the report is stored on the computer. Do not commit those values.
 
 `PORT` defaults to 8080. `DATA_PATH` defaults to `cooling_down_server.sqlite`.
 
-On each tablet, enter that address, the token, the same environment name, and the owner email. The app bar shows that environment name. Settings stay locked until the password `123459876` is entered, and the access token stays hidden until then. The product list in Settings is what check-in search uses. At 00:00 the computer emails the owner a Hebrew report of the previous day, from the logs that have already synced. If a tablet was offline, its rows stay local and upload on the next successful sync. The first successful email for a day wins.
+On each tablet, enter that address, the token, and the same environment name. The app bar shows that environment name. Settings stay locked until the password `123459876` is entered, and the access token stays hidden until then. The product list in Settings is what check-in search uses. At 00:00 the computer emails the owner a Hebrew report of the previous day, from the logs that have already synced. If a tablet was offline, its rows stay local and upload on the next successful sync. The first successful email for a day wins.
 
 ## Layout
 

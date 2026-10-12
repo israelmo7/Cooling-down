@@ -14,8 +14,13 @@ Future<void> main() async {
   final dataPath =
       Platform.environment['DATA_PATH'] ?? 'cooling_down_server.sqlite';
   final token = await _loadToken();
+  final ownerEmail = Platform.environment['OWNER_EMAIL']?.trim() ?? '';
   final database = sqlite3.open(dataPath);
-  final store = SyncStore(database, mailer: const EnvReportMailer());
+  final store = SyncStore(
+    database,
+    mailer: const EnvReportMailer(),
+    ownerEmail: ownerEmail,
+  );
   final server = await shelf_io.serve(
     buildHandler(store: store, token: token),
     InternetAddress.anyIPv4,
@@ -31,6 +36,13 @@ Future<void> main() async {
     );
   } else {
     stdout.writeln('Email is on via $smtpHost.');
+  }
+  if (ownerEmail.contains('@')) {
+    stdout.writeln('Midnight reports go to $ownerEmail.');
+  } else {
+    stdout.writeln(
+      'Set OWNER_EMAIL to the address that receives the midnight report.',
+    );
   }
   stdout.writeln('A daily report is emailed at 00:00 for the day that just ended.');
   unawaited(store.sendClosedDay(DateTime.now()));

@@ -148,14 +148,16 @@ void main() {
 
   test('midnight emails yesterday once from the stored logs', () async {
     final mailer = _RecordingMailer();
-    final store = SyncStore.memory(mailer: mailer);
+    final store = SyncStore.memory(
+      mailer: mailer,
+      ownerEmail: 'owner@shop.test',
+    );
     addTearDown(store.close);
     final occurred = DateTime(2026, 10, 11, 15);
     store.exchange(
       deviceId: 'tablet-a',
       environment: 'מטבח',
       cursor: 0,
-      ownerEmail: 'owner@shop.test',
       push: [
         _push('refrigeration_log', {
           ..._log(id: 'log-day', movementId: 'move-day', eventType: 'check_in'),

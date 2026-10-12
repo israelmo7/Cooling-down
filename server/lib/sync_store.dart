@@ -8,7 +8,7 @@ import 'daily_mail.dart';
 import 'mailer.dart';
 
 class SyncStore {
-  SyncStore(this._db, {ReportMailer? mailer})
+  SyncStore(this._db, {ReportMailer? mailer, this.ownerEmail = ''})
     : _mailer = mailer ?? const DisabledMailer() {
     _db.execute('''
 CREATE TABLE IF NOT EXISTS sync_events (
@@ -58,12 +58,17 @@ CREATE TABLE IF NOT EXISTS environments (
     _addColumn('refrigeration_logs', 'fridge_name', 'TEXT');
   }
 
-  factory SyncStore.memory({ReportMailer? mailer}) {
-    return SyncStore(sqlite3.openInMemory(), mailer: mailer);
+  factory SyncStore.memory({ReportMailer? mailer, String ownerEmail = ''}) {
+    return SyncStore(
+      sqlite3.openInMemory(),
+      mailer: mailer,
+      ownerEmail: ownerEmail,
+    );
   }
 
   final Database _db;
   final ReportMailer _mailer;
+  final String ownerEmail;
   final Set<String> _sending = {};
   final Uuid _uuid = const Uuid();
 
@@ -228,7 +233,7 @@ WHERE environment = ? AND report_date = ?
     final statuses = <String>[];
     for (final target in targets) {
       final environment = target['name'] as String;
-      final ownerEmail = target['owner_email'] as String;
+      final email = target['owner_email'] as String;
       final existing = _db.select(
         '''
 SELECT status FROM daily_reports
@@ -252,7 +257,7 @@ WHERE environment = ? AND report_date = ?
         id: _uuid.v4(),
         environment: environment,
         reportDate: date,
-        ownerEmail: ownerEmail,
+        ownerEmail: email,
         subject: content.subject,
         body: content.body,
       );
@@ -261,8 +266,11 @@ WHERE environment = ? AND report_date = ?
     return statuses;
   }
 
-  void _rememberOwner(String environment, String? ownerEmail) {
-    final email = ownerEmail?.trim() ?? '';
+  void _rememberOwner(String environment, String? fromTablet) {
+    final configured = ownerEmail.trim();
+    final email = configured.contains('@')
+        ? configured
+        : (fromTablet?.trim() ?? '');
     if (!email.contains('@')) {
       return;
     }
