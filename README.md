@@ -43,7 +43,6 @@ Field steps are in `FIELD.md`.
 
 ## Layout
 
-- `tablets/` — one Flutter app for Android and iOS
+- `tablets/` — one Flutter app for Android and iOS. `android/` and `ios/` are the install shells for each store.
 - `server-ssh/` — the shop program, its image, and the SSH deploy
 - `server-usb/` — Docker and SSH installers for a shop PC that does not have them
-- `backend/postgres/schema.sql` — a sketch for a later project. The shop install does not use it.
