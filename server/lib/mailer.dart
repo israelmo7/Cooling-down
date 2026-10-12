@@ -9,6 +9,7 @@ abstract class ReportMailer {
     required String to,
     required String subject,
     required String body,
+    String? html,
   });
 }
 
@@ -20,6 +21,7 @@ class DisabledMailer implements ReportMailer {
     required String to,
     required String subject,
     required String body,
+    String? html,
   }) async {
     return false;
   }
@@ -76,6 +78,7 @@ class EnvReportMailer implements ReportMailer {
     required String to,
     required String subject,
     required String body,
+    String? html,
   }) async {
     final host = settings.smtpHost.trim();
     if (host.isEmpty) {
@@ -100,6 +103,10 @@ class EnvReportMailer implements ReportMailer {
       ..recipients.add(to)
       ..subject = subject
       ..text = body;
+    final markup = html?.trim() ?? '';
+    if (markup.isNotEmpty) {
+      message.html = markup;
+    }
     await mail.send(message, smtp);
     return true;
   }

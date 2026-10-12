@@ -153,6 +153,7 @@ LIMIT 500
     required String ownerEmail,
     required String subject,
     required String body,
+    String? html,
   }) async {
     final existing = _db.select(
       '''
@@ -197,6 +198,7 @@ WHERE environment = ? AND report_date = ?
         to: ownerEmail,
         subject: subject,
         body: body,
+        html: html,
       );
       final status = emailed ? 'sent' : 'stored';
       _db.execute(
@@ -261,6 +263,7 @@ WHERE environment = ? AND report_date = ?
         ownerEmail: email,
         subject: content.subject,
         body: content.body,
+        html: content.html,
       );
       statuses.add(result['status']?.toString() ?? 'failed');
     }
@@ -356,7 +359,7 @@ ON CONFLICT(name) DO UPDATE SET owner_email = excluded.owner_email
   List<StoredLogLine> _logs(String environment) {
     final rows = _db.select(
       '''
-SELECT event_type, occurred_at, product_name, temperature, fridge_name, worker_name
+SELECT movement_id, event_type, occurred_at, product_name, temperature, fridge_name, worker_name
 FROM refrigeration_logs
 WHERE environment = ?
 ''',
@@ -365,6 +368,7 @@ WHERE environment = ?
     return [
       for (final row in rows)
         StoredLogLine(
+          movementId: row['movement_id'] as String? ?? '',
           eventType: row['event_type'] as String,
           occurredAt: DateTime.parse(row['occurred_at'] as String),
           productName: row['product_name'] as String,

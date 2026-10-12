@@ -258,6 +258,13 @@ void main() {
     expect(mailer.lastBody, contains('חלב'));
     expect(mailer.lastBody, contains('דנה'));
     expect(mailer.lastBody, contains('מסקנה:'));
+    expect(
+      mailer.lastBody,
+      contains('חלב | 4.0°C · דנה · מקרר מטבח | 15:00 | - | -'),
+    );
+    expect(mailer.lastHtml, contains('<table'));
+    expect(mailer.lastHtml, contains('>חלב</td>'));
+    expect(mailer.lastHtml, contains('>-</td>'));
   });
 
   test('admin mail settings are saved to the env file', () async {
@@ -376,17 +383,20 @@ class _RecordingMailer implements ReportMailer {
   String? lastTo;
   String? lastSubject;
   String? lastBody;
+  String? lastHtml;
 
   @override
   Future<bool> send({
     required String to,
     required String subject,
     required String body,
+    String? html,
   }) async {
     sent += 1;
     lastTo = to;
     lastSubject = subject;
     lastBody = body;
+    lastHtml = html;
     return true;
   }
 }
