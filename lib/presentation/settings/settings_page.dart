@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/sync/server_url.dart';
 import '../../domain/reports/daily_report.dart';
 import '../../domain/settings/device_settings.dart';
 import '../providers.dart';
@@ -88,9 +90,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         _show(attempt.stoppedBecause!);
         return;
       }
-      _show(
-        'סונכרן. נשלחו ${attempt.synced} מהטאבלט ונקלטו ${attempt.pulled}.',
-      );
+      _show('סונכרן. נשלחו ${attempt.synced} למחשב.');
     });
   }
 
@@ -122,6 +122,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
+  Future<void> _openAdmin(DeviceSettings? settings) async {
+    final base = normalizeServerUrl(settings?.serverUrl ?? '');
+    if (base.isEmpty) {
+      _show('יש להזין כתובת מחשב תחילה.');
+      return;
+    }
+    final opened = await launchUrl(
+      Uri.parse('$base/admin'),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      _show('לא ניתן לפתוח את לוח הניהול.');
+    }
+  }
+
   void _show(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
@@ -148,18 +163,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         label: 'שם המכשיר',
         helper: 'כדי להבדיל בין הטאבלטים.',
       ),
-      _field(
-        controller: _serverUrl,
-        label: 'כתובת המחשב',
-        helper:
-            'למשל http://192.168.1.20:8080. בלי רשת הנתונים נשארים בטאבלט ומסתנכרנים אחר כך.',
-      ),
-      if (_unlocked)
+      if (_unlocked) ...[
+        _field(
+          controller: _serverUrl,
+          label: 'כתובת המחשב',
+          helper:
+              'למשל http://192.168.1.20:8080. בלי רשת הנתונים נשארים בטאבלט ומסתנכרנים אחר כך.',
+        ),
         _field(
           controller: _token,
           label: 'אסימון גישה',
           helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
         ),
+      ],
       const SizedBox(height: 8),
       ProductCatalogEditor(unlocked: _canEdit),
     ];
@@ -202,31 +218,51 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('הגדרות')),
       body: _loaded
-          ? LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 900;
-                if (!wide) {
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
-                    children: [
-                      ...fields,
-                      const SizedBox(height: 24),
-                      ...actions,
-                    ],
-                  );
-                }
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: ListView(children: fields)),
-                      const SizedBox(width: 32),
-                      SizedBox(width: 280, child: ListView(children: actions)),
-                    ],
+          ? Column(
+              children: [
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= 900;
+                      if (!wide) {
+                        return ListView(
+                          padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
+                          children: [
+                            ...fields,
+                            const SizedBox(height: 24),
+                            ...actions,
+                          ],
+                        );
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: ListView(children: fields)),
+                            const SizedBox(width: 32),
+                            SizedBox(
+                              width: 280,
+                              child: ListView(children: actions),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 0, 32, 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      key: const Key('open-admin'),
+                      onPressed: _busy ? null : () => _openAdmin(settings),
+                      child: const Text('לוח ניהול'),
+                    ),
+                  ),
+                ),
+              ],
             )
           : const Center(child: CircularProgressIndicator()),
     );

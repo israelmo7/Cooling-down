@@ -113,11 +113,11 @@ CREATE TABLE IF NOT EXISTS environments (
       '''
 SELECT seq, entity_type, entity_id, device_id, payload_json
 FROM sync_events
-WHERE environment = ? AND seq > ?
+WHERE environment = ? AND device_id = ? AND seq > ?
 ORDER BY seq
 LIMIT 500
 ''',
-      [environment, cursor],
+      [environment, deviceId, cursor],
     );
     final maxRow = _db.select(
       'SELECT COALESCE(MAX(seq), 0) AS max_seq FROM sync_events WHERE environment = ?',
@@ -266,7 +266,53 @@ WHERE environment = ? AND report_date = ?
     return statuses;
   }
 
+  void setOwnerEmail(String environment, String email) {
+    final name = environment.trim();
+    final address = email.trim();
+    if (name.isEmpty || !address.contains('@')) {
+      return;
+    }
+    _writeOwner(name, address);
+  }
+
+  List<Map<String, Object?>> environmentSummaries() {
+    final named = _db.select(
+      'SELECT name, owner_email FROM environments ORDER BY name',
+    );
+    final fromLogs = _db.select(
+      'SELECT DISTINCT environment FROM refrigeration_logs ORDER BY environment',
+    );
+    final byName = <String, String>{
+      for (final row in named)
+        row['name'] as String: row['owner_email'] as String? ?? '',
+    };
+    for (final row in fromLogs) {
+      byName.putIfAbsent(row['environment'] as String, () => '');
+    }
+    final names = byName.keys.toList()..sort();
+    return [
+      for (final name in names)
+        {
+          'name': name,
+          'owner_email': byName[name] ?? '',
+          'logs': _logs(name).length,
+        },
+    ];
+  }
+
+  List<StoredLogLine> logsFor(String environment) => _logs(environment);
+
   void _rememberOwner(String environment, String? fromTablet) {
+    final existing = _db.select(
+      'SELECT owner_email FROM environments WHERE name = ?',
+      [environment],
+    );
+    if (existing.isNotEmpty) {
+      final saved = existing.first['owner_email'] as String? ?? '';
+      if (saved.contains('@')) {
+        return;
+      }
+    }
     final configured = ownerEmail.trim();
     final email = configured.contains('@')
         ? configured
@@ -274,6 +320,10 @@ WHERE environment = ? AND report_date = ?
     if (!email.contains('@')) {
       return;
     }
+    _writeOwner(environment, email);
+  }
+
+  void _writeOwner(String environment, String email) {
     _db.execute(
       '''
 INSERT INTO environments (name, owner_email) VALUES (?, ?)

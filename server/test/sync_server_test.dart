@@ -146,6 +146,89 @@ void main() {
     expect(allowed.json['cursor'], 0);
   });
 
+  test('a tablet does not receive another environment', () {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      push: [
+        _push(
+          'refrigeration_log',
+          _log(id: 'kitchen-in', movementId: 'move-k', eventType: 'check_in'),
+        ),
+      ],
+    );
+
+    final other = store.exchange(
+      deviceId: 'tablet-b',
+      environment: 'בית מרקחת',
+      cursor: 0,
+      push: const [],
+    );
+
+    expect(other['changes'], isEmpty);
+    expect(store.logsFor('מטבח'), hasLength(1));
+    expect(store.logsFor('בית מרקחת'), isEmpty);
+  });
+
+  test('admin login edits one environment email only', () async {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    store.setOwnerEmail('מטבח', 'kitchen@shop.test');
+    store.setOwnerEmail('בית מרקחת', 'pharmacy@shop.test');
+    final server = await shelf_io.serve(
+      buildHandler(
+        store: store,
+        token: 'secret',
+        adminUser: 'owner',
+        adminPassword: 'panel-secret',
+      ),
+      InternetAddress.loopbackIPv4,
+      0,
+    );
+    addTearDown(server.close);
+    final client = HttpClient();
+    addTearDown(client.close);
+
+    final denied = await _form(
+      client,
+      server.port,
+      '/admin/login',
+      {'user': 'owner', 'password': 'wrong'},
+    );
+    expect(denied.status, 302);
+    expect(denied.cookie, isNull);
+
+    final allowed = await _form(
+      client,
+      server.port,
+      '/admin/login',
+      {'user': 'owner', 'password': 'panel-secret'},
+    );
+    expect(allowed.status, 302);
+    expect(allowed.cookie, isNotNull);
+
+    final saved = await _form(
+      client,
+      server.port,
+      '/admin/email',
+      {'environment': 'מטבח', 'owner_email': 'new-kitchen@shop.test'},
+      cookie: allowed.cookie,
+    );
+    expect(saved.status, 302);
+    final rows = store.environmentSummaries();
+    expect(
+      rows.firstWhere((row) => row['name'] == 'מטבח')['owner_email'],
+      'new-kitchen@shop.test',
+    );
+    expect(
+      rows.firstWhere((row) => row['name'] == 'בית מרקחת')['owner_email'],
+      'pharmacy@shop.test',
+    );
+  });
+
   test('midnight emails yesterday once from the stored logs', () async {
     final mailer = _RecordingMailer();
     final store = SyncStore.memory(
@@ -223,6 +306,33 @@ class _RecordingMailer implements ReportMailer {
     lastBody = body;
     return true;
   }
+}
+
+Future<({int status, String? cookie})> _form(
+  HttpClient client,
+  int port,
+  String path,
+  Map<String, String> fields, {
+  String? cookie,
+}) async {
+  final request = await client.postUrl(Uri.parse('http://127.0.0.1:$port$path'));
+  request.followRedirects = false;
+  if (cookie != null) {
+    request.headers.set(HttpHeaders.cookieHeader, cookie);
+  }
+  request.headers.contentType = ContentType(
+    'application',
+    'x-www-form-urlencoded',
+    charset: 'utf-8',
+  );
+  request.write(Uri(queryParameters: fields).query);
+  final response = await request.close();
+  await response.drain<void>();
+  final setCookie = response.headers.value(HttpHeaders.setCookieHeader);
+  final session = setCookie == null || !setCookie.contains('admin_session=')
+      ? null
+      : setCookie.split(';').first;
+  return (status: response.statusCode, cookie: session);
 }
 
 Future<({int status, Map<String, dynamic> json})> _post(

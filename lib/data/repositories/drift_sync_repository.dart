@@ -7,7 +7,6 @@ import '../../domain/settings/device_settings.dart';
 import '../db/app_database.dart';
 import '../db/converters.dart';
 import '../sync/gateway_factory.dart';
-import '../sync/remote_apply.dart';
 import '../sync/sync_gateway.dart';
 
 class DriftSyncRepository implements SyncRepository {
@@ -16,16 +15,13 @@ class DriftSyncRepository implements SyncRepository {
     required this.settings,
     Clock? clock,
     SyncGateway Function(DeviceSettings settings)? gatewayFor,
-    RemoteApplier? applier,
   }) : _clock = clock ?? const Clock(),
-       _gatewayFor = gatewayFor ?? gatewayForSettings,
-       _applier = applier ?? RemoteApplier(_db);
+       _gatewayFor = gatewayFor ?? gatewayForSettings;
 
   final AppDatabase _db;
   final SettingsRepository settings;
   final Clock _clock;
   final SyncGateway Function(DeviceSettings settings) _gatewayFor;
-  final RemoteApplier _applier;
 
   @override
   Stream<int> watchPendingCount() {
@@ -107,7 +103,8 @@ class DriftSyncRepository implements SyncRepository {
     }
 
     try {
-      await _applier.apply(result.changes, conflicts: result.conflicts);
+      // Each tablet keeps its own rows. The computer stores the upload
+      // under this environment and does not copy another environment back.
       final accepted = result.acceptedIds.toSet();
       for (final row in pending) {
         final ok = accepted.contains(row.entityId);
@@ -146,7 +143,6 @@ class DriftSyncRepository implements SyncRepository {
     return SyncAttempt(
       synced: synced,
       remaining: pending.length - synced,
-      pulled: result.changes.length,
     );
   }
 

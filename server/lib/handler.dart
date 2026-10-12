@@ -3,14 +3,26 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import 'admin.dart';
 import 'sync_store.dart';
 
-Handler buildHandler({required SyncStore store, required String token}) {
+Handler buildHandler({
+  required SyncStore store,
+  required String token,
+  String adminUser = '',
+  String adminPassword = '',
+}) {
+  final gate = AdminGate(user: adminUser, password: adminPassword);
   final router = Router()
     ..post('/v1/sync', (Request request) => _sync(request, store))
     ..post('/v1/reports', (Request request) => _report(request, store));
+  mountAdmin(router, store: store, gate: gate);
 
   return (Request request) {
+    final path = request.url.path;
+    if (path == 'admin' || path.startsWith('admin/')) {
+      return router(request);
+    }
     if (request.headers['authorization'] != 'Bearer $token') {
       return _json(401, {'error': 'unauthorized'});
     }

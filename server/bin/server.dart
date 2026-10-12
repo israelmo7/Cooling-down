@@ -15,6 +15,8 @@ Future<void> main() async {
       Platform.environment['DATA_PATH'] ?? 'cooling_down_server.sqlite';
   final token = await _loadToken();
   final ownerEmail = Platform.environment['OWNER_EMAIL']?.trim() ?? '';
+  final adminUser = Platform.environment['ADMIN_USER']?.trim() ?? '';
+  final adminPassword = Platform.environment['ADMIN_PASSWORD'] ?? '';
   final database = sqlite3.open(dataPath);
   final store = SyncStore(
     database,
@@ -22,7 +24,12 @@ Future<void> main() async {
     ownerEmail: ownerEmail,
   );
   final server = await shelf_io.serve(
-    buildHandler(store: store, token: token),
+    buildHandler(
+      store: store,
+      token: token,
+      adminUser: adminUser,
+      adminPassword: adminPassword,
+    ),
     InternetAddress.anyIPv4,
     port,
   );
@@ -43,6 +50,13 @@ Future<void> main() async {
     stdout.writeln(
       'Set OWNER_EMAIL to the address that receives the midnight report.',
     );
+  }
+  if (adminUser.isEmpty || adminPassword.isEmpty) {
+    stdout.writeln(
+      'Admin page is off. Set ADMIN_USER and ADMIN_PASSWORD to open /admin.',
+    );
+  } else {
+    stdout.writeln('Admin page is /admin for $adminUser.');
   }
   stdout.writeln('A daily report is emailed at 00:00 for the day that just ended.');
   unawaited(store.sendClosedDay(DateTime.now()));
