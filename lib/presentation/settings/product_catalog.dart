@@ -44,7 +44,9 @@ class _ProductCatalogEditorState extends ConsumerState<ProductCatalogEditor> {
     if (renamed.isEmpty) {
       return;
     }
-    await ref.read(productRepositoryProvider).renameProduct(product.id, renamed);
+    await ref
+        .read(productRepositoryProvider)
+        .renameProduct(product.id, renamed);
   }
 
   Future<void> _delete(Product product) async {
@@ -63,14 +65,18 @@ class _ProductCatalogEditorState extends ConsumerState<ProductCatalogEditor> {
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(productCatalogProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return ExpansionTile(
+      key: const Key('settings-product-list'),
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(top: 8),
+      title: Text('מוצרים', style: Theme.of(context).textTheme.headlineSmall),
       children: [
-        Text('מוצרים', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        Text(
-          'החיפוש בקליטה משתמש ברשימה הזו.',
-          style: Theme.of(context).textTheme.titleMedium,
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+            'החיפוש בקליטה משתמש ברשימה הזו.',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
         const SizedBox(height: 16),
         if (widget.unlocked) ...[
@@ -103,7 +109,10 @@ class _ProductCatalogEditorState extends ConsumerState<ProductCatalogEditor> {
           error: (error, _) => Text('לא ניתן לטעון מוצרים: $error'),
           data: (items) {
             if (items.isEmpty) {
-              return const Text('אין מוצרים עדיין.');
+              return const Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text('אין מוצרים עדיין.'),
+              );
             }
             return Column(
               children: [

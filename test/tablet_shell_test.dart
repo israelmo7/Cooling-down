@@ -30,6 +30,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.byKey(const Key('open-settings')), findsOneWidget);
+    final titleBar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(titleBar.centerTitle, isTrue);
+    expect(titleBar.titleTextStyle?.fontSize, 32);
     expect(find.text('קליטה'), findsOneWidget);
     expect(find.text('הוצאה'), findsOneWidget);
     expect(find.text('במקרר'), findsOneWidget);
@@ -96,7 +99,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('open-settings')));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('מטבח'), findsWidgets);
     expect(find.text('אימות פעולה'), findsOneWidget);
@@ -109,7 +112,29 @@ void main() {
     expect(find.text('מזהה: מטבח'), findsOneWidget);
     expect(find.text('אימייל הבעלים'), findsNothing);
     expect(find.text('מוצרים'), findsOneWidget);
-    expect(find.text('חלב'), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('settings-product-list')),
+        matching: find.text('חלב'),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('confirm-action'))).dy,
+      greaterThan(
+        tester.getTopLeft(find.byKey(const Key('settings-field-שם הסביבה'))).dy,
+      ),
+    );
+    await tester.tap(find.byKey(const Key('settings-product-list')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('settings-product-list')),
+        matching: find.text('חלב'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('שליחת דוח בחצות'), findsNothing);
     expect(find.text('הטאבלט הזה הוא העותק המשותף'), findsNothing);
     expect(find.text('שרת דואר'), findsNothing);
@@ -154,6 +179,11 @@ void main() {
     expect(find.byKey(const Key('settings-field-אסימון גישה')), findsOneWidget);
     expect(find.byKey(const Key('settings-field-כתובת המחשב')), findsOneWidget);
 
+    if (find.byKey(const Key('add-product')).evaluate().isEmpty) {
+      await tester.tap(find.byKey(const Key('settings-product-list')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
     await tester.ensureVisible(find.byKey(const Key('add-product')));
     await tester.pump();
     await tester.enterText(find.byKey(const Key('new-product-name')), 'גבינה');
@@ -163,8 +193,7 @@ void main() {
     expect(find.text('גבינה'), findsWidgets);
 
     Navigator.of(tester.element(find.text('הגדרות'))).pop();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
     expect(find.text('גבינה'), findsOneWidget);
     expect(find.text('מטבח'), findsOneWidget);
 

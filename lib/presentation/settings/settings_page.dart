@@ -88,9 +88,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     setState(() => _confirmAction = next);
     try {
       final current = await ref.read(settingsRepositoryProvider).ensure();
-      await ref.read(settingsRepositoryProvider).save(
-        current.copyWith(confirmAction: next),
-      );
+      await ref
+          .read(settingsRepositoryProvider)
+          .save(current.copyWith(confirmAction: next));
     } on Object {
       if (!mounted) {
         return;
@@ -180,8 +180,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         style: Theme.of(context).textTheme.titleMedium,
       ),
       const SizedBox(height: 24),
-      _confirmActionControl(),
-      const SizedBox(height: 8),
       _field(
         controller: _environment,
         label: 'שם הסביבה',
@@ -192,8 +190,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         _field(
           controller: _serverUrl,
           label: 'כתובת המחשב',
-          helper:
-              'למשל http://192.168.1.20:8080. בלי רשת הנתונים נשארים בטאבלט ומסתנכרנים אחר כך.',
+          helper: 'למשל http://192.168.1.20:8080. בלי רשת הנתונים נשארים בטאבלט ומסתנכרנים אחר כך.',
         ),
         _field(
           controller: _token,
@@ -201,8 +198,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
         ),
       ],
+      _confirmActionControl(),
       const SizedBox(height: 8),
-      ProductCatalogEditor(unlocked: _canEdit),
+      ProductCatalogEditor(
+        key: const ValueKey('product-catalog'),
+        unlocked: _canEdit,
+      ),
     ];
     final actions = <Widget>[
       if (!_unlocked)

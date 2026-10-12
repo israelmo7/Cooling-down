@@ -3,9 +3,13 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
+import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../db/app_database.dart';
 import '../mappers.dart';
+
+/// How many products check-in shows before a search narrows the catalog.
+const frequentProductLimit = 12;
 
 class DriftProductRepository implements ProductRepository {
   DriftProductRepository(this._db, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
@@ -16,17 +20,61 @@ class DriftProductRepository implements ProductRepository {
   @override
   Stream<List<Product>> watchSearch(String query) {
     final trimmed = query.trim().replaceAll('%', '').replaceAll('_', '');
+    if (trimmed.isEmpty) {
+      return _watchCheckInChoices();
+    }
+    return _watchListed(like: '%$trimmed%');
+  }
+
+  /// Products checked in most often. Before any check-in, the listed catalog
+  /// is shown so a new tablet still has something to tap.
+  Stream<List<Product>> _watchCheckInChoices() {
+    final uses = _db.refrigerationLogs.id.count();
+    final frequent =
+        _db.select(_db.products).join([
+            innerJoin(
+              _db.refrigerationLogs,
+              _db.refrigerationLogs.productId.equalsExp(_db.products.id) &
+                  _db.refrigerationLogs.eventType.equalsValue(
+                    LogEventType.checkIn,
+                  ),
+            ),
+          ])
+          ..where(_db.products.listed.equals(true))
+          ..addColumns([uses])
+          ..groupBy([_db.products.id])
+          ..orderBy([
+            OrderingTerm(expression: uses, mode: OrderingMode.desc),
+            OrderingTerm(expression: _db.products.name),
+          ])
+          ..limit(frequentProductLimit);
+
+    return frequent.watch().asyncMap((rows) async {
+      if (rows.isNotEmpty) {
+        return rows
+            .map((row) => mapProduct(row.readTable(_db.products)))
+            .toList();
+      }
+      return _listedProducts();
+    });
+  }
+
+  Stream<List<Product>> _watchListed({required String like}) {
     final statement = _db.select(_db.products)
+      ..where((table) => table.listed.equals(true) & table.name.like(like))
       ..orderBy([(table) => OrderingTerm(expression: table.name)])
       ..limit(200);
-    if (trimmed.isNotEmpty) {
-      statement.where(
-        (table) => table.listed.equals(true) & table.name.like('%$trimmed%'),
-      );
-    } else {
-      statement.where((table) => table.listed.equals(true));
-    }
     return statement.watch().map((rows) => rows.map(mapProduct).toList());
+  }
+
+  Future<List<Product>> _listedProducts() async {
+    final rows =
+        await (_db.select(_db.products)
+              ..where((table) => table.listed.equals(true))
+              ..orderBy([(table) => OrderingTerm(expression: table.name)])
+              ..limit(200))
+            .get();
+    return rows.map(mapProduct).toList();
   }
 
   @override

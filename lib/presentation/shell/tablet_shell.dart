@@ -74,6 +74,13 @@ class _TabletShellState extends ConsumerState<TabletShell>
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
+        toolbarHeight: 72,
+        titleTextStyle: const TextStyle(
+          color: Color(0xFF122428),
+          fontSize: 32,
+          fontWeight: FontWeight.w700,
+        ),
         title: Text(
           environment.isEmpty ? 'קירור' : clipEnvironmentName(environment),
         ),
