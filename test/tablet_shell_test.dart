@@ -278,6 +278,54 @@ void main() {
     tester.view.resetDevicePixelRatio();
   }, timeout: const Timeout(Duration(seconds: 30)));
 
+  testWidgets('check-in can record a product that is not on the list', (
+    tester,
+  ) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('check-in-new-product')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.enterText(
+      find.byKey(const Key('check-in-new-product-name')),
+      'גבינה צהובה',
+    );
+    await tester.tap(find.byKey(const Key('confirm-new-check-in-product')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('גבינה צהובה'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('confirm-check-in')))
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
   test('environment title is limited to 20 characters', () {
     expect(clipEnvironmentName('מטבח'), 'מטבח');
     expect(clipEnvironmentName('  '), 'מטבח');

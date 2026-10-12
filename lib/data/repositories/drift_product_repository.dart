@@ -33,20 +33,30 @@ class DriftProductRepository implements ProductRepository {
   }
 
   @override
-  Future<void> addProduct(String name) async {
+  Future<Product?> addProduct(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
-      return;
+      return null;
     }
+    final existing =
+        await (_db.select(_db.products)
+              ..where((table) => table.name.equals(trimmed)))
+            .getSingleOrNull();
+    if (existing != null) {
+      return mapProduct(existing);
+    }
+    final createdAt = DateTime.now().toUtc();
+    final id = _uuid.v4();
     await _db
         .into(_db.products)
         .insert(
           ProductsCompanion.insert(
-            id: _uuid.v4(),
+            id: id,
             name: trimmed,
-            createdAt: DateTime.now().toUtc(),
+            createdAt: createdAt,
           ),
         );
+    return Product(id: id, name: trimmed, createdAt: createdAt);
   }
 
   @override

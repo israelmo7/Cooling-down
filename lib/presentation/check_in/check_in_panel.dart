@@ -97,6 +97,27 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     }
   }
 
+  Future<void> _addNewProduct() async {
+    final typed = _query.trim();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => _NewProductDialog(initialName: typed),
+    );
+    final trimmed = name?.trim() ?? '';
+    if (trimmed.isEmpty || !mounted) {
+      return;
+    }
+    final product = await ref.read(productRepositoryProvider).addProduct(trimmed);
+    if (!mounted || product == null) {
+      return;
+    }
+    setState(() {
+      _selectedProduct = product;
+      _query = '';
+      _searchController.clear();
+    });
+  }
+
   Future<void> _syncSoon() async {
     try {
       await ref.read(syncRepositoryProvider).trySync();
@@ -125,6 +146,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
             onQueryChanged: (value) => setState(() => _query = value),
             onProductSelected: (product) =>
                 setState(() => _selectedProduct = product),
+            onAddNew: _addNewProduct,
           );
           final controls = _CheckInControls(
             fridges: fridges,
@@ -148,8 +170,11 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(flex: 3, child: catalog),
-              const SizedBox(width: 32),
-              Expanded(flex: 2, child: controls),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 2,
+                child: Align(alignment: Alignment.topCenter, child: controls),
+              ),
             ],
           );
         },
@@ -166,6 +191,7 @@ class _CatalogPane extends StatelessWidget {
     required this.selectedProductId,
     required this.onQueryChanged,
     required this.onProductSelected,
+    required this.onAddNew,
   });
 
   final TextEditingController controller;
@@ -173,26 +199,35 @@ class _CatalogPane extends StatelessWidget {
   final String? selectedProductId;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<Product> onProductSelected;
+  final VoidCallback onAddNew;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('מוצר', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 16),
+        Row(
+          children: [
+            const SectionTitle('מוצר'),
+            const Spacer(),
+            OutlinedButton(
+              key: const Key('check-in-new-product'),
+              onPressed: onAddNew,
+              child: const Text('מוצר חדש'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
         TextField(
           controller: controller,
-          style: const TextStyle(fontSize: 22),
+          style: const TextStyle(fontSize: 18),
           decoration: const InputDecoration(
             hintText: 'חיפוש לפי שם',
-            prefixIcon: Icon(Icons.search, size: 32),
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+            prefixIcon: Icon(Icons.search, size: 22),
           ),
           onChanged: onQueryChanged,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
         Expanded(
           child: products.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -203,35 +238,89 @@ class _CatalogPane extends StatelessWidget {
                   alignment: AlignmentDirectional.topStart,
                   child: Text(
                     'אין מוצרים תואמים.',
-                    style: TextStyle(fontSize: 20),
+                    style: TextStyle(fontSize: 16, color: Color(0xFF5C6B70)),
                   ),
                 );
               }
               return GridView.builder(
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 320,
-                  mainAxisExtent: 96,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+                  maxCrossAxisExtent: 280,
+                  mainAxisExtent: 72,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
                 ),
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final product = items[index];
-                  final selected = product.id == selectedProductId;
-                  final button = selected
-                      ? FilledButton(
-                          onPressed: () => onProductSelected(product),
-                          child: Text(product.name),
-                        )
-                      : FilledButton.tonal(
-                          onPressed: () => onProductSelected(product),
-                          child: Text(product.name),
-                        );
-                  return button;
+                  return ChoiceTile(
+                    selected: product.id == selectedProductId,
+                    onPressed: () => onProductSelected(product),
+                    child: Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
                 },
               );
             },
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NewProductDialog extends StatefulWidget {
+  const _NewProductDialog({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_NewProductDialog> createState() => _NewProductDialogState();
+}
+
+class _NewProductDialogState extends State<_NewProductDialog> {
+  late final TextEditingController _name = TextEditingController(
+    text: widget.initialName,
+  );
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final trimmed = _name.text.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    Navigator.of(context).pop(trimmed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('מוצר חדש'),
+      content: TextField(
+        key: const Key('check-in-new-product-name'),
+        controller: _name,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: 'שם המוצר'),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('ביטול'),
+        ),
+        FilledButton(
+          key: const Key('confirm-new-check-in-product'),
+          onPressed: _submit,
+          child: const Text('אישור'),
         ),
       ],
     );
@@ -265,20 +354,29 @@ class _CheckInControls extends StatelessWidget {
           error: (error, _) => Text('לא ניתן לטעון את הסביבה: $error'),
           data: (_) => const SizedBox.shrink(),
         ),
-        TemperatureStepper(
-          temperature: temperature,
-          onChanged: onTemperatureChanged,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'השעה נרשמת ברגע האישור',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 20),
-        ConfirmBar(
-          buttonKey: const Key('confirm-check-in'),
-          label: saving ? 'שומר…' : 'אישור קליטה',
-          onPressed: canConfirm ? onConfirm : null,
+        StationPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TemperatureStepper(
+                temperature: temperature,
+                onChanged: onTemperatureChanged,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'השעה נרשמת ברגע האישור',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF5C6B70),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ConfirmBar(
+                buttonKey: const Key('confirm-check-in'),
+                label: saving ? 'שומר…' : 'אישור קליטה',
+                onPressed: canConfirm ? onConfirm : null,
+              ),
+            ],
+          ),
         ),
       ],
     );

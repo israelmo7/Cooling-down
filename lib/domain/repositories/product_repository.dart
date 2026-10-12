@@ -7,7 +7,8 @@ abstract class ProductRepository {
 
   Stream<List<Product>> watchAll();
 
-  Future<void> addProduct(String name);
+  /// Adds the name, or returns the existing product when the name is already listed.
+  Future<Product?> addProduct(String name);
 
   Future<void> renameProduct(String id, String name);
 

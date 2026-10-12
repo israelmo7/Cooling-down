@@ -113,48 +113,20 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
                 onSelected: (holding) =>
                     setState(() => _selectedMovementId = holding.movementId),
               );
-              final controls = Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Spacer(),
-                  TemperatureStepper(
-                    temperature: _temperature,
-                    onChanged: (value) => setState(() => _temperature = value),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'השעה נרשמת ברגע האישור',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 20),
-                  ConfirmBar(
-                    buttonKey: const Key('confirm-check-out'),
-                    label: _saving ? 'שומר…' : 'אישור הוצאה',
-                    onPressed: canConfirm ? _confirm : null,
-                  ),
-                ],
+              final controls = _CheckOutControls(
+                temperature: _temperature,
+                saving: _saving,
+                canConfirm: canConfirm,
+                onTemperatureChanged: (value) =>
+                    setState(() => _temperature = value),
+                onConfirm: _confirm,
               );
               if (!wide) {
                 return Column(
                   children: [
                     Expanded(child: list),
-                    const SizedBox(height: 24),
-                    TemperatureStepper(
-                      temperature: _temperature,
-                      onChanged: (value) =>
-                          setState(() => _temperature = value),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'השעה נרשמת ברגע האישור',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 20),
-                    ConfirmBar(
-                      buttonKey: const Key('confirm-check-out'),
-                      label: _saving ? 'שומר…' : 'אישור הוצאה',
-                      onPressed: canConfirm ? _confirm : null,
-                    ),
+                    const SizedBox(height: 16),
+                    controls,
                   ],
                 );
               }
@@ -162,8 +134,14 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(flex: 3, child: list),
-                  const SizedBox(width: 32),
-                  Expanded(flex: 2, child: controls),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    flex: 2,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: controls,
+                    ),
+                  ),
                 ],
               );
             },
@@ -185,6 +163,50 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
               item.fridgeName.toLowerCase().contains(query),
         )
         .toList();
+  }
+}
+
+class _CheckOutControls extends StatelessWidget {
+  const _CheckOutControls({
+    required this.temperature,
+    required this.saving,
+    required this.canConfirm,
+    required this.onTemperatureChanged,
+    required this.onConfirm,
+  });
+
+  final double temperature;
+  final bool saving;
+  final bool canConfirm;
+  final ValueChanged<double> onTemperatureChanged;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return StationPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TemperatureStepper(
+            temperature: temperature,
+            onChanged: onTemperatureChanged,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'השעה נרשמת ברגע האישור',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF5C6B70),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ConfirmBar(
+            buttonKey: const Key('confirm-check-out'),
+            label: saving ? 'שומר…' : 'אישור הוצאה',
+            onPressed: canConfirm ? onConfirm : null,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -210,15 +232,13 @@ class _OpenItemList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('פריטים פתוחים', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 16),
+        const SectionTitle('פריטים פתוחים'),
+        const SizedBox(height: 14),
         TextField(
-          style: const TextStyle(fontSize: 22),
+          style: const TextStyle(fontSize: 18),
           decoration: const InputDecoration(
-            hintText: 'סינון לפי מוצר או מקרר',
-            prefixIcon: Icon(Icons.search, size: 32),
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+            hintText: 'סינון לפי מוצר',
+            prefixIcon: Icon(Icons.search, size: 22),
           ),
           onChanged: onQueryChanged,
         ),
@@ -231,7 +251,7 @@ class _OpenItemList extends StatelessWidget {
                     hasAnyItems && query.trim().isNotEmpty
                         ? 'אין פריט פתוח שמתאים לסינון.'
                         : 'אין כרגע פריטים במקרר.',
-                    style: const TextStyle(fontSize: 22),
+                    style: const TextStyle(fontSize: 16, color: Color(0xFF5C6B70)),
                   ),
                 )
               : ListView.separated(
@@ -240,48 +260,34 @@ class _OpenItemList extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final holding = items[index];
                     final selected = holding.movementId == selectedMovementId;
-                    final label = Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          holding.productName,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${holding.fridgeName} · נקלט ב-${formatCelsius(holding.checkInTemperatureCelsius)}',
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      ],
-                    );
                     return SizedBox(
-                      height: 112,
+                      height: 76,
                       width: double.infinity,
-                      child: selected
-                          ? FilledButton(
-                              style: FilledButton.styleFrom(
-                                alignment: AlignmentDirectional.centerStart,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                ),
+                      child: ChoiceTile(
+                        selected: selected,
+                        onPressed: () => onSelected(holding),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              holding.productName,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
                               ),
-                              onPressed: () => onSelected(holding),
-                              child: label,
-                            )
-                          : FilledButton.tonal(
-                              style: FilledButton.styleFrom(
-                                alignment: AlignmentDirectional.centerStart,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                ),
-                              ),
-                              onPressed: () => onSelected(holding),
-                              child: label,
                             ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'נקלט ב-${formatCelsius(holding.checkInTemperatureCelsius)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF5C6B70),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),

@@ -85,6 +85,11 @@ class _TabletShellState extends ConsumerState<TabletShell>
                 sharing: sharing,
                 hub: hub,
               ),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           IconButton(

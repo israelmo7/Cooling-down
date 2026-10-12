@@ -20,66 +20,58 @@ class LiveLogFeed extends ConsumerWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
+              SectionTitle(
                 items.isEmpty ? 'המקרר ריק' : '${items.length} במקרר',
-                style: Theme.of(context).textTheme.headlineMedium,
               ),
-              const SizedBox(height: 8),
-              Text(
-                'פריטים שנמצאים כרגע במקרר',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Expanded(
                 child: items.isEmpty
                     ? const Center(
                         child: Text(
                           'אין כרגע פריטים במקרר.',
-                          style: TextStyle(fontSize: 28),
+                          style: TextStyle(fontSize: 18, color: Color(0xFF5C6B70)),
                           textAlign: TextAlign.center,
                         ),
                       )
                     : GridView.builder(
                         gridDelegate:
                             const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: 460,
-                              mainAxisExtent: 180,
-                              crossAxisSpacing: 20,
-                              mainAxisSpacing: 20,
+                              maxCrossAxisExtent: 420,
+                              mainAxisExtent: 132,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
                             ),
                         itemCount: items.length,
                         itemBuilder: (context, index) {
                           final holding = items[index];
                           return Card(
-                            margin: EdgeInsets.zero,
                             child: Padding(
-                              padding: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.all(18),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     holding.productName,
                                     style: const TextStyle(
-                                      fontSize: 28,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                   const Spacer(),
                                   Text(
-                                    holding.fridgeName,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
                                     'נקלט ב-${formatCelsius(holding.checkInTemperatureCelsius)}',
-                                    style: const TextStyle(fontSize: 20),
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      color: Color(0xFF5C6B70),
+                                    ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 2),
                                   Text(
                                     formatInside(holding.checkedInAt, now),
-                                    style: const TextStyle(fontSize: 20),
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
