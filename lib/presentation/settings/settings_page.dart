@@ -75,6 +75,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return ref.read(settingsRepositoryProvider).ensure();
   }
 
+  Future<void> _toggleConfirmAction() async {
+    if (_busy) {
+      return;
+    }
+    final next = !_confirmAction;
+    setState(() => _confirmAction = next);
+    try {
+      final current = await ref.read(settingsRepositoryProvider).ensure();
+      await ref.read(settingsRepositoryProvider).save(
+        current.copyWith(confirmAction: next),
+      );
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _confirmAction = !next);
+      _show('לא ניתן לשמור את אימות הפעולה.');
+    }
+  }
+
   Future<void> _syncNow() async {
     await _run(() async {
       final saved = await _save();
@@ -156,18 +176,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         style: Theme.of(context).textTheme.titleMedium,
       ),
       const SizedBox(height: 24),
-      SwitchListTile(
-        key: const Key('confirm-action'),
-        contentPadding: EdgeInsets.zero,
-        title: const Text('אימות פעולה', style: TextStyle(fontSize: 18)),
-        subtitle: const Text(
-          'לפני כל קליטה או הוצאה תופיע השאלה ״האם אתה בטוח?״ יחד עם תיאור הפעולה.',
-        ),
-        value: _confirmAction,
-        onChanged: _canEdit
-            ? (value) => setState(() => _confirmAction = value)
-            : null,
-      ),
+      _confirmActionButton(),
       const SizedBox(height: 8),
       _field(
         controller: _environment,
@@ -308,6 +317,41 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           border: const OutlineInputBorder(),
         ),
       ),
+    );
+  }
+
+  Widget _confirmActionButton() {
+    final on = _confirmAction;
+    final child = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(on ? 'אימות פעולה · דולק' : 'אימות פעולה · כבוי'),
+        const SizedBox(height: 4),
+        const Text(
+          'לפני כל קליטה או הוצאה תופיע השאלה ״האם אתה בטוח?״ יחד עם תיאור הפעולה.',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+        ),
+      ],
+    );
+    final style = ButtonStyle(
+      alignment: AlignmentDirectional.centerStart,
+      padding: WidgetStateProperty.all(
+        const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      ),
+    );
+    if (on) {
+      return FilledButton(
+        key: const Key('confirm-action'),
+        onPressed: _busy ? null : _toggleConfirmAction,
+        style: style,
+        child: child,
+      );
+    }
+    return OutlinedButton(
+      key: const Key('confirm-action'),
+      onPressed: _busy ? null : _toggleConfirmAction,
+      style: style,
+      child: child,
     );
   }
 

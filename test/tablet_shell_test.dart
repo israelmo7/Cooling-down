@@ -97,12 +97,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('קירור'), findsOneWidget);
-    expect(find.text('אימות פעולה'), findsOneWidget);
+    expect(find.text('אימות פעולה · כבוי'), findsOneWidget);
     expect(
       tester
-          .widget<SwitchListTile>(find.byKey(const Key('confirm-action')))
-          .onChanged,
-      isNull,
+          .widget<OutlinedButton>(find.byKey(const Key('confirm-action')))
+          .onPressed,
+      isNotNull,
     );
     expect(find.text('שם הסביבה'), findsOneWidget);
     expect(find.text('אימייל הבעלים'), findsNothing);
@@ -197,21 +197,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    await tester.tap(find.byKey(const Key('unlock-settings')));
-    await tester.pump();
-    await tester.enterText(
-      find.byKey(const Key('settings-password')),
-      '123459876',
-    );
-    await tester.tap(find.byKey(const Key('confirm-settings-password')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
     await tester.tap(find.byKey(const Key('confirm-action')));
     await tester.pump();
-    await tester.tap(find.text('שמירה'));
-    await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('אימות פעולה · דולק'), findsOneWidget);
 
     Navigator.of(tester.element(find.text('הגדרות'))).pop();
     await tester.pump();
