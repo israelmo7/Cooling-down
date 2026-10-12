@@ -30,22 +30,26 @@ void main() {
         productId: SeedIds.wholeMilk,
         fridgeId: SeedIds.kitchenFridge,
         temperatureCelsius: 3,
+        workerName: 'דנה',
       );
       await logs.insertCheckIn(
         productId: SeedIds.wholeMilk,
         fridgeId: SeedIds.kitchenFridge,
         temperatureCelsius: 3,
+        workerName: 'דנה',
       );
       await logs.insertCheckIn(
         productId: SeedIds.chickenBreast,
         fridgeId: SeedIds.kitchenFridge,
         temperatureCelsius: 3,
+        workerName: 'דנה',
       );
       final oneOff = await products.addOneOffProduct('גבינה צהובה');
       await logs.insertCheckIn(
         productId: oneOff!.id,
         fridgeId: SeedIds.kitchenFridge,
         temperatureCelsius: 3,
+        workerName: 'דנה',
       );
 
       final frequent = await products.watchSearch('').first;

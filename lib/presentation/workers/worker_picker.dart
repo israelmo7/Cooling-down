@@ -1,55 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/worker.dart';
-import '../../domain/repositories/worker_repository.dart';
 
 var _workerPromptOpen = false;
 
-/// Returns the worker name for this operation, asking when nobody is signed in.
-Future<String?> ensureWorkerName({
-  required BuildContext context,
-  required WorkerRepository repository,
-}) async {
-  final session = await repository.readSession();
-  if (session.isActive(DateTime.now())) {
-    return session.workerName;
-  }
-  if (_workerPromptOpen) {
-    return null;
-  }
-  final workers = await repository.listWorkers();
-  if (!context.mounted) {
-    return null;
-  }
-  if (workers.isEmpty) {
-    final typed = await _showPrompt<String>(
-      () => showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const _NameWorkerDialog(),
-      ),
-    );
-    final name = typed?.trim() ?? '';
-    if (name.isEmpty) {
-      return null;
-    }
-    final created = await repository.addWorker(name);
-    if (created == null) {
-      return null;
-    }
-    await repository.selectWorker(created.id);
-    return created.name;
-  }
-  final picked = await pickWorker(context, workers: workers, required: true);
-  if (picked == null) {
-    return null;
-  }
-  await repository.selectWorker(picked);
-  final next = await repository.readSession();
-  if (next.workerName.trim().isEmpty) {
-    return null;
-  }
-  return next.workerName;
+/// Types a worker name when the list is still empty. Returns the trimmed name.
+Future<String?> askWorkerName(BuildContext context) {
+  return _showPrompt(
+    () => showDialog<String>(
+      context: context,
+      builder: (context) => const _NameWorkerDialog(),
+    ),
+  );
 }
 
 /// Asks who is working. Returns the chosen worker id.

@@ -1,12 +1,19 @@
 import 'package:cooling_down/app.dart';
 import 'package:cooling_down/data/db/app_database.dart';
 import 'package:cooling_down/data/maintenance/tablet_maintenance.dart';
+import 'package:cooling_down/data/repositories/drift_worker_repository.dart';
 import 'package:cooling_down/domain/settings/device_settings.dart';
 import 'package:cooling_down/presentation/check_out/check_out_panel.dart';
 import 'package:cooling_down/presentation/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+Future<void> signInWorker(AppDatabase database) async {
+  final workers = DriftWorkerRepository(database);
+  final worker = await workers.addWorker('דנה');
+  await workers.selectWorker(worker!.id);
+}
 
 void main() {
   testWidgets('tablet shell shows check-in, check-out, and the live feed', (
@@ -42,6 +49,14 @@ void main() {
     expect(find.text('מטבח'), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-in')), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-out')), findsNothing);
+    expect(find.text('מי עובד עכשיו?'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('current-worker')),
+        matching: find.text('עובד'),
+      ),
+      findsOneWidget,
+    );
 
     final checkIn = tester.widget<FilledButton>(
       find.byKey(const Key('confirm-check-in')),
@@ -54,7 +69,7 @@ void main() {
       tester
           .widget<FilledButton>(find.byKey(const Key('confirm-check-in')))
           .onPressed,
-      isNotNull,
+      isNull,
     );
 
     await tester.tap(find.text('הוצאה'));
@@ -211,6 +226,7 @@ void main() {
     tester,
   ) async {
     final database = AppDatabase.memory();
+    await signInWorker(database);
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
 
@@ -250,12 +266,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('מי עובד עכשיו?'), findsOneWidget);
-    await tester.enterText(find.byKey(const Key('worker-name')), 'דנה');
-    await tester.tap(find.byKey(const Key('confirm-worker-name')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
     expect(find.text('קליטה: חזה עוף ב-4.0 °C · דנה'), findsOneWidget);
@@ -316,6 +327,7 @@ void main() {
     tester,
   ) async {
     final database = AppDatabase.memory();
+    await signInWorker(database);
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
 
@@ -375,6 +387,7 @@ void main() {
 
   testWidgets('a temperature warning disappears on its own', (tester) async {
     final database = AppDatabase.memory();
+    await signInWorker(database);
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
 
@@ -398,11 +411,7 @@ void main() {
     }
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.enterText(find.byKey(const Key('worker-name')), 'דנה');
-    await tester.tap(find.byKey(const Key('confirm-worker-name')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('מחוץ לטווח'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 4));
@@ -479,6 +488,78 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     final stored = await database.select(database.refrigerationLogs).get();
     expect(stored.single.workerNameSnapshot, 'דנה');
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('the name on top changes the worker without asking on confirm', (
+    tester,
+  ) async {
+    final database = AppDatabase.memory();
+    await signInWorker(database);
+    await DriftWorkerRepository(database).addWorker('יוסי');
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('מי עובד עכשיו?'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('current-worker')),
+        matching: find.text('דנה'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('current-worker')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('מי עובד עכשיו?'), findsOneWidget);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('worker-picker')),
+        matching: find.text('יוסי'),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('current-worker')),
+        matching: find.text('יוסי'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('חלב'));
+    await tester.pump();
+    expect(find.text('מי עובד עכשיו?'), findsNothing);
+    await tester.tap(find.byKey(const Key('confirm-check-in')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('מי עובד עכשיו?'), findsNothing);
+    final stored = await database.select(database.refrigerationLogs).get();
+    expect(stored.single.workerNameSnapshot, 'יוסי');
 
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();

@@ -129,16 +129,23 @@ class _TabletShellState extends ConsumerState<TabletShell>
     if (!mounted || _askingWorker) {
       return;
     }
-    final workers = ref.read(workersProvider).asData?.value ?? const [];
-    if (workers.isEmpty) {
+    final repository = ref.read(workerRepositoryProvider);
+    final workers = await repository.listWorkers();
+    if (!mounted) {
       return;
     }
     _askingWorker = true;
-    final picked = await pickWorker(
-      context,
-      workers: workers,
-      required: required,
-    );
+    String? picked;
+    if (workers.isEmpty) {
+      final typed = await askWorkerName(context);
+      final name = typed?.trim() ?? '';
+      if (name.isNotEmpty) {
+        final created = await repository.addWorker(name);
+        picked = created?.id;
+      }
+    } else {
+      picked = await pickWorker(context, workers: workers, required: required);
+    }
     _askingWorker = false;
     if (!mounted || picked == null) {
       return;
@@ -146,7 +153,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final now = DateTime.now().toUtc();
     _lastTouch = now;
     _lastPersisted = now;
-    await ref.read(workerRepositoryProvider).selectWorker(picked, at: now);
+    await repository.selectWorker(picked, at: now);
   }
 
   Future<void> _tick() async {
@@ -170,13 +177,12 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final sharing = settings?.hasServer ?? false;
     final hub = settings?.hubEnabled ?? false;
     final environment = settings?.environmentName.trim() ?? '';
-    final workers = ref.watch(workersProvider).asData?.value ?? const [];
     final session = ref.watch(workerSessionProvider).asData?.value;
     ref.listen(workersProvider, (_, _) => _scheduleEnsureWorker());
     ref.listen(workerSessionProvider, (_, _) => _scheduleEnsureWorker());
     final workerLabel = (session?.workerName.trim().isNotEmpty ?? false)
         ? session!.workerName
-        : 'בחירת עובד';
+        : 'עובד';
     ref.watch(tabletHubProvider);
 
     return Listener(
@@ -186,25 +192,34 @@ class _TabletShellState extends ConsumerState<TabletShell>
         appBar: AppBar(
           centerTitle: true,
           toolbarHeight: 72,
-          leadingWidth: workers.isEmpty ? null : 160,
-          leading: workers.isEmpty
-              ? null
-              : Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: TextButton(
-                    key: const Key('current-worker'),
-                    onPressed: () => _askForWorker(required: false),
-                    child: Text(
-                      workerLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+          leadingWidth: 112,
+          leading: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              key: const Key('current-worker'),
+              onPressed: () => _askForWorker(required: false),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
                 ),
+              ),
+              child: Text(
+                workerLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
           titleTextStyle: const TextStyle(
             color: Color(0xFF122428),
             fontSize: 32,

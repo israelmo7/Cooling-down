@@ -1,5 +1,3 @@
-import '../entities/worker.dart';
-
 /// How long a chosen worker stays signed in without a tap.
 const workerIdleLimit = Duration(minutes: 10);
 
@@ -21,14 +19,10 @@ class WorkerSession {
   }
 }
 
-/// Check-in and check-out stay open until a worker list exists.
+/// A check-in or check-out needs someone signed in.
 bool workerAllowsAction({
-  required List<Worker>? workers,
   required WorkerSession? session,
   required DateTime now,
 }) {
-  if (workers == null || workers.isEmpty) {
-    return true;
-  }
   return session?.isActive(now) ?? false;
 }

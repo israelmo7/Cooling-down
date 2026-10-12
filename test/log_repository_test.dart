@@ -2,6 +2,7 @@ import 'package:cooling_down/data/db/app_database.dart';
 import 'package:cooling_down/data/db/seed_ids.dart';
 import 'package:cooling_down/data/repositories/drift_log_repository.dart';
 import 'package:cooling_down/domain/entities/refrigeration_log.dart';
+import 'package:cooling_down/domain/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -21,11 +22,13 @@ void main() {
       fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 3,
       occurredAt: DateTime.utc(2026, 10, 11, 8),
+      workerName: 'דנה',
     );
     final checkOut = await repository.insertCheckOut(
       movementId: checkIn.movementId,
       temperatureCelsius: 4,
       occurredAt: DateTime.utc(2026, 10, 11, 12),
+      workerName: 'דנה',
     );
 
     final logs = await database.select(database.refrigerationLogs).get();
@@ -50,6 +53,7 @@ void main() {
       productId: SeedIds.insulin,
       fridgeId: SeedIds.pharmacyFridge,
       temperatureCelsius: 5,
+      workerName: 'דנה',
     );
 
     Object? error;
@@ -75,6 +79,7 @@ void main() {
       productId: SeedIds.wholeMilk,
       fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 12,
+      workerName: 'דנה',
     );
 
     final logs = await database.select(database.refrigerationLogs).get();
@@ -93,11 +98,28 @@ void main() {
     });
   });
 
+  test('a check-in without a worker is rejected', () async {
+    Object? error;
+    try {
+      await repository.insertCheckIn(
+        productId: SeedIds.wholeMilk,
+        fridgeId: SeedIds.kitchenFridge,
+        temperatureCelsius: 3,
+        workerName: '   ',
+      );
+    } on Object catch (caught) {
+      error = caught;
+    }
+    expect(error, isA<CatalogEntryNotFound>());
+    expect(await database.select(database.refrigerationLogs).get(), isEmpty);
+  });
+
   test('an in-range check-in enqueues one outbox row', () async {
     await repository.insertCheckIn(
       productId: SeedIds.vaccine,
       fridgeId: SeedIds.pharmacyFridge,
       temperatureCelsius: 4,
+      workerName: 'דנה',
     );
 
     final outbox = await database.select(database.syncOutbox).get();

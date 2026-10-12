@@ -28,11 +28,13 @@ void main() {
       fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 3,
       occurredAt: DateTime.utc(2026, 10, 11, 8),
+      workerName: 'דנה',
     );
     await logs.insertCheckOut(
       movementId: checkIn.movementId,
       temperatureCelsius: 4,
       occurredAt: DateTime.utc(2026, 10, 11, 12),
+      workerName: 'דנה',
     );
     final hub = TabletHub(database, settings);
     addTearDown(hub.dispose);

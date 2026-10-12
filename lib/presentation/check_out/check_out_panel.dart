@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/open_holding.dart';
 import '../../domain/failures.dart';
+import '../../domain/workers/worker_session.dart';
 import '../format.dart';
 import '../providers.dart';
-import '../workers/worker_picker.dart';
 import '../widgets/confirm_action_dialog.dart';
 import '../widgets/station_widgets.dart';
 import '../widgets/transient_notice.dart';
@@ -38,14 +38,10 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
         break;
       }
     }
-    if (holding == null) {
-      return;
-    }
-    final workerName = await ensureWorkerName(
-      context: context,
-      repository: ref.read(workerRepositoryProvider),
-    );
-    if (workerName == null || !mounted) {
+    final session = ref.read(workerSessionProvider).asData?.value;
+    final workerName = session?.workerName.trim() ?? '';
+    if (holding == null ||
+        !workerAllowsAction(session: session, now: DateTime.now())) {
       return;
     }
     final who = ' · $workerName';
@@ -110,7 +106,13 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
             (item) => item.movementId == _selectedMovementId,
           );
           final canConfirm =
-              _selectedMovementId != null && selectedStillOpen && !_saving;
+              _selectedMovementId != null &&
+              selectedStillOpen &&
+              !_saving &&
+              workerAllowsAction(
+                session: ref.watch(workerSessionProvider).asData?.value,
+                now: DateTime.now(),
+              );
           return LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 800;

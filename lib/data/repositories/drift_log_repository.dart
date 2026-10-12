@@ -28,8 +28,12 @@ class DriftLogRepository implements LogRepository {
     required String fridgeId,
     required double temperatureCelsius,
     DateTime? occurredAt,
-    String workerName = '',
+    required String workerName,
   }) {
+    final recordedWorker = workerName.trim();
+    if (recordedWorker.isEmpty) {
+      throw const CatalogEntryNotFound('יש לבחור עובד.');
+    }
     return _db.transaction(() async {
       final product = await (_db.select(
         _db.products,
@@ -57,7 +61,7 @@ class DriftLogRepository implements LogRepository {
         occurredAt: capturedAt,
         createdAt: capturedAt,
         originDeviceId: deviceId,
-        workerNameSnapshot: workerName.trim(),
+        workerNameSnapshot: recordedWorker,
       );
       await _insertLog(log);
       await _maybeAlert(
@@ -75,8 +79,12 @@ class DriftLogRepository implements LogRepository {
     required String movementId,
     required double temperatureCelsius,
     DateTime? occurredAt,
-    String workerName = '',
+    required String workerName,
   }) {
+    final recordedWorker = workerName.trim();
+    if (recordedWorker.isEmpty) {
+      throw const CatalogEntryNotFound('יש לבחור עובד.');
+    }
     return _db.transaction(() async {
       final checkIn =
           await (_db.select(_db.refrigerationLogs)..where(
@@ -120,7 +128,7 @@ class DriftLogRepository implements LogRepository {
         occurredAt: capturedAt,
         createdAt: capturedAt,
         originDeviceId: deviceId,
-        workerNameSnapshot: workerName.trim(),
+        workerNameSnapshot: recordedWorker,
       );
       await _insertLog(log);
       await _maybeAlert(

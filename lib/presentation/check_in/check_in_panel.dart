@@ -7,9 +7,9 @@ import '../../data/db/seed_ids.dart';
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/failures.dart';
+import '../../domain/workers/worker_session.dart';
 import '../format.dart';
 import '../providers.dart';
-import '../workers/worker_picker.dart';
 import '../widgets/confirm_action_dialog.dart';
 import '../widgets/station_widgets.dart';
 import '../widgets/transient_notice.dart';
@@ -51,14 +51,12 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final fridge = _environmentFridge(
       ref.read(fridgesProvider).asData?.value ?? const [],
     );
-    if (product == null || fridge == null || _saving) {
-      return;
-    }
-    final workerName = await ensureWorkerName(
-      context: context,
-      repository: ref.read(workerRepositoryProvider),
-    );
-    if (workerName == null || !mounted) {
+    final session = ref.read(workerSessionProvider).asData?.value;
+    final workerName = session?.workerName.trim() ?? '';
+    if (product == null ||
+        fridge == null ||
+        _saving ||
+        !workerAllowsAction(session: session, now: DateTime.now())) {
       return;
     }
     final who = ' · $workerName';
@@ -144,7 +142,14 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final fridge = fridges.asData == null
         ? null
         : _environmentFridge(fridges.asData!.value);
-    final canConfirm = _selectedProduct != null && fridge != null && !_saving;
+    final canConfirm =
+        _selectedProduct != null &&
+        fridge != null &&
+        !_saving &&
+        workerAllowsAction(
+          session: ref.watch(workerSessionProvider).asData?.value,
+          now: DateTime.now(),
+        );
     final visible =
         products.asData?.value.any((item) => item.id == _selectedProduct?.id) ??
         false;

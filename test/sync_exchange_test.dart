@@ -49,11 +49,13 @@ void main() {
         fridgeId: SeedIds.kitchenFridge,
         temperatureCelsius: 3,
         occurredAt: DateTime.utc(2026, 10, 11, 8),
+        workerName: 'דנה',
       );
       await logs.insertCheckOut(
         movementId: checkIn.movementId,
         temperatureCelsius: 4,
         occurredAt: DateTime.utc(2026, 10, 11, 12),
+        workerName: 'דנה',
       );
 
       final applier = RemoteApplier(database);
@@ -99,6 +101,7 @@ void main() {
       productId: SeedIds.chickenBreast,
       fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 2,
+      workerName: 'דנה',
     );
     final remote = _logChange(
       seq: 8,
