@@ -18,12 +18,3 @@ class WorkerSession {
     return now.toUtc().difference(at.toUtc()) < idle;
   }
 }
-
-/// A check-in or check-out needs someone signed in.
-bool workerAllowsAction({
-  required WorkerSession? session,
-  required DateTime now,
-  Duration idle = defaultWorkerIdleLimit,
-}) {
-  return session?.isActive(now, idle: idle) ?? false;
-}

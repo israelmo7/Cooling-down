@@ -4,6 +4,7 @@ import 'package:cooling_down/data/maintenance/tablet_maintenance.dart';
 import 'package:cooling_down/data/repositories/drift_settings_repository.dart';
 import 'package:cooling_down/data/repositories/drift_worker_repository.dart';
 import 'package:cooling_down/domain/settings/device_settings.dart';
+import 'package:cooling_down/domain/workers/worker_refresh.dart';
 import 'package:cooling_down/presentation/check_out/check_out_panel.dart';
 import 'package:cooling_down/presentation/providers.dart';
 import 'package:flutter/material.dart';
@@ -157,7 +158,9 @@ void main() {
     expect(find.text('שליחת הדוח היומי'), findsNothing);
     expect(find.byKey(const Key('settings-field-אסימון גישה')), findsNothing);
     expect(find.byKey(const Key('settings-field-כתובת המחשב')), findsNothing);
-    expect(find.byKey(const Key('settings-field-זמן ללא שימוש')), findsNothing);
+    expect(find.byKey(const Key('worker-refresh')), findsNothing);
+    expect(find.byKey(const Key('settings-field-שניות')), findsNothing);
+    expect(find.text('הקפצה'), findsNothing);
     expect(find.text('לוח ניהול'), findsOneWidget);
     expect(find.text('שינוי הגדרות'), findsOneWidget);
 
@@ -195,16 +198,21 @@ void main() {
     expect(find.text('שמירה'), findsOneWidget);
     expect(find.byKey(const Key('settings-field-אסימון גישה')), findsOneWidget);
     expect(find.byKey(const Key('settings-field-כתובת המחשב')), findsOneWidget);
+    expect(find.byKey(const Key('worker-refresh')), findsOneWidget);
     expect(
       tester
-          .widget<TextField>(
-            find.byKey(const Key('settings-field-זמן ללא שימוש')),
-          )
+          .widget<TextField>(find.byKey(const Key('settings-field-שניות')))
           .controller
           ?.text,
       '600',
     );
+    expect(find.text('המתנה'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-product-list')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     if (find.byKey(const Key('add-product')).evaluate().isEmpty) {
       await tester.tap(find.byKey(const Key('settings-product-list')));
       await tester.pump();
@@ -667,6 +675,185 @@ void main() {
 
     await tester.pump(const Duration(seconds: 3));
     await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('worker refresh opens a short list of three choices', (
+    tester,
+  ) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('open-settings')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byKey(const Key('unlock-settings')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('settings-password')),
+      '123459876',
+    );
+    await tester.tap(find.byKey(const Key('confirm-settings-password')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    await tester.tap(find.byKey(const Key('worker-refresh')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('ללא'), findsOneWidget);
+    expect(find.text('לא בשימוש'), findsOneWidget);
+    expect(find.text('מחזוריות'), findsOneWidget);
+
+    await tester.tap(find.text('ללא'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('settings-field-שניות')), findsNothing);
+    expect(find.text('הקפצה'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('worker-refresh')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('מחזוריות'));
+    await tester.pump();
+    expect(find.byKey(const Key('settings-field-משעה')), findsOneWidget);
+    expect(find.byKey(const Key('settings-field-שעות')), findsOneWidget);
+    expect(find.byKey(const Key('settings-field-עד')), findsOneWidget);
+    expect(
+      tester
+          .widget<SegmentedButton<WorkerPromptStyle>>(
+            find.byKey(const Key('worker-prompt-style')),
+          )
+          .selected,
+      {WorkerPromptStyle.wait},
+    );
+    await tester.ensureVisible(find.text('הקפצה'));
+    await tester.pump();
+    await tester.tap(find.text('הקפצה'));
+    await tester.pump();
+    expect(
+      tester
+          .widget<SegmentedButton<WorkerPromptStyle>>(
+            find.byKey(const Key('worker-prompt-style')),
+          )
+          .selected,
+      {WorkerPromptStyle.popup},
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('הקפצה opens who is working without a tap', (tester) async {
+    final database = AppDatabase.memory();
+    final workers = DriftWorkerRepository(database);
+    final dana = await workers.addWorker('דנה');
+    await workers.selectWorker(
+      dana!.id,
+      at: DateTime.now().toUtc().subtract(const Duration(minutes: 1)),
+    );
+    final settings = DriftSettingsRepository(database);
+    final current = await settings.ensure();
+    await settings.save(
+      current.copyWith(
+        workerIdleSeconds: 30,
+        workerPromptStyle: WorkerPromptStyle.popup,
+      ),
+    );
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('מי עובד עכשיו?'), findsOneWidget);
+    expect(find.byKey(const Key('worker-idle-gate')), findsNothing);
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('ללא keeps a manually chosen worker signed in', (tester) async {
+    final database = AppDatabase.memory();
+    final workers = DriftWorkerRepository(database);
+    final dana = await workers.addWorker('דנה');
+    await workers.selectWorker(
+      dana!.id,
+      at: DateTime.now().toUtc().subtract(const Duration(hours: 2)),
+    );
+    final settings = DriftSettingsRepository(database);
+    final current = await settings.ensure();
+    await settings.save(
+      current.copyWith(workerRefreshMode: WorkerRefreshMode.off),
+    );
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('מי עובד עכשיו?'), findsNothing);
+    expect(find.byKey(const Key('worker-idle-gate')), findsNothing);
+    await tester.tap(find.text('חלב'));
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('confirm-check-in')))
+          .onPressed,
+      isNotNull,
+    );
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     final closing = database.close();

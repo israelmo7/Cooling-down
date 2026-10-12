@@ -138,6 +138,19 @@ class LocalSettings extends Table {
       boolean().named('confirm_action').withDefault(const Constant(false))();
   IntColumn get workerIdleSeconds =>
       integer().named('worker_idle_seconds').withDefault(const Constant(600))();
+  TextColumn get workerRefreshMode =>
+      text().named('worker_refresh_mode').withDefault(const Constant('idle'))();
+  TextColumn get workerPromptStyle =>
+      text().named('worker_prompt_style').withDefault(const Constant('wait'))();
+  IntColumn get workerRefreshStartMinute => integer()
+      .named('worker_refresh_start_minute')
+      .withDefault(const Constant(480))();
+  IntColumn get workerRefreshIntervalHours => integer()
+      .named('worker_refresh_interval_hours')
+      .withDefault(const Constant(8))();
+  IntColumn get workerRefreshEndMinute => integer()
+      .named('worker_refresh_end_minute')
+      .withDefault(const Constant(1200))();
   TextColumn get smtpHost =>
       text().named('smtp_host').withDefault(const Constant(''))();
   IntColumn get smtpPort =>

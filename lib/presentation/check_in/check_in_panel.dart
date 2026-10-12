@@ -7,7 +7,7 @@ import '../../data/db/seed_ids.dart';
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/failures.dart';
-import '../../domain/workers/worker_session.dart';
+import '../../domain/workers/worker_refresh.dart';
 import '../format.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
@@ -53,16 +53,16 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     );
     final session = ref.read(workerSessionProvider).asData?.value;
     final workerName = session?.workerName.trim() ?? '';
-    final idle =
-        ref.read(settingsProvider).asData?.value?.workerIdleLimit ??
-        defaultWorkerIdleLimit;
+    final refresh =
+        ref.read(settingsProvider).asData?.value?.workerRefresh ??
+        const WorkerRefresh();
     if (product == null ||
         fridge == null ||
         _saving ||
         !workerAllowsAction(
           session: session,
           now: DateTime.now(),
-          idle: idle,
+          refresh: refresh,
         )) {
       return;
     }
@@ -156,9 +156,9 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
         workerAllowsAction(
           session: ref.watch(workerSessionProvider).asData?.value,
           now: DateTime.now(),
-          idle:
-              ref.watch(settingsProvider).asData?.value?.workerIdleLimit ??
-              defaultWorkerIdleLimit,
+          refresh:
+              ref.watch(settingsProvider).asData?.value?.workerRefresh ??
+              const WorkerRefresh(),
         );
     final visible =
         products.asData?.value.any((item) => item.id == _selectedProduct?.id) ??

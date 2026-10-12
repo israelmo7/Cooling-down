@@ -1,3 +1,5 @@
+import '../workers/worker_refresh.dart';
+
 /// Seconds without a tap before the next tap asks who is working.
 const defaultWorkerIdleSeconds = 600;
 
@@ -41,6 +43,11 @@ class DeviceSettings {
     this.hubEnabled = false,
     this.confirmAction = false,
     this.workerIdleSeconds = defaultWorkerIdleSeconds,
+    this.workerRefreshMode = WorkerRefreshMode.idle,
+    this.workerPromptStyle = WorkerPromptStyle.wait,
+    this.workerRefreshStartMinute = 8 * 60,
+    this.workerRefreshIntervalHours = 8,
+    this.workerRefreshEndMinute = 20 * 60,
     this.smtpHost = '',
     this.smtpPort = 587,
     this.smtpUser = '',
@@ -63,6 +70,11 @@ class DeviceSettings {
   final bool hubEnabled;
   final bool confirmAction;
   final int workerIdleSeconds;
+  final WorkerRefreshMode workerRefreshMode;
+  final WorkerPromptStyle workerPromptStyle;
+  final int workerRefreshStartMinute;
+  final int workerRefreshIntervalHours;
+  final int workerRefreshEndMinute;
   final String smtpHost;
   final int smtpPort;
   final String smtpUser;
@@ -75,6 +87,15 @@ class DeviceSettings {
     seconds: workerIdleSeconds < 1
         ? defaultWorkerIdleSeconds
         : workerIdleSeconds,
+  );
+
+  WorkerRefresh get workerRefresh => WorkerRefresh(
+    mode: workerRefreshMode,
+    style: workerPromptStyle,
+    idleSeconds: workerIdleSeconds,
+    startMinute: workerRefreshStartMinute,
+    intervalHours: workerRefreshIntervalHours,
+    endMinute: workerRefreshEndMinute,
   );
 
   DeviceSettings copyWith({
@@ -92,6 +113,11 @@ class DeviceSettings {
     bool? hubEnabled,
     bool? confirmAction,
     int? workerIdleSeconds,
+    WorkerRefreshMode? workerRefreshMode,
+    WorkerPromptStyle? workerPromptStyle,
+    int? workerRefreshStartMinute,
+    int? workerRefreshIntervalHours,
+    int? workerRefreshEndMinute,
     String? smtpHost,
     int? smtpPort,
     String? smtpUser,
@@ -118,6 +144,14 @@ class DeviceSettings {
       hubEnabled: hubEnabled ?? this.hubEnabled,
       confirmAction: confirmAction ?? this.confirmAction,
       workerIdleSeconds: workerIdleSeconds ?? this.workerIdleSeconds,
+      workerRefreshMode: workerRefreshMode ?? this.workerRefreshMode,
+      workerPromptStyle: workerPromptStyle ?? this.workerPromptStyle,
+      workerRefreshStartMinute:
+          workerRefreshStartMinute ?? this.workerRefreshStartMinute,
+      workerRefreshIntervalHours:
+          workerRefreshIntervalHours ?? this.workerRefreshIntervalHours,
+      workerRefreshEndMinute:
+          workerRefreshEndMinute ?? this.workerRefreshEndMinute,
       smtpHost: smtpHost ?? this.smtpHost,
       smtpPort: smtpPort ?? this.smtpPort,
       smtpUser: smtpUser ?? this.smtpUser,

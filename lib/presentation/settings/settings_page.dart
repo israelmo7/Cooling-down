@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/sync/server_url.dart';
 import '../../domain/reports/daily_report.dart';
 import '../../domain/settings/device_settings.dart';
+import '../../domain/workers/worker_refresh.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
 import '../widgets/transient_notice.dart';
@@ -26,10 +27,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _serverUrl = TextEditingController();
   final _token = TextEditingController();
   final _idleSeconds = TextEditingController();
+  final _refreshStart = TextEditingController();
+  final _refreshHours = TextEditingController();
+  final _refreshEnd = TextEditingController();
   var _loaded = false;
   var _unlocked = false;
   var _busy = false;
   var _confirmAction = false;
+  var _refreshMode = WorkerRefreshMode.idle;
+  var _promptStyle = WorkerPromptStyle.wait;
 
   @override
   void initState() {
@@ -43,6 +49,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _serverUrl.dispose();
     _token.dispose();
     _idleSeconds.dispose();
+    _refreshStart.dispose();
+    _refreshHours.dispose();
+    _refreshEnd.dispose();
     super.dispose();
   }
 
@@ -56,6 +65,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _serverUrl.text = settings.serverUrl;
       _token.text = settings.serverToken;
       _idleSeconds.text = '${settings.workerIdleSeconds}';
+      _refreshStart.text = formatClockMinutes(
+        settings.workerRefreshStartMinute,
+      );
+      _refreshHours.text = '${settings.workerRefreshIntervalHours}';
+      _refreshEnd.text = formatClockMinutes(settings.workerRefreshEndMinute);
+      _refreshMode = settings.workerRefreshMode;
+      _promptStyle = settings.workerPromptStyle;
       _confirmAction = settings.confirmAction;
       _loaded = true;
     });
@@ -64,7 +80,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Future<DeviceSettings?> _save() async {
     final current = await ref.read(settingsRepositoryProvider).ensure();
     final idleSeconds = normalizeWorkerIdleSeconds(_idleSeconds.text);
+    final intervalHours = normalizeIntervalHours(_refreshHours.text);
+    final startMinute = parseClockMinutes(_refreshStart.text) ?? 8 * 60;
+    var endMinute = parseClockMinutes(_refreshEnd.text) ?? 20 * 60;
+    if (endMinute <= startMinute) {
+      final later = startMinute + 60;
+      endMinute = later > 23 * 60 + 59 ? 23 * 60 + 59 : later;
+    }
     _idleSeconds.text = '$idleSeconds';
+    _refreshHours.text = '$intervalHours';
+    _refreshStart.text = formatClockMinutes(startMinute);
+    _refreshEnd.text = formatClockMinutes(endMinute);
     final next = current.copyWith(
       environmentName: clipEnvironmentName(_environment.text),
       serverUrl: _serverUrl.text,
@@ -75,6 +101,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       hubEnabled: false,
       confirmAction: _confirmAction,
       workerIdleSeconds: idleSeconds,
+      workerRefreshMode: _refreshMode,
+      workerPromptStyle: _promptStyle,
+      workerRefreshStartMinute: startMinute,
+      workerRefreshIntervalHours: intervalHours,
+      workerRefreshEndMinute: endMinute,
     );
     await ref.read(settingsRepositoryProvider).save(next);
     return ref.read(settingsRepositoryProvider).ensure();
@@ -204,16 +235,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           label: 'אסימון גישה',
           helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
         ),
-        _field(
-          controller: _idleSeconds,
-          label: 'זמן ללא שימוש',
-          helper: 'שניות. אחריהן, הנגיעה הבאה שואלת מי עובד.',
-          keyboard: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(5),
-          ],
-        ),
+        _workerRefreshControl(),
       ],
       _confirmActionControl(),
       const SizedBox(height: 8),
@@ -319,7 +341,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget _field({
     required TextEditingController controller,
     required String label,
-    required String helper,
+    String helper = '',
     bool obscure = false,
     TextInputType? keyboard,
     List<TextInputFormatter>? inputFormatters,
@@ -338,11 +360,94 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         style: const TextStyle(fontSize: 18),
         decoration: InputDecoration(
           labelText: label,
-          helperText: helper,
+          helperText: helper.isEmpty ? null : helper,
           helperMaxLines: 3,
           border: const OutlineInputBorder(),
         ),
       ),
+    );
+  }
+
+  Future<void> _pickRefreshMode() async {
+    final picked = await showDialog<WorkerRefreshMode>(
+      context: context,
+      builder: (context) => const _WorkerRefreshMenu(),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() => _refreshMode = picked);
+  }
+
+  Widget _workerRefreshControl() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextButton(
+          key: const Key('worker-refresh'),
+          onPressed: _busy ? null : _pickRefreshMode,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          child: const Text('רענון עובד'),
+        ),
+        if (_refreshMode == WorkerRefreshMode.idle)
+          _field(
+            controller: _idleSeconds,
+            label: 'שניות',
+            keyboard: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(5),
+            ],
+          ),
+        if (_refreshMode == WorkerRefreshMode.periodic) ...[
+          _field(controller: _refreshStart, label: 'משעה'),
+          _field(
+            controller: _refreshHours,
+            label: 'שעות',
+            keyboard: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(2),
+            ],
+          ),
+          _field(controller: _refreshEnd, label: 'עד'),
+        ],
+        if (_refreshMode != WorkerRefreshMode.off) ...[
+          const SizedBox(height: 4),
+          SegmentedButton<WorkerPromptStyle>(
+            key: const Key('worker-prompt-style'),
+            showSelectedIcon: false,
+            style: SegmentedButton.styleFrom(
+              textStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+            segments: const [
+              ButtonSegment(
+                value: WorkerPromptStyle.popup,
+                label: Text('הקפצה'),
+              ),
+              ButtonSegment(
+                value: WorkerPromptStyle.wait,
+                label: Text('המתנה'),
+              ),
+            ],
+            selected: {_promptStyle},
+            onSelectionChanged: _busy
+                ? null
+                : (selected) => setState(() => _promptStyle = selected.first),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ],
     );
   }
 
@@ -379,6 +484,48 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return 'עדיין אין';
     }
     return '${report.reportDate} · ${_reportStatus(report.status)}';
+  }
+}
+
+class _WorkerRefreshMenu extends StatelessWidget {
+  const _WorkerRefreshMenu();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      key: const Key('worker-refresh-menu'),
+      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+      content: SizedBox(
+        width: 240,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final mode in WorkerRefreshMode.values)
+              ListTile(
+                title: Text(
+                  _refreshModeLabel(mode),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                onTap: () => Navigator.of(context).pop(mode),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _refreshModeLabel(WorkerRefreshMode mode) {
+  switch (mode) {
+    case WorkerRefreshMode.off:
+      return 'ללא';
+    case WorkerRefreshMode.idle:
+      return 'לא בשימוש';
+    case WorkerRefreshMode.periodic:
+      return 'מחזוריות';
   }
 }
 

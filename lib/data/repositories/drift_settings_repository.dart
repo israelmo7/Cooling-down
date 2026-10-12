@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../domain/repositories/settings_repository.dart';
 import '../../domain/settings/device_settings.dart';
+import '../../domain/workers/worker_refresh.dart';
 import '../db/app_database.dart';
 import '../db/ensure_settings.dart';
 import '../sync/server_url.dart';
@@ -56,6 +57,17 @@ class DriftSettingsRepository implements SettingsRepository {
               ? defaultWorkerIdleSeconds
               : settings.workerIdleSeconds,
         ),
+        workerRefreshMode: Value(settings.workerRefreshMode.name),
+        workerPromptStyle: Value(settings.workerPromptStyle.name),
+        workerRefreshStartMinute: Value(
+          settings.workerRefreshStartMinute.clamp(0, 23 * 60 + 59).toInt(),
+        ),
+        workerRefreshIntervalHours: Value(
+          settings.workerRefreshIntervalHours.clamp(1, 24).toInt(),
+        ),
+        workerRefreshEndMinute: Value(
+          settings.workerRefreshEndMinute.clamp(0, 23 * 60 + 59).toInt(),
+        ),
         smtpHost: Value(settings.smtpHost.trim()),
         smtpPort: Value(settings.smtpPort.clamp(1, 65535).toInt()),
         smtpUser: Value(settings.smtpUser.trim()),
@@ -105,6 +117,11 @@ class DriftSettingsRepository implements SettingsRepository {
       hubEnabled: row.hubEnabled,
       confirmAction: row.confirmAction,
       workerIdleSeconds: row.workerIdleSeconds,
+      workerRefreshMode: WorkerRefreshMode.parse(row.workerRefreshMode),
+      workerPromptStyle: WorkerPromptStyle.parse(row.workerPromptStyle),
+      workerRefreshStartMinute: row.workerRefreshStartMinute,
+      workerRefreshIntervalHours: row.workerRefreshIntervalHours,
+      workerRefreshEndMinute: row.workerRefreshEndMinute,
       smtpHost: row.smtpHost,
       smtpPort: row.smtpPort,
       smtpUser: row.smtpUser,

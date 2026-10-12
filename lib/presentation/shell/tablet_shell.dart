@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/alert.dart';
 import '../../domain/settings/device_settings.dart';
-import '../../domain/workers/worker_session.dart';
+import '../../domain/workers/worker_refresh.dart';
 import '../check_in/check_in_panel.dart';
 import '../check_out/check_out_panel.dart';
 import '../live_log/live_log_feed.dart';
@@ -25,9 +25,12 @@ class _TabletShellState extends ConsumerState<TabletShell>
   int _index = 0;
   Timer? _timer;
   Timer? _idleTimer;
+  Timer? _popupRetry;
   DateTime? _lastTouch;
   DateTime? _lastPersisted;
   var _askingWorker = false;
+  var _popupScheduled = false;
+  String? _shownPromptKey;
 
   @override
   void initState() {
@@ -35,7 +38,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _tick();
-      _armIdleGate();
+      _armWorkerRefresh();
     });
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _tick());
   }
@@ -44,6 +47,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
   void dispose() {
     _timer?.cancel();
     _idleTimer?.cancel();
+    _popupRetry?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -56,12 +60,16 @@ class _TabletShellState extends ConsumerState<TabletShell>
         ref.read(tabletHubProvider).apply(current, restart: true);
       }
       _tick();
-      _armIdleGate();
+      _armWorkerRefresh();
       setState(() {});
       return;
     }
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
+      final refresh = _refresh();
+      if (refresh.mode != WorkerRefreshMode.idle) {
+        return;
+      }
       final at = _lastTouch;
       if (at != null) {
         unawaited(ref.read(workerRepositoryProvider).noteActivity(at));
@@ -69,9 +77,9 @@ class _TabletShellState extends ConsumerState<TabletShell>
     }
   }
 
-  Duration _idleLimit() {
-    return ref.read(settingsProvider).asData?.value?.workerIdleLimit ??
-        defaultWorkerIdleLimit;
+  WorkerRefresh _refresh() {
+    return ref.read(settingsProvider).asData?.value?.workerRefresh ??
+        const WorkerRefresh();
   }
 
   Duration _activityGap(Duration idle) {
@@ -86,41 +94,84 @@ class _TabletShellState extends ConsumerState<TabletShell>
   }
 
   void _noteActivity() {
-    final idle = _idleLimit();
+    final refresh = _refresh();
+    if (refresh.mode != WorkerRefreshMode.idle) {
+      return;
+    }
     final session = ref.read(workerSessionProvider).asData?.value;
-    if (session == null || !session.isActive(DateTime.now(), idle: idle)) {
+    if (session == null ||
+        !session.isActive(DateTime.now(), idle: refresh.idle)) {
       return;
     }
     final now = DateTime.now().toUtc();
     _lastTouch = now;
     final previous = _lastPersisted;
-    if (previous != null && now.difference(previous) < _activityGap(idle)) {
+    if (previous != null &&
+        now.difference(previous) < _activityGap(refresh.idle)) {
       return;
     }
     _lastPersisted = now;
     unawaited(ref.read(workerRepositoryProvider).noteActivity(now));
-    _armIdleGate();
+    _armWorkerRefresh();
   }
 
-  void _armIdleGate() {
+  void _armWorkerRefresh() {
     _idleTimer?.cancel();
     if (!mounted) {
       return;
     }
     final session = ref.read(workerSessionProvider).asData?.value;
-    final idle = _idleLimit();
-    final at = session?.activeAt;
-    if (session == null ||
-        at == null ||
-        !session.isActive(DateTime.now(), idle: idle)) {
+    final next = _refresh().nextChange(DateTime.now(), session);
+    if (next != null) {
+      final delay = next.difference(DateTime.now());
+      _idleTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
+        if (!mounted) {
+          return;
+        }
+        setState(() {});
+        _armWorkerRefresh();
+      });
+    }
+    _schedulePopup();
+  }
+
+  void _schedulePopup() {
+    if (_popupScheduled) {
       return;
     }
-    final remaining = idle - DateTime.now().toUtc().difference(at.toUtc());
-    _idleTimer = Timer(remaining.isNegative ? Duration.zero : remaining, () {
+    _popupScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _popupScheduled = false;
       if (mounted) {
-        setState(() {});
+        _maybePopup();
       }
     });
+  }
+
+  void _maybePopup() {
+    _popupRetry?.cancel();
+    if (!mounted || _askingWorker) {
+      return;
+    }
+    final workers = ref.read(workersProvider).asData?.value;
+    final session = ref.read(workerSessionProvider).asData?.value;
+    final refresh = _refresh();
+    final now = DateTime.now();
+    if (workers == null ||
+        workers.isEmpty ||
+        !refresh.promptsImmediately(now, session)) {
+      return;
+    }
+    if (ModalRoute.of(context)?.isCurrent != true) {
+      _popupRetry = Timer(const Duration(milliseconds: 400), _maybePopup);
+      return;
+    }
+    final key = refresh.promptKey(now, session);
+    if (key == null || _shownPromptKey == key) {
+      return;
+    }
+    _shownPromptKey = key;
+    unawaited(_askForWorker(required: true));
   }
 
   Future<void> _askForWorker({required bool required}) async {
@@ -151,7 +202,9 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final now = DateTime.now().toUtc();
     _lastTouch = now;
     _lastPersisted = now;
+    _shownPromptKey = null;
     await repository.selectWorker(picked, at: now);
+    _armWorkerRefresh();
   }
 
   Future<void> _tick() async {
@@ -177,20 +230,17 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final environment = settings?.environmentName.trim() ?? '';
     final session = ref.watch(workerSessionProvider).asData?.value;
     final workers = ref.watch(workersProvider).asData?.value;
-    ref.listen(workersProvider, (_, _) => _armIdleGate());
-    ref.listen(workerSessionProvider, (_, _) => _armIdleGate());
-    ref.listen(settingsProvider, (_, _) => _armIdleGate());
+    ref.listen(workersProvider, (_, _) => _armWorkerRefresh());
+    ref.listen(workerSessionProvider, (_, _) => _armWorkerRefresh());
+    ref.listen(settingsProvider, (_, _) => _armWorkerRefresh());
     final workerLabel = (session?.workerName.trim().isNotEmpty ?? false)
         ? session!.workerName
         : 'עובד';
+    final refresh = settings?.workerRefresh ?? const WorkerRefresh();
     final askOnNextTap =
         workers != null &&
         workers.isNotEmpty &&
-        !workerAllowsAction(
-          session: session,
-          now: DateTime.now(),
-          idle: settings?.workerIdleLimit ?? defaultWorkerIdleLimit,
-        );
+        refresh.promptsOnTap(DateTime.now(), session);
     ref.watch(tabletHubProvider);
 
     return Listener(

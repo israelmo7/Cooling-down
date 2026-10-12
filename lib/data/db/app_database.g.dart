@@ -2964,6 +2964,67 @@ class $LocalSettingsTable extends LocalSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(600),
   );
+  static const VerificationMeta _workerRefreshModeMeta = const VerificationMeta(
+    'workerRefreshMode',
+  );
+  @override
+  late final GeneratedColumn<String> workerRefreshMode =
+      GeneratedColumn<String>(
+        'worker_refresh_mode',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('idle'),
+      );
+  static const VerificationMeta _workerPromptStyleMeta = const VerificationMeta(
+    'workerPromptStyle',
+  );
+  @override
+  late final GeneratedColumn<String> workerPromptStyle =
+      GeneratedColumn<String>(
+        'worker_prompt_style',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('wait'),
+      );
+  static const VerificationMeta _workerRefreshStartMinuteMeta =
+      const VerificationMeta('workerRefreshStartMinute');
+  @override
+  late final GeneratedColumn<int> workerRefreshStartMinute =
+      GeneratedColumn<int>(
+        'worker_refresh_start_minute',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(480),
+      );
+  static const VerificationMeta _workerRefreshIntervalHoursMeta =
+      const VerificationMeta('workerRefreshIntervalHours');
+  @override
+  late final GeneratedColumn<int> workerRefreshIntervalHours =
+      GeneratedColumn<int>(
+        'worker_refresh_interval_hours',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(8),
+      );
+  static const VerificationMeta _workerRefreshEndMinuteMeta =
+      const VerificationMeta('workerRefreshEndMinute');
+  @override
+  late final GeneratedColumn<int> workerRefreshEndMinute = GeneratedColumn<int>(
+    'worker_refresh_end_minute',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1200),
+  );
   static const VerificationMeta _smtpHostMeta = const VerificationMeta(
     'smtpHost',
   );
@@ -3065,6 +3126,11 @@ class $LocalSettingsTable extends LocalSettings
     hubEnabled,
     confirmAction,
     workerIdleSeconds,
+    workerRefreshMode,
+    workerPromptStyle,
+    workerRefreshStartMinute,
+    workerRefreshIntervalHours,
+    workerRefreshEndMinute,
     smtpHost,
     smtpPort,
     smtpUser,
@@ -3210,6 +3276,51 @@ class $LocalSettingsTable extends LocalSettings
         ),
       );
     }
+    if (data.containsKey('worker_refresh_mode')) {
+      context.handle(
+        _workerRefreshModeMeta,
+        workerRefreshMode.isAcceptableOrUnknown(
+          data['worker_refresh_mode']!,
+          _workerRefreshModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('worker_prompt_style')) {
+      context.handle(
+        _workerPromptStyleMeta,
+        workerPromptStyle.isAcceptableOrUnknown(
+          data['worker_prompt_style']!,
+          _workerPromptStyleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('worker_refresh_start_minute')) {
+      context.handle(
+        _workerRefreshStartMinuteMeta,
+        workerRefreshStartMinute.isAcceptableOrUnknown(
+          data['worker_refresh_start_minute']!,
+          _workerRefreshStartMinuteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('worker_refresh_interval_hours')) {
+      context.handle(
+        _workerRefreshIntervalHoursMeta,
+        workerRefreshIntervalHours.isAcceptableOrUnknown(
+          data['worker_refresh_interval_hours']!,
+          _workerRefreshIntervalHoursMeta,
+        ),
+      );
+    }
+    if (data.containsKey('worker_refresh_end_minute')) {
+      context.handle(
+        _workerRefreshEndMinuteMeta,
+        workerRefreshEndMinute.isAcceptableOrUnknown(
+          data['worker_refresh_end_minute']!,
+          _workerRefreshEndMinuteMeta,
+        ),
+      );
+    }
     if (data.containsKey('smtp_host')) {
       context.handle(
         _smtpHostMeta,
@@ -3334,6 +3445,26 @@ class $LocalSettingsTable extends LocalSettings
         DriftSqlType.int,
         data['${effectivePrefix}worker_idle_seconds'],
       )!,
+      workerRefreshMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worker_refresh_mode'],
+      )!,
+      workerPromptStyle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worker_prompt_style'],
+      )!,
+      workerRefreshStartMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}worker_refresh_start_minute'],
+      )!,
+      workerRefreshIntervalHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}worker_refresh_interval_hours'],
+      )!,
+      workerRefreshEndMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}worker_refresh_end_minute'],
+      )!,
       smtpHost: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}smtp_host'],
@@ -3389,6 +3520,11 @@ class LocalSettingsRow extends DataClass
   final bool hubEnabled;
   final bool confirmAction;
   final int workerIdleSeconds;
+  final String workerRefreshMode;
+  final String workerPromptStyle;
+  final int workerRefreshStartMinute;
+  final int workerRefreshIntervalHours;
+  final int workerRefreshEndMinute;
   final String smtpHost;
   final int smtpPort;
   final String smtpUser;
@@ -3413,6 +3549,11 @@ class LocalSettingsRow extends DataClass
     required this.hubEnabled,
     required this.confirmAction,
     required this.workerIdleSeconds,
+    required this.workerRefreshMode,
+    required this.workerPromptStyle,
+    required this.workerRefreshStartMinute,
+    required this.workerRefreshIntervalHours,
+    required this.workerRefreshEndMinute,
     required this.smtpHost,
     required this.smtpPort,
     required this.smtpUser,
@@ -3444,6 +3585,15 @@ class LocalSettingsRow extends DataClass
     map['hub_enabled'] = Variable<bool>(hubEnabled);
     map['confirm_action'] = Variable<bool>(confirmAction);
     map['worker_idle_seconds'] = Variable<int>(workerIdleSeconds);
+    map['worker_refresh_mode'] = Variable<String>(workerRefreshMode);
+    map['worker_prompt_style'] = Variable<String>(workerPromptStyle);
+    map['worker_refresh_start_minute'] = Variable<int>(
+      workerRefreshStartMinute,
+    );
+    map['worker_refresh_interval_hours'] = Variable<int>(
+      workerRefreshIntervalHours,
+    );
+    map['worker_refresh_end_minute'] = Variable<int>(workerRefreshEndMinute);
     map['smtp_host'] = Variable<String>(smtpHost);
     map['smtp_port'] = Variable<int>(smtpPort);
     map['smtp_user'] = Variable<String>(smtpUser);
@@ -3480,6 +3630,11 @@ class LocalSettingsRow extends DataClass
       hubEnabled: Value(hubEnabled),
       confirmAction: Value(confirmAction),
       workerIdleSeconds: Value(workerIdleSeconds),
+      workerRefreshMode: Value(workerRefreshMode),
+      workerPromptStyle: Value(workerPromptStyle),
+      workerRefreshStartMinute: Value(workerRefreshStartMinute),
+      workerRefreshIntervalHours: Value(workerRefreshIntervalHours),
+      workerRefreshEndMinute: Value(workerRefreshEndMinute),
       smtpHost: Value(smtpHost),
       smtpPort: Value(smtpPort),
       smtpUser: Value(smtpUser),
@@ -3516,6 +3671,17 @@ class LocalSettingsRow extends DataClass
       hubEnabled: serializer.fromJson<bool>(json['hubEnabled']),
       confirmAction: serializer.fromJson<bool>(json['confirmAction']),
       workerIdleSeconds: serializer.fromJson<int>(json['workerIdleSeconds']),
+      workerRefreshMode: serializer.fromJson<String>(json['workerRefreshMode']),
+      workerPromptStyle: serializer.fromJson<String>(json['workerPromptStyle']),
+      workerRefreshStartMinute: serializer.fromJson<int>(
+        json['workerRefreshStartMinute'],
+      ),
+      workerRefreshIntervalHours: serializer.fromJson<int>(
+        json['workerRefreshIntervalHours'],
+      ),
+      workerRefreshEndMinute: serializer.fromJson<int>(
+        json['workerRefreshEndMinute'],
+      ),
       smtpHost: serializer.fromJson<String>(json['smtpHost']),
       smtpPort: serializer.fromJson<int>(json['smtpPort']),
       smtpUser: serializer.fromJson<String>(json['smtpUser']),
@@ -3545,6 +3711,15 @@ class LocalSettingsRow extends DataClass
       'hubEnabled': serializer.toJson<bool>(hubEnabled),
       'confirmAction': serializer.toJson<bool>(confirmAction),
       'workerIdleSeconds': serializer.toJson<int>(workerIdleSeconds),
+      'workerRefreshMode': serializer.toJson<String>(workerRefreshMode),
+      'workerPromptStyle': serializer.toJson<String>(workerPromptStyle),
+      'workerRefreshStartMinute': serializer.toJson<int>(
+        workerRefreshStartMinute,
+      ),
+      'workerRefreshIntervalHours': serializer.toJson<int>(
+        workerRefreshIntervalHours,
+      ),
+      'workerRefreshEndMinute': serializer.toJson<int>(workerRefreshEndMinute),
       'smtpHost': serializer.toJson<String>(smtpHost),
       'smtpPort': serializer.toJson<int>(smtpPort),
       'smtpUser': serializer.toJson<String>(smtpUser),
@@ -3572,6 +3747,11 @@ class LocalSettingsRow extends DataClass
     bool? hubEnabled,
     bool? confirmAction,
     int? workerIdleSeconds,
+    String? workerRefreshMode,
+    String? workerPromptStyle,
+    int? workerRefreshStartMinute,
+    int? workerRefreshIntervalHours,
+    int? workerRefreshEndMinute,
     String? smtpHost,
     int? smtpPort,
     String? smtpUser,
@@ -3598,6 +3778,14 @@ class LocalSettingsRow extends DataClass
     hubEnabled: hubEnabled ?? this.hubEnabled,
     confirmAction: confirmAction ?? this.confirmAction,
     workerIdleSeconds: workerIdleSeconds ?? this.workerIdleSeconds,
+    workerRefreshMode: workerRefreshMode ?? this.workerRefreshMode,
+    workerPromptStyle: workerPromptStyle ?? this.workerPromptStyle,
+    workerRefreshStartMinute:
+        workerRefreshStartMinute ?? this.workerRefreshStartMinute,
+    workerRefreshIntervalHours:
+        workerRefreshIntervalHours ?? this.workerRefreshIntervalHours,
+    workerRefreshEndMinute:
+        workerRefreshEndMinute ?? this.workerRefreshEndMinute,
     smtpHost: smtpHost ?? this.smtpHost,
     smtpPort: smtpPort ?? this.smtpPort,
     smtpUser: smtpUser ?? this.smtpUser,
@@ -3654,6 +3842,21 @@ class LocalSettingsRow extends DataClass
       workerIdleSeconds: data.workerIdleSeconds.present
           ? data.workerIdleSeconds.value
           : this.workerIdleSeconds,
+      workerRefreshMode: data.workerRefreshMode.present
+          ? data.workerRefreshMode.value
+          : this.workerRefreshMode,
+      workerPromptStyle: data.workerPromptStyle.present
+          ? data.workerPromptStyle.value
+          : this.workerPromptStyle,
+      workerRefreshStartMinute: data.workerRefreshStartMinute.present
+          ? data.workerRefreshStartMinute.value
+          : this.workerRefreshStartMinute,
+      workerRefreshIntervalHours: data.workerRefreshIntervalHours.present
+          ? data.workerRefreshIntervalHours.value
+          : this.workerRefreshIntervalHours,
+      workerRefreshEndMinute: data.workerRefreshEndMinute.present
+          ? data.workerRefreshEndMinute.value
+          : this.workerRefreshEndMinute,
       smtpHost: data.smtpHost.present ? data.smtpHost.value : this.smtpHost,
       smtpPort: data.smtpPort.present ? data.smtpPort.value : this.smtpPort,
       smtpUser: data.smtpUser.present ? data.smtpUser.value : this.smtpUser,
@@ -3689,6 +3892,11 @@ class LocalSettingsRow extends DataClass
           ..write('hubEnabled: $hubEnabled, ')
           ..write('confirmAction: $confirmAction, ')
           ..write('workerIdleSeconds: $workerIdleSeconds, ')
+          ..write('workerRefreshMode: $workerRefreshMode, ')
+          ..write('workerPromptStyle: $workerPromptStyle, ')
+          ..write('workerRefreshStartMinute: $workerRefreshStartMinute, ')
+          ..write('workerRefreshIntervalHours: $workerRefreshIntervalHours, ')
+          ..write('workerRefreshEndMinute: $workerRefreshEndMinute, ')
           ..write('smtpHost: $smtpHost, ')
           ..write('smtpPort: $smtpPort, ')
           ..write('smtpUser: $smtpUser, ')
@@ -3718,6 +3926,11 @@ class LocalSettingsRow extends DataClass
     hubEnabled,
     confirmAction,
     workerIdleSeconds,
+    workerRefreshMode,
+    workerPromptStyle,
+    workerRefreshStartMinute,
+    workerRefreshIntervalHours,
+    workerRefreshEndMinute,
     smtpHost,
     smtpPort,
     smtpUser,
@@ -3746,6 +3959,11 @@ class LocalSettingsRow extends DataClass
           other.hubEnabled == this.hubEnabled &&
           other.confirmAction == this.confirmAction &&
           other.workerIdleSeconds == this.workerIdleSeconds &&
+          other.workerRefreshMode == this.workerRefreshMode &&
+          other.workerPromptStyle == this.workerPromptStyle &&
+          other.workerRefreshStartMinute == this.workerRefreshStartMinute &&
+          other.workerRefreshIntervalHours == this.workerRefreshIntervalHours &&
+          other.workerRefreshEndMinute == this.workerRefreshEndMinute &&
           other.smtpHost == this.smtpHost &&
           other.smtpPort == this.smtpPort &&
           other.smtpUser == this.smtpUser &&
@@ -3772,6 +3990,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
   final Value<bool> hubEnabled;
   final Value<bool> confirmAction;
   final Value<int> workerIdleSeconds;
+  final Value<String> workerRefreshMode;
+  final Value<String> workerPromptStyle;
+  final Value<int> workerRefreshStartMinute;
+  final Value<int> workerRefreshIntervalHours;
+  final Value<int> workerRefreshEndMinute;
   final Value<String> smtpHost;
   final Value<int> smtpPort;
   final Value<String> smtpUser;
@@ -3797,6 +4020,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.hubEnabled = const Value.absent(),
     this.confirmAction = const Value.absent(),
     this.workerIdleSeconds = const Value.absent(),
+    this.workerRefreshMode = const Value.absent(),
+    this.workerPromptStyle = const Value.absent(),
+    this.workerRefreshStartMinute = const Value.absent(),
+    this.workerRefreshIntervalHours = const Value.absent(),
+    this.workerRefreshEndMinute = const Value.absent(),
     this.smtpHost = const Value.absent(),
     this.smtpPort = const Value.absent(),
     this.smtpUser = const Value.absent(),
@@ -3823,6 +4051,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.hubEnabled = const Value.absent(),
     this.confirmAction = const Value.absent(),
     this.workerIdleSeconds = const Value.absent(),
+    this.workerRefreshMode = const Value.absent(),
+    this.workerPromptStyle = const Value.absent(),
+    this.workerRefreshStartMinute = const Value.absent(),
+    this.workerRefreshIntervalHours = const Value.absent(),
+    this.workerRefreshEndMinute = const Value.absent(),
     this.smtpHost = const Value.absent(),
     this.smtpPort = const Value.absent(),
     this.smtpUser = const Value.absent(),
@@ -3852,6 +4085,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Expression<bool>? hubEnabled,
     Expression<bool>? confirmAction,
     Expression<int>? workerIdleSeconds,
+    Expression<String>? workerRefreshMode,
+    Expression<String>? workerPromptStyle,
+    Expression<int>? workerRefreshStartMinute,
+    Expression<int>? workerRefreshIntervalHours,
+    Expression<int>? workerRefreshEndMinute,
     Expression<String>? smtpHost,
     Expression<int>? smtpPort,
     Expression<String>? smtpUser,
@@ -3879,6 +4117,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       if (hubEnabled != null) 'hub_enabled': hubEnabled,
       if (confirmAction != null) 'confirm_action': confirmAction,
       if (workerIdleSeconds != null) 'worker_idle_seconds': workerIdleSeconds,
+      if (workerRefreshMode != null) 'worker_refresh_mode': workerRefreshMode,
+      if (workerPromptStyle != null) 'worker_prompt_style': workerPromptStyle,
+      if (workerRefreshStartMinute != null)
+        'worker_refresh_start_minute': workerRefreshStartMinute,
+      if (workerRefreshIntervalHours != null)
+        'worker_refresh_interval_hours': workerRefreshIntervalHours,
+      if (workerRefreshEndMinute != null)
+        'worker_refresh_end_minute': workerRefreshEndMinute,
       if (smtpHost != null) 'smtp_host': smtpHost,
       if (smtpPort != null) 'smtp_port': smtpPort,
       if (smtpUser != null) 'smtp_user': smtpUser,
@@ -3907,6 +4153,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Value<bool>? hubEnabled,
     Value<bool>? confirmAction,
     Value<int>? workerIdleSeconds,
+    Value<String>? workerRefreshMode,
+    Value<String>? workerPromptStyle,
+    Value<int>? workerRefreshStartMinute,
+    Value<int>? workerRefreshIntervalHours,
+    Value<int>? workerRefreshEndMinute,
     Value<String>? smtpHost,
     Value<int>? smtpPort,
     Value<String>? smtpUser,
@@ -3933,6 +4184,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       hubEnabled: hubEnabled ?? this.hubEnabled,
       confirmAction: confirmAction ?? this.confirmAction,
       workerIdleSeconds: workerIdleSeconds ?? this.workerIdleSeconds,
+      workerRefreshMode: workerRefreshMode ?? this.workerRefreshMode,
+      workerPromptStyle: workerPromptStyle ?? this.workerPromptStyle,
+      workerRefreshStartMinute:
+          workerRefreshStartMinute ?? this.workerRefreshStartMinute,
+      workerRefreshIntervalHours:
+          workerRefreshIntervalHours ?? this.workerRefreshIntervalHours,
+      workerRefreshEndMinute:
+          workerRefreshEndMinute ?? this.workerRefreshEndMinute,
       smtpHost: smtpHost ?? this.smtpHost,
       smtpPort: smtpPort ?? this.smtpPort,
       smtpUser: smtpUser ?? this.smtpUser,
@@ -3995,6 +4254,27 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     if (workerIdleSeconds.present) {
       map['worker_idle_seconds'] = Variable<int>(workerIdleSeconds.value);
     }
+    if (workerRefreshMode.present) {
+      map['worker_refresh_mode'] = Variable<String>(workerRefreshMode.value);
+    }
+    if (workerPromptStyle.present) {
+      map['worker_prompt_style'] = Variable<String>(workerPromptStyle.value);
+    }
+    if (workerRefreshStartMinute.present) {
+      map['worker_refresh_start_minute'] = Variable<int>(
+        workerRefreshStartMinute.value,
+      );
+    }
+    if (workerRefreshIntervalHours.present) {
+      map['worker_refresh_interval_hours'] = Variable<int>(
+        workerRefreshIntervalHours.value,
+      );
+    }
+    if (workerRefreshEndMinute.present) {
+      map['worker_refresh_end_minute'] = Variable<int>(
+        workerRefreshEndMinute.value,
+      );
+    }
     if (smtpHost.present) {
       map['smtp_host'] = Variable<String>(smtpHost.value);
     }
@@ -4041,6 +4321,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
           ..write('hubEnabled: $hubEnabled, ')
           ..write('confirmAction: $confirmAction, ')
           ..write('workerIdleSeconds: $workerIdleSeconds, ')
+          ..write('workerRefreshMode: $workerRefreshMode, ')
+          ..write('workerPromptStyle: $workerPromptStyle, ')
+          ..write('workerRefreshStartMinute: $workerRefreshStartMinute, ')
+          ..write('workerRefreshIntervalHours: $workerRefreshIntervalHours, ')
+          ..write('workerRefreshEndMinute: $workerRefreshEndMinute, ')
           ..write('smtpHost: $smtpHost, ')
           ..write('smtpPort: $smtpPort, ')
           ..write('smtpUser: $smtpUser, ')
@@ -7350,6 +7635,11 @@ typedef $$LocalSettingsTableCreateCompanionBuilder =
       Value<bool> hubEnabled,
       Value<bool> confirmAction,
       Value<int> workerIdleSeconds,
+      Value<String> workerRefreshMode,
+      Value<String> workerPromptStyle,
+      Value<int> workerRefreshStartMinute,
+      Value<int> workerRefreshIntervalHours,
+      Value<int> workerRefreshEndMinute,
       Value<String> smtpHost,
       Value<int> smtpPort,
       Value<String> smtpUser,
@@ -7377,6 +7667,11 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder =
       Value<bool> hubEnabled,
       Value<bool> confirmAction,
       Value<int> workerIdleSeconds,
+      Value<String> workerRefreshMode,
+      Value<String> workerPromptStyle,
+      Value<int> workerRefreshStartMinute,
+      Value<int> workerRefreshIntervalHours,
+      Value<int> workerRefreshEndMinute,
       Value<String> smtpHost,
       Value<int> smtpPort,
       Value<String> smtpUser,
@@ -7473,6 +7768,31 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<int> get workerIdleSeconds => $composableBuilder(
     column: $table.workerIdleSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workerRefreshMode => $composableBuilder(
+    column: $table.workerRefreshMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workerPromptStyle => $composableBuilder(
+    column: $table.workerPromptStyle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get workerRefreshStartMinute => $composableBuilder(
+    column: $table.workerRefreshStartMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get workerRefreshIntervalHours => $composableBuilder(
+    column: $table.workerRefreshIntervalHours,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get workerRefreshEndMinute => $composableBuilder(
+    column: $table.workerRefreshEndMinute,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7601,6 +7921,31 @@ class $$LocalSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get workerRefreshMode => $composableBuilder(
+    column: $table.workerRefreshMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get workerPromptStyle => $composableBuilder(
+    column: $table.workerPromptStyle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get workerRefreshStartMinute => $composableBuilder(
+    column: $table.workerRefreshStartMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get workerRefreshIntervalHours => $composableBuilder(
+    column: $table.workerRefreshIntervalHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get workerRefreshEndMinute => $composableBuilder(
+    column: $table.workerRefreshEndMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get smtpHost => $composableBuilder(
     column: $table.smtpHost,
     builder: (column) => ColumnOrderings(column),
@@ -7720,6 +8065,31 @@ class $$LocalSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get workerRefreshMode => $composableBuilder(
+    column: $table.workerRefreshMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get workerPromptStyle => $composableBuilder(
+    column: $table.workerPromptStyle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get workerRefreshStartMinute => $composableBuilder(
+    column: $table.workerRefreshStartMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get workerRefreshIntervalHours => $composableBuilder(
+    column: $table.workerRefreshIntervalHours,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get workerRefreshEndMinute => $composableBuilder(
+    column: $table.workerRefreshEndMinute,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get smtpHost =>
       $composableBuilder(column: $table.smtpHost, builder: (column) => column);
 
@@ -7799,6 +8169,11 @@ class $$LocalSettingsTableTableManager
                 Value<bool> hubEnabled = const Value.absent(),
                 Value<bool> confirmAction = const Value.absent(),
                 Value<int> workerIdleSeconds = const Value.absent(),
+                Value<String> workerRefreshMode = const Value.absent(),
+                Value<String> workerPromptStyle = const Value.absent(),
+                Value<int> workerRefreshStartMinute = const Value.absent(),
+                Value<int> workerRefreshIntervalHours = const Value.absent(),
+                Value<int> workerRefreshEndMinute = const Value.absent(),
                 Value<String> smtpHost = const Value.absent(),
                 Value<int> smtpPort = const Value.absent(),
                 Value<String> smtpUser = const Value.absent(),
@@ -7824,6 +8199,11 @@ class $$LocalSettingsTableTableManager
                 hubEnabled: hubEnabled,
                 confirmAction: confirmAction,
                 workerIdleSeconds: workerIdleSeconds,
+                workerRefreshMode: workerRefreshMode,
+                workerPromptStyle: workerPromptStyle,
+                workerRefreshStartMinute: workerRefreshStartMinute,
+                workerRefreshIntervalHours: workerRefreshIntervalHours,
+                workerRefreshEndMinute: workerRefreshEndMinute,
                 smtpHost: smtpHost,
                 smtpPort: smtpPort,
                 smtpUser: smtpUser,
@@ -7851,6 +8231,11 @@ class $$LocalSettingsTableTableManager
                 Value<bool> hubEnabled = const Value.absent(),
                 Value<bool> confirmAction = const Value.absent(),
                 Value<int> workerIdleSeconds = const Value.absent(),
+                Value<String> workerRefreshMode = const Value.absent(),
+                Value<String> workerPromptStyle = const Value.absent(),
+                Value<int> workerRefreshStartMinute = const Value.absent(),
+                Value<int> workerRefreshIntervalHours = const Value.absent(),
+                Value<int> workerRefreshEndMinute = const Value.absent(),
                 Value<String> smtpHost = const Value.absent(),
                 Value<int> smtpPort = const Value.absent(),
                 Value<String> smtpUser = const Value.absent(),
@@ -7876,6 +8261,11 @@ class $$LocalSettingsTableTableManager
                 hubEnabled: hubEnabled,
                 confirmAction: confirmAction,
                 workerIdleSeconds: workerIdleSeconds,
+                workerRefreshMode: workerRefreshMode,
+                workerPromptStyle: workerPromptStyle,
+                workerRefreshStartMinute: workerRefreshStartMinute,
+                workerRefreshIntervalHours: workerRefreshIntervalHours,
+                workerRefreshEndMinute: workerRefreshEndMinute,
                 smtpHost: smtpHost,
                 smtpPort: smtpPort,
                 smtpUser: smtpUser,

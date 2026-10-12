@@ -29,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -83,6 +83,28 @@ SET daily_report_enabled = 1, report_hour = 0, report_minute = 0
         await migrator.addColumn(
           localSettings,
           localSettings.workerIdleSeconds,
+        );
+      }
+      if (from < 9) {
+        await migrator.addColumn(
+          localSettings,
+          localSettings.workerRefreshMode,
+        );
+        await migrator.addColumn(
+          localSettings,
+          localSettings.workerPromptStyle,
+        );
+        await migrator.addColumn(
+          localSettings,
+          localSettings.workerRefreshStartMinute,
+        );
+        await migrator.addColumn(
+          localSettings,
+          localSettings.workerRefreshIntervalHours,
+        );
+        await migrator.addColumn(
+          localSettings,
+          localSettings.workerRefreshEndMinute,
         );
       }
     },
