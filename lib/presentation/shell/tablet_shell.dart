@@ -66,11 +66,12 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final settings = ref.watch(settingsProvider).asData?.value;
     final sharing = settings?.hasServer ?? false;
     final hub = settings?.hubEnabled ?? false;
+    final environment = settings?.environmentName.trim() ?? '';
     ref.watch(tabletHubProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('קירור'),
+        title: Text(environment.isEmpty ? 'קירור' : environment),
         actions: [
           Center(
             child: Text(
@@ -98,23 +99,6 @@ class _TabletShellState extends ConsumerState<TabletShell>
       ),
       body: Column(
         children: [
-          if (hub)
-            Material(
-              color: Theme.of(context).colorScheme.secondaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                child: Text(
-                  'הטאבלט הזה הוא העותק המשותף. יש להשאיר אותו פתוח ברשת.',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
           if (alerts.isNotEmpty)
             Material(
               color: Theme.of(context).colorScheme.errorContainer,

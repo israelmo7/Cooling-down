@@ -72,6 +72,8 @@ SET daily_report_enabled = 1, report_hour = 0, report_minute = 0
         // In-memory databases keep the default journal mode.
       }
       await _installImmutabilityTriggers();
+      await _useHebrewCatalogNames();
+      await customStatement('UPDATE local_settings SET hub_enabled = 0');
     },
   );
 
@@ -98,6 +100,28 @@ ON refrigeration_logs (movement_id)
 CREATE INDEX IF NOT EXISTS idx_sync_outbox_status
 ON sync_outbox (status, created_at)
 ''');
+  }
+
+  Future<void> _useHebrewCatalogNames() async {
+    const names = <String, String>{
+      SeedIds.kitchenFridge: 'מקרר מטבח',
+      SeedIds.pharmacyFridge: 'מקרר בית מרקחת',
+      SeedIds.freezer: 'מקפיא',
+      SeedIds.wholeMilk: 'חלב',
+      SeedIds.chickenBreast: 'חזה עוף',
+      SeedIds.insulin: 'אינסולין',
+      SeedIds.vaccine: 'חיסון',
+    };
+    for (final entry in names.entries) {
+      await customStatement(
+        'UPDATE fridges SET name = ? WHERE id = ? AND name != ?',
+        [entry.value, entry.key, entry.value],
+      );
+      await customStatement(
+        'UPDATE products SET name = ? WHERE id = ? AND name != ?',
+        [entry.value, entry.key, entry.value],
+      );
+    }
   }
 
   Future<void> _seed() async {

@@ -42,7 +42,7 @@ Email is off until these are set in the server process environment: `SMTP_HOST`,
 
 `PORT` defaults to 8080. `DATA_PATH` defaults to `cooling_down_server.sqlite`.
 
-On each tablet, enter that address, the token, the same environment name, and the owner email. Settings stay locked until the password `123459876` is entered. "שליחת דוח בחצות" is on by default. At 00:00 the computer emails the owner a Hebrew report of the previous day, from the logs that have already synced. If a tablet was offline, its rows stay local and upload on the next successful sync. The first successful email for a day wins.
+On each tablet, enter that address, the token, the same environment name, and the owner email. The app bar shows that environment name. Settings stay locked until the password `123459876` is entered, and the access token stays hidden until then. The product list in Settings is what check-in search uses. At 00:00 the computer emails the owner a Hebrew report of the previous day, from the logs that have already synced. If a tablet was offline, its rows stay local and upload on the next successful sync. The first successful email for a day wins.
 
 ## Layout
 

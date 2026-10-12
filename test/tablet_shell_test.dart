@@ -84,10 +84,16 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
+    expect(find.text('מטבח'), findsWidgets);
     expect(find.text('שם הסביבה'), findsOneWidget);
     expect(find.text('אימייל הבעלים'), findsOneWidget);
-    expect(find.text('שליחת דוח בחצות'), findsOneWidget);
+    expect(find.text('מוצרים'), findsOneWidget);
+    expect(find.text('חלב'), findsWidgets);
+    expect(find.text('שליחת דוח בחצות'), findsNothing);
+    expect(find.text('הטאבלט הזה הוא העותק המשותף'), findsNothing);
+    expect(find.text('שרת דואר'), findsNothing);
     expect(find.text('שליחת הדוח היומי'), findsNothing);
+    expect(find.byKey(const Key('settings-field-אסימון גישה')), findsNothing);
     expect(find.text('שינוי הגדרות'), findsOneWidget);
 
     final locked = tester.widget<TextField>(
@@ -122,6 +128,21 @@ void main() {
       isFalse,
     );
     expect(find.text('שמירה'), findsOneWidget);
+    expect(find.byKey(const Key('settings-field-אסימון גישה')), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('add-product')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('new-product-name')), 'גבינה');
+    await tester.tap(find.byKey(const Key('add-product')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('גבינה'), findsWidgets);
+
+    Navigator.of(tester.element(find.text('הגדרות'))).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('גבינה'), findsOneWidget);
+    expect(find.text('מטבח'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

@@ -114,6 +114,10 @@ final latestReportProvider = StreamProvider<StoredDailyReport?>((ref) {
   return ref.watch(dailyReportServiceProvider).watchLatest();
 });
 
+final productCatalogProvider = StreamProvider<List<Product>>((ref) {
+  return ref.watch(productRepositoryProvider).watchAll();
+});
+
 final productSearchProvider = StreamProvider.family<List<Product>, String>(
   (ref, query) => ref.watch(productRepositoryProvider).watchSearch(query),
   isAutoDispose: true,

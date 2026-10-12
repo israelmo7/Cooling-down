@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 
-import '../../data/sync/tablet_hub.dart';
 import '../../domain/reports/daily_report.dart';
 import '../../domain/settings/device_settings.dart';
 import '../providers.dart';
+import 'product_catalog.dart';
 
 const settingsEditPassword = '123459876';
 
@@ -22,15 +22,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _serverUrl = TextEditingController();
   final _token = TextEditingController();
   final _email = TextEditingController();
-  final _smtpHost = TextEditingController();
-  final _smtpPort = TextEditingController(text: '587');
-  final _smtpUser = TextEditingController();
-  final _smtpPassword = TextEditingController();
-  final _smtpFrom = TextEditingController();
   var _loaded = false;
   var _unlocked = false;
-  var _reportEnabled = true;
-  var _hubEnabled = false;
   var _busy = false;
 
   @override
@@ -46,11 +39,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _serverUrl.dispose();
     _token.dispose();
     _email.dispose();
-    _smtpHost.dispose();
-    _smtpPort.dispose();
-    _smtpUser.dispose();
-    _smtpPassword.dispose();
-    _smtpFrom.dispose();
     super.dispose();
   }
 
@@ -65,13 +53,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _serverUrl.text = settings.serverUrl;
       _token.text = settings.serverToken;
       _email.text = settings.ownerEmail;
-      _smtpHost.text = settings.smtpHost;
-      _smtpPort.text = settings.smtpPort.toString();
-      _smtpUser.text = settings.smtpUser;
-      _smtpPassword.text = settings.smtpPassword;
-      _smtpFrom.text = settings.smtpFrom;
-      _reportEnabled = settings.dailyReportEnabled;
-      _hubEnabled = settings.hubEnabled;
       _loaded = true;
     });
   }
@@ -83,27 +64,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _show('יש להזין כתובת אימייל מלאה.');
       return null;
     }
-    var token = _token.text.trim();
-    if (_hubEnabled && token.isEmpty) {
-      token = const Uuid().v4();
-      _token.text = token;
-    }
-    final port = int.tryParse(_smtpPort.text.trim()) ?? 587;
     final next = current.copyWith(
       deviceName: _deviceName.text,
       environmentName: _environment.text,
-      serverUrl: _hubEnabled ? '' : _serverUrl.text,
-      serverToken: token,
+      serverUrl: _serverUrl.text,
+      serverToken: _token.text.trim(),
       ownerEmail: email,
-      dailyReportEnabled: _reportEnabled,
+      dailyReportEnabled: true,
       reportHour: 0,
       reportMinute: 0,
-      hubEnabled: _hubEnabled,
-      smtpHost: _smtpHost.text,
-      smtpPort: port,
-      smtpUser: _smtpUser.text,
-      smtpPassword: _smtpPassword.text,
-      smtpFrom: _smtpFrom.text,
+      hubEnabled: false,
     );
     await ref.read(settingsRepositoryProvider).save(next);
     return ref.read(settingsRepositoryProvider).ensure();
@@ -134,52 +104,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _promptUnlock() async {
-    final controller = TextEditingController();
-    var wrong = false;
     final unlocked = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            void submit() {
-              if (controller.text.trim() == settingsEditPassword) {
-                Navigator.of(dialogContext).pop(true);
-                return;
-              }
-              setDialogState(() => wrong = true);
-            }
-
-            return AlertDialog(
-              title: const Text('שינוי הגדרות'),
-              content: TextField(
-                key: const Key('settings-password'),
-                controller: controller,
-                obscureText: true,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'סיסמה',
-                  errorText: wrong ? 'הסיסמה שגויה.' : null,
-                ),
-                onSubmitted: (_) => submit(),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('ביטול'),
-                ),
-                FilledButton(
-                  key: const Key('confirm-settings-password'),
-                  onPressed: submit,
-                  child: const Text('אישור'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (context) => const _PasswordDialog(),
     );
-    controller.dispose();
     if (unlocked == true && mounted) {
       setState(() => _unlocked = true);
     }
@@ -235,40 +163,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         helper:
             'למשל http://192.168.1.20:8080. בלי רשת הנתונים נשארים בטאבלט ומסתנכרנים אחר כך.',
       ),
-      _field(
-        controller: _token,
-        label: 'אסימון גישה',
-        helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
-        obscure: true,
-      ),
+      if (_unlocked)
+        _field(
+          controller: _token,
+          label: 'אסימון גישה',
+          helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
+        ),
       _field(
         controller: _email,
         label: 'אימייל הבעלים',
         helper: 'הדוח היומי נשלח לכאן מהמחשב בחצות.',
         keyboard: TextInputType.emailAddress,
       ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('שליחת דוח בחצות'),
-        subtitle: const Text('ב-00:00 נשלח דוח על היום שהסתיים.'),
-        value: _reportEnabled,
-        onChanged: _canEdit
-            ? (value) => setState(() => _reportEnabled = value)
-            : null,
-      ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('הטאבלט הזה הוא העותק המשותף'),
-        subtitle: const Text(
-          'השאירו את האפליקציה פתוחה. טאבלטים אחרים משתמשים בכתובת שמופיעה כאן ובאסימון למעלה.',
-        ),
-        value: _hubEnabled,
-        onChanged: _canEdit
-            ? (value) => setState(() => _hubEnabled = value)
-            : null,
-      ),
-      if (_hubEnabled)
-        ..._hubFields(ref.watch(hubStatusProvider).asData?.value),
+      const SizedBox(height: 8),
+      ProductCatalogEditor(unlocked: _canEdit),
     ];
     final actions = <Widget>[
       if (!_unlocked)
@@ -339,38 +247,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  List<Widget> _hubFields(HubStatus? status) {
-    final address = status?.listening == true ? status!.address : status?.error;
-    return [
-      const SizedBox(height: 8),
-      Text(
-        address == null
-            ? 'שמרו כדי להתחיל שיתוף ברשת.'
-            : 'טאבלטים אחרים משתמשים ב-$address',
-      ),
-      const SizedBox(height: 16),
-      _field(
-        controller: _smtpHost,
-        label: 'שרת דואר',
-        helper: 'רק אם הטאבלט הזה שולח את המייל בעצמו.',
-      ),
-      _field(controller: _smtpPort, label: 'יציאת דואר', helper: 'בדרך כלל 587.'),
-      _field(controller: _smtpUser, label: 'שם משתמש לדואר', helper: ''),
-      _field(
-        controller: _smtpPassword,
-        label: 'סיסמת דואר',
-        helper: 'נשארת בטאבלט.',
-        obscure: true,
-      ),
-      _field(
-        controller: _smtpFrom,
-        label: 'כתובת השולח',
-        helper: 'הכתובת שהבעלים רואה כשולח.',
-        keyboard: TextInputType.emailAddress,
-      ),
-    ];
-  }
-
   Widget _field({
     required TextEditingController controller,
     required String label,
@@ -417,6 +293,64 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return 'עדיין אין';
     }
     return '${report.reportDate} · ${_reportStatus(report.status)}';
+  }
+}
+
+class _PasswordDialog extends StatefulWidget {
+  const _PasswordDialog();
+
+  @override
+  State<_PasswordDialog> createState() => _PasswordDialogState();
+}
+
+class _PasswordDialogState extends State<_PasswordDialog> {
+  final _controller = TextEditingController();
+  var _wrong = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final entered = _controller.text.replaceAll(RegExp(r'\D'), '');
+    if (entered == settingsEditPassword) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    setState(() => _wrong = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('שינוי הגדרות'),
+      content: TextField(
+        key: const Key('settings-password'),
+        controller: _controller,
+        obscureText: true,
+        autofocus: true,
+        keyboardType: TextInputType.visiblePassword,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(
+          labelText: 'סיסמה',
+          errorText: _wrong ? 'הסיסמה שגויה.' : null,
+        ),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('ביטול'),
+        ),
+        FilledButton(
+          key: const Key('confirm-settings-password'),
+          onPressed: _submit,
+          child: const Text('אישור'),
+        ),
+      ],
+    );
   }
 }
 
