@@ -36,6 +36,19 @@ class $ProductsTable extends Products
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _listedMeta = const VerificationMeta('listed');
+  @override
+  late final GeneratedColumn<bool> listed = GeneratedColumn<bool>(
+    'listed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("listed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -48,7 +61,7 @@ class $ProductsTable extends Products
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, name, sku, createdAt];
+  List<GeneratedColumn> get $columns => [id, name, sku, listed, createdAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -80,6 +93,12 @@ class $ProductsTable extends Products
         sku.isAcceptableOrUnknown(data['sku']!, _skuMeta),
       );
     }
+    if (data.containsKey('listed')) {
+      context.handle(
+        _listedMeta,
+        listed.isAcceptableOrUnknown(data['listed']!, _listedMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -109,6 +128,10 @@ class $ProductsTable extends Products
         DriftSqlType.string,
         data['${effectivePrefix}sku'],
       ),
+      listed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}listed'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -126,11 +149,13 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
   final String id;
   final String name;
   final String? sku;
+  final bool listed;
   final DateTime createdAt;
   const ProductRow({
     required this.id,
     required this.name,
     this.sku,
+    required this.listed,
     required this.createdAt,
   });
   @override
@@ -141,6 +166,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
     if (!nullToAbsent || sku != null) {
       map['sku'] = Variable<String>(sku);
     }
+    map['listed'] = Variable<bool>(listed);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -150,6 +176,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
       id: Value(id),
       name: Value(name),
       sku: sku == null && nullToAbsent ? const Value.absent() : Value(sku),
+      listed: Value(listed),
       createdAt: Value(createdAt),
     );
   }
@@ -163,6 +190,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       sku: serializer.fromJson<String?>(json['sku']),
+      listed: serializer.fromJson<bool>(json['listed']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -173,6 +201,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'sku': serializer.toJson<String?>(sku),
+      'listed': serializer.toJson<bool>(listed),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -181,11 +210,13 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
     String? id,
     String? name,
     Value<String?> sku = const Value.absent(),
+    bool? listed,
     DateTime? createdAt,
   }) => ProductRow(
     id: id ?? this.id,
     name: name ?? this.name,
     sku: sku.present ? sku.value : this.sku,
+    listed: listed ?? this.listed,
     createdAt: createdAt ?? this.createdAt,
   );
   ProductRow copyWithCompanion(ProductsCompanion data) {
@@ -193,6 +224,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       sku: data.sku.present ? data.sku.value : this.sku,
+      listed: data.listed.present ? data.listed.value : this.listed,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -203,13 +235,14 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('sku: $sku, ')
+          ..write('listed: $listed, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, sku, createdAt);
+  int get hashCode => Object.hash(id, name, sku, listed, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -217,6 +250,7 @@ class ProductRow extends DataClass implements Insertable<ProductRow> {
           other.id == this.id &&
           other.name == this.name &&
           other.sku == this.sku &&
+          other.listed == this.listed &&
           other.createdAt == this.createdAt);
 }
 
@@ -224,12 +258,14 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<String?> sku;
+  final Value<bool> listed;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const ProductsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.sku = const Value.absent(),
+    this.listed = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -237,6 +273,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     required String id,
     required String name,
     this.sku = const Value.absent(),
+    this.listed = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -246,6 +283,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? sku,
+    Expression<bool>? listed,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -253,6 +291,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (sku != null) 'sku': sku,
+      if (listed != null) 'listed': listed,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -262,6 +301,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     Value<String>? id,
     Value<String>? name,
     Value<String?>? sku,
+    Value<bool>? listed,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -269,6 +309,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
       id: id ?? this.id,
       name: name ?? this.name,
       sku: sku ?? this.sku,
+      listed: listed ?? this.listed,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -286,6 +327,9 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
     if (sku.present) {
       map['sku'] = Variable<String>(sku.value);
     }
+    if (listed.present) {
+      map['listed'] = Variable<bool>(listed.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -301,6 +345,7 @@ class ProductsCompanion extends UpdateCompanion<ProductRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('sku: $sku, ')
+          ..write('listed: $listed, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -4552,6 +4597,7 @@ typedef $$ProductsTableCreateCompanionBuilder = ProductsCompanion Function({
   required String id,
   required String name,
   Value<String?> sku,
+  Value<bool> listed,
   required DateTime createdAt,
   Value<int> rowid,
 });
@@ -4559,6 +4605,7 @@ typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({
   Value<String> id,
   Value<String> name,
   Value<String?> sku,
+  Value<bool> listed,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -4629,6 +4676,11 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<String> get sku => $composableBuilder(
     column: $table.sku,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get listed => $composableBuilder(
+    column: $table.listed,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4712,6 +4764,11 @@ class $$ProductsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get listed => $composableBuilder(
+    column: $table.listed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -4735,6 +4792,9 @@ class $$ProductsTableAnnotationComposer
 
   GeneratedColumn<String> get sku =>
       $composableBuilder(column: $table.sku, builder: (column) => column);
+
+  GeneratedColumn<bool> get listed =>
+      $composableBuilder(column: $table.listed, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4822,12 +4882,14 @@ class $$ProductsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> sku = const Value.absent(),
+                Value<bool> listed = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ProductsCompanion(
                 id: id,
                 name: name,
                 sku: sku,
+                listed: listed,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -4836,12 +4898,14 @@ class $$ProductsTableTableManager
                 required String id,
                 required String name,
                 Value<String?> sku = const Value.absent(),
+                Value<bool> listed = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => ProductsCompanion.insert(
                 id: id,
                 name: name,
                 sku: sku,
+                listed: listed,
                 createdAt: createdAt,
                 rowid: rowid,
               ),

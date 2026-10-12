@@ -10,6 +10,7 @@ class Products extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get sku => text().nullable()();
+  BoolColumn get listed => boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime().named('created_at')();
 
   @override

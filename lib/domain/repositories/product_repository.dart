@@ -7,8 +7,11 @@ abstract class ProductRepository {
 
   Stream<List<Product>> watchAll();
 
-  /// Adds the name, or returns the existing product when the name is already listed.
+  /// Adds the name to the settings list, or returns the product already there.
   Future<Product?> addProduct(String name);
+
+  /// Keeps a name for one check-in without putting it on the settings list.
+  Future<Product?> addOneOffProduct(String name);
 
   Future<void> renameProduct(String id, String name);
 

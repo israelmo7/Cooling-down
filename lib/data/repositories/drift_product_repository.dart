@@ -20,7 +20,11 @@ class DriftProductRepository implements ProductRepository {
       ..orderBy([(table) => OrderingTerm(expression: table.name)])
       ..limit(200);
     if (trimmed.isNotEmpty) {
-      statement.where((table) => table.name.like('%$trimmed%'));
+      statement.where(
+        (table) => table.listed.equals(true) & table.name.like('%$trimmed%'),
+      );
+    } else {
+      statement.where((table) => table.listed.equals(true));
     }
     return statement.watch().map((rows) => rows.map(mapProduct).toList());
   }
@@ -28,6 +32,7 @@ class DriftProductRepository implements ProductRepository {
   @override
   Stream<List<Product>> watchAll() {
     final statement = _db.select(_db.products)
+      ..where((table) => table.listed.equals(true))
       ..orderBy([(table) => OrderingTerm(expression: table.name)]);
     return statement.watch().map((rows) => rows.map(mapProduct).toList());
   }
@@ -38,13 +43,38 @@ class DriftProductRepository implements ProductRepository {
     if (trimmed.isEmpty) {
       return null;
     }
-    final existing =
-        await (_db.select(_db.products)
-              ..where((table) => table.name.equals(trimmed)))
-            .getSingleOrNull();
+    final existing = await _productNamed(trimmed);
+    if (existing != null) {
+      if (!existing.listed) {
+        await (_db.update(_db.products)
+              ..where((table) => table.id.equals(existing.id)))
+            .write(const ProductsCompanion(listed: Value(true)));
+      }
+      return mapProduct(existing);
+    }
+    return _insertProduct(trimmed, listed: true);
+  }
+
+  @override
+  Future<Product?> addOneOffProduct(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final existing = await _productNamed(trimmed);
     if (existing != null) {
       return mapProduct(existing);
     }
+    return _insertProduct(trimmed, listed: false);
+  }
+
+  Future<ProductRow?> _productNamed(String name) {
+    return (_db.select(
+      _db.products,
+    )..where((table) => table.name.equals(name))).getSingleOrNull();
+  }
+
+  Future<Product> _insertProduct(String name, {required bool listed}) async {
     final createdAt = DateTime.now().toUtc();
     final id = _uuid.v4();
     await _db
@@ -52,11 +82,12 @@ class DriftProductRepository implements ProductRepository {
         .insert(
           ProductsCompanion.insert(
             id: id,
-            name: trimmed,
+            name: name,
+            listed: Value(listed),
             createdAt: createdAt,
           ),
         );
-    return Product(id: id, name: trimmed, createdAt: createdAt);
+    return Product(id: id, name: name, createdAt: createdAt);
   }
 
   @override

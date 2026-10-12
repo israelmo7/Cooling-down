@@ -316,6 +316,13 @@ void main() {
       isNotNull,
     );
 
+    final stored = await database.select(database.products).get();
+    expect(
+      stored.singleWhere((row) => row.name == 'גבינה צהובה').listed,
+      isFalse,
+    );
+    expect(stored.where((row) => row.name == 'חלב').single.listed, isTrue);
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     final closing = database.close();

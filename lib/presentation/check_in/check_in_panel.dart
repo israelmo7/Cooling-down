@@ -55,8 +55,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     }
     final accepted = await confirmRecordedAction(
       context,
-      enabled:
-          ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
+      enabled: ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
       action: 'קליטה: ${product.name} ב-${formatCelsius(_temperature)}',
     );
     if (!accepted || !mounted) {
@@ -107,7 +106,9 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     if (trimmed.isEmpty || !mounted) {
       return;
     }
-    final product = await ref.read(productRepositoryProvider).addProduct(trimmed);
+    final product = await ref
+        .read(productRepositoryProvider)
+        .addOneOffProduct(trimmed);
     if (!mounted || product == null) {
       return;
     }
@@ -134,6 +135,12 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
         ? null
         : _environmentFridge(fridges.asData!.value);
     final canConfirm = _selectedProduct != null && fridge != null && !_saving;
+    final visible =
+        products.asData?.value.any((item) => item.id == _selectedProduct?.id) ??
+        false;
+    final selectedName = _selectedProduct != null && !visible
+        ? _selectedProduct!.name
+        : null;
 
     return ScreenBody(
       child: LayoutBuilder(
@@ -150,6 +157,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
           );
           final controls = _CheckInControls(
             fridges: fridges,
+            selectedName: selectedName,
             temperature: _temperature,
             canConfirm: canConfirm,
             saving: _saving,
@@ -181,7 +189,6 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
       ),
     );
   }
-
 }
 
 class _CatalogPane extends StatelessWidget {
@@ -330,6 +337,7 @@ class _NewProductDialogState extends State<_NewProductDialog> {
 class _CheckInControls extends StatelessWidget {
   const _CheckInControls({
     required this.fridges,
+    required this.selectedName,
     required this.temperature,
     required this.canConfirm,
     required this.saving,
@@ -338,6 +346,7 @@ class _CheckInControls extends StatelessWidget {
   });
 
   final AsyncValue<List<Fridge>> fridges;
+  final String? selectedName;
   final double temperature;
   final bool canConfirm;
   final bool saving;
@@ -358,6 +367,16 @@ class _CheckInControls extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (selectedName != null) ...[
+                Text(
+                  selectedName!,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               TemperatureStepper(
                 temperature: temperature,
                 onChanged: onTemperatureChanged,
@@ -365,9 +384,8 @@ class _CheckInControls extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'השעה נרשמת ברגע האישור',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF5C6B70),
-                ),
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: const Color(0xFF5C6B70)),
               ),
               const SizedBox(height: 16),
               ConfirmBar(
