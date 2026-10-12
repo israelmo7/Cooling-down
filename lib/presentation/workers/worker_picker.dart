@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/worker.dart';
+import '../widgets/station_widgets.dart';
 
 var _workerPromptOpen = false;
 
@@ -56,20 +57,49 @@ class _WorkerPickerDialog extends StatelessWidget {
         key: const Key('worker-picker'),
         title: const Text('מי עובד עכשיו?'),
         content: SizedBox(
-          width: 420,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              for (final worker in workers)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    worker.name,
-                    style: const TextStyle(fontSize: 22),
+          width: 520,
+          child: SingleChildScrollView(
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final worker in workers)
+                  SizedBox(
+                    key: Key('worker-square-${worker.id}'),
+                    width: 156,
+                    height: 156,
+                    child: Material(
+                      color: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: const BorderSide(color: stationLine),
+                      ),
+                      child: InkWell(
+                        customBorder: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        onTap: () => Navigator.of(context).pop(worker.id),
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(
+                              worker.name,
+                              textAlign: TextAlign.center,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w400,
+                                color: Color(0xFF122428),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                  onTap: () => Navigator.of(context).pop(worker.id),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [

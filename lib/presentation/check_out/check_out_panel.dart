@@ -40,8 +40,15 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
     }
     final session = ref.read(workerSessionProvider).asData?.value;
     final workerName = session?.workerName.trim() ?? '';
+    final idle =
+        ref.read(settingsProvider).asData?.value?.workerIdleLimit ??
+        defaultWorkerIdleLimit;
     if (holding == null ||
-        !workerAllowsAction(session: session, now: DateTime.now())) {
+        !workerAllowsAction(
+          session: session,
+          now: DateTime.now(),
+          idle: idle,
+        )) {
       return;
     }
     final who = ' · $workerName';
@@ -112,6 +119,13 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
               workerAllowsAction(
                 session: ref.watch(workerSessionProvider).asData?.value,
                 now: DateTime.now(),
+                idle:
+                    ref
+                        .watch(settingsProvider)
+                        .asData
+                        ?.value
+                        ?.workerIdleLimit ??
+                    defaultWorkerIdleLimit,
               );
           return LayoutBuilder(
             builder: (context, constraints) {

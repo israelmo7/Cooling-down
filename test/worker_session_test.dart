@@ -2,6 +2,7 @@ import 'package:cooling_down/data/db/app_database.dart';
 import 'package:cooling_down/data/db/seed_ids.dart';
 import 'package:cooling_down/data/repositories/drift_log_repository.dart';
 import 'package:cooling_down/data/repositories/drift_worker_repository.dart';
+import 'package:cooling_down/domain/settings/device_settings.dart';
 import 'package:cooling_down/domain/workers/worker_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,8 +15,17 @@ void main() {
       activeAt: at,
     );
     expect(session.isActive(at.add(const Duration(minutes: 9))), isTrue);
-    expect(session.isActive(at.add(workerIdleLimit)), isFalse);
+    expect(session.isActive(at.add(defaultWorkerIdleLimit)), isFalse);
     expect(const WorkerSession().isActive(at), isFalse);
+    const idle = Duration(seconds: 30);
+    expect(
+      session.isActive(at.add(const Duration(seconds: 29)), idle: idle),
+      isTrue,
+    );
+    expect(session.isActive(at.add(idle), idle: idle), isFalse);
+    expect(normalizeWorkerIdleSeconds(''), defaultWorkerIdleSeconds);
+    expect(normalizeWorkerIdleSeconds('45'), 45);
+    expect(normalizeWorkerIdleSeconds('999999'), 86400);
   });
 
   test('check-in stores the worker name that was active', () async {

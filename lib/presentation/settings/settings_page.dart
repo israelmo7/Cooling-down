@@ -25,6 +25,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _environment = TextEditingController();
   final _serverUrl = TextEditingController();
   final _token = TextEditingController();
+  final _idleSeconds = TextEditingController();
   var _loaded = false;
   var _unlocked = false;
   var _busy = false;
@@ -41,6 +42,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _environment.dispose();
     _serverUrl.dispose();
     _token.dispose();
+    _idleSeconds.dispose();
     super.dispose();
   }
 
@@ -53,6 +55,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _environment.text = clipEnvironmentName(settings.environmentName);
       _serverUrl.text = settings.serverUrl;
       _token.text = settings.serverToken;
+      _idleSeconds.text = '${settings.workerIdleSeconds}';
       _confirmAction = settings.confirmAction;
       _loaded = true;
     });
@@ -60,6 +63,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<DeviceSettings?> _save() async {
     final current = await ref.read(settingsRepositoryProvider).ensure();
+    final idleSeconds = normalizeWorkerIdleSeconds(_idleSeconds.text);
+    _idleSeconds.text = '$idleSeconds';
     final next = current.copyWith(
       environmentName: clipEnvironmentName(_environment.text),
       serverUrl: _serverUrl.text,
@@ -69,6 +74,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       reportMinute: 0,
       hubEnabled: false,
       confirmAction: _confirmAction,
+      workerIdleSeconds: idleSeconds,
     );
     await ref.read(settingsRepositoryProvider).save(next);
     return ref.read(settingsRepositoryProvider).ensure();
@@ -197,6 +203,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           controller: _token,
           label: 'אסימון גישה',
           helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
+        ),
+        _field(
+          controller: _idleSeconds,
+          label: 'זמן ללא שימוש',
+          helper: 'שניות. אחריהן, הנגיעה הבאה שואלת מי עובד.',
+          keyboard: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(5),
+          ],
         ),
       ],
       _confirmActionControl(),

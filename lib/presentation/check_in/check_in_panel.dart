@@ -53,10 +53,17 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     );
     final session = ref.read(workerSessionProvider).asData?.value;
     final workerName = session?.workerName.trim() ?? '';
+    final idle =
+        ref.read(settingsProvider).asData?.value?.workerIdleLimit ??
+        defaultWorkerIdleLimit;
     if (product == null ||
         fridge == null ||
         _saving ||
-        !workerAllowsAction(session: session, now: DateTime.now())) {
+        !workerAllowsAction(
+          session: session,
+          now: DateTime.now(),
+          idle: idle,
+        )) {
       return;
     }
     final who = ' · $workerName';
@@ -149,6 +156,9 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
         workerAllowsAction(
           session: ref.watch(workerSessionProvider).asData?.value,
           now: DateTime.now(),
+          idle:
+              ref.watch(settingsProvider).asData?.value?.workerIdleLimit ??
+              defaultWorkerIdleLimit,
         );
     final visible =
         products.asData?.value.any((item) => item.id == _selectedProduct?.id) ??

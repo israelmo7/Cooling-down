@@ -50,9 +50,8 @@ class RefrigerationLogs extends Table {
   DateTimeColumn get createdAt => dateTime().named('created_at')();
   TextColumn get originDeviceId =>
       text().named('origin_device_id').withDefault(const Constant(''))();
-  TextColumn get workerNameSnapshot => text()
-      .named('worker_name_snapshot')
-      .withDefault(const Constant(''))();
+  TextColumn get workerNameSnapshot =>
+      text().named('worker_name_snapshot').withDefault(const Constant(''))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -137,6 +136,8 @@ class LocalSettings extends Table {
       boolean().named('hub_enabled').withDefault(const Constant(false))();
   BoolColumn get confirmAction =>
       boolean().named('confirm_action').withDefault(const Constant(false))();
+  IntColumn get workerIdleSeconds =>
+      integer().named('worker_idle_seconds').withDefault(const Constant(600))();
   TextColumn get smtpHost =>
       text().named('smtp_host').withDefault(const Constant(''))();
   IntColumn get smtpPort =>

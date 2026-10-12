@@ -28,18 +28,16 @@ class _TabletShellState extends ConsumerState<TabletShell>
   DateTime? _lastTouch;
   DateTime? _lastPersisted;
   var _askingWorker = false;
-  var _ensureScheduled = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tick();
+      _armIdleGate();
+    });
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _tick());
-    _idleTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _ensureWorker(),
-    );
   }
 
   @override
@@ -58,7 +56,8 @@ class _TabletShellState extends ConsumerState<TabletShell>
         ref.read(tabletHubProvider).apply(current, restart: true);
       }
       _tick();
-      _ensureWorker();
+      _armIdleGate();
+      setState(() {});
       return;
     }
     if (state == AppLifecycleState.inactive ||
@@ -70,59 +69,58 @@ class _TabletShellState extends ConsumerState<TabletShell>
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scheduleEnsureWorker();
+  Duration _idleLimit() {
+    return ref.read(settingsProvider).asData?.value?.workerIdleLimit ??
+        defaultWorkerIdleLimit;
   }
 
-  void _scheduleEnsureWorker() {
-    if (_ensureScheduled) {
-      return;
+  Duration _activityGap(Duration idle) {
+    final third = Duration(microseconds: idle.inMicroseconds ~/ 3);
+    if (third < const Duration(seconds: 1)) {
+      return const Duration(seconds: 1);
     }
-    _ensureScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureScheduled = false;
-      _ensureWorker();
-    });
+    if (third > const Duration(seconds: 30)) {
+      return const Duration(seconds: 30);
+    }
+    return third;
   }
 
   void _noteActivity() {
+    final idle = _idleLimit();
     final session = ref.read(workerSessionProvider).asData?.value;
-    if (session == null || !session.isActive(DateTime.now())) {
+    if (session == null || !session.isActive(DateTime.now(), idle: idle)) {
       return;
     }
     final now = DateTime.now().toUtc();
     _lastTouch = now;
     final previous = _lastPersisted;
-    if (previous != null &&
-        now.difference(previous) < const Duration(seconds: 30)) {
+    if (previous != null && now.difference(previous) < _activityGap(idle)) {
       return;
     }
     _lastPersisted = now;
     unawaited(ref.read(workerRepositoryProvider).noteActivity(now));
+    _armIdleGate();
   }
 
-  Future<void> _ensureWorker() async {
-    if (!mounted || _askingWorker) {
+  void _armIdleGate() {
+    _idleTimer?.cancel();
+    if (!mounted) {
       return;
     }
-    if (ModalRoute.of(context)?.isCurrent != true) {
+    final session = ref.read(workerSessionProvider).asData?.value;
+    final idle = _idleLimit();
+    final at = session?.activeAt;
+    if (session == null ||
+        at == null ||
+        !session.isActive(DateTime.now(), idle: idle)) {
       return;
     }
-    final workers = ref.read(workersProvider).asData?.value;
-    if (workers == null || workers.isEmpty) {
-      return;
-    }
-    final sessionAsync = ref.read(workerSessionProvider);
-    if (!sessionAsync.hasValue) {
-      return;
-    }
-    final session = sessionAsync.value ?? const WorkerSession();
-    if (session.isActive(DateTime.now())) {
-      return;
-    }
-    await _askForWorker(required: true);
+    final remaining = idle - DateTime.now().toUtc().difference(at.toUtc());
+    _idleTimer = Timer(remaining.isNegative ? Duration.zero : remaining, () {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _askForWorker({required bool required}) async {
@@ -178,114 +176,140 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final hub = settings?.hubEnabled ?? false;
     final environment = settings?.environmentName.trim() ?? '';
     final session = ref.watch(workerSessionProvider).asData?.value;
-    ref.listen(workersProvider, (_, _) => _scheduleEnsureWorker());
-    ref.listen(workerSessionProvider, (_, _) => _scheduleEnsureWorker());
+    final workers = ref.watch(workersProvider).asData?.value;
+    ref.listen(workersProvider, (_, _) => _armIdleGate());
+    ref.listen(workerSessionProvider, (_, _) => _armIdleGate());
+    ref.listen(settingsProvider, (_, _) => _armIdleGate());
     final workerLabel = (session?.workerName.trim().isNotEmpty ?? false)
         ? session!.workerName
         : 'עובד';
+    final askOnNextTap =
+        workers != null &&
+        workers.isNotEmpty &&
+        !workerAllowsAction(
+          session: session,
+          now: DateTime.now(),
+          idle: settings?.workerIdleLimit ?? defaultWorkerIdleLimit,
+        );
     ref.watch(tabletHubProvider);
 
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => _noteActivity(),
-      child: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          toolbarHeight: 72,
-          leadingWidth: 112,
-          leading: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(
-              key: const Key('current-worker'),
-              onPressed: () => _askForWorker(required: false),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                textStyle: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              child: Text(
-                workerLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-          titleTextStyle: const TextStyle(
-            color: Color(0xFF122428),
-            fontSize: 32,
-            fontWeight: FontWeight.w700,
-          ),
-          title: Text(
-            environment.isEmpty ? 'קירור' : clipEnvironmentName(environment),
-          ),
-          actions: [
-            Center(
-              child: Text(
-                _syncLabel(
-                  pendingCount: pendingCount,
-                  sharing: sharing,
-                  hub: hub,
-                ),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            IconButton(
-              key: const Key('open-settings'),
-              tooltip: 'הגדרות',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (context) => const SettingsPage(),
+      child: Stack(
+        children: [
+          Scaffold(
+            appBar: AppBar(
+              centerTitle: true,
+              toolbarHeight: 72,
+              leadingWidth: 112,
+              leading: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton(
+                  key: const Key('current-worker'),
+                  onPressed: () => _askForWorker(required: false),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
-                );
-              },
-              icon: const Icon(Icons.settings),
+                  child: Text(
+                    workerLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+              titleTextStyle: const TextStyle(
+                color: Color(0xFF122428),
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+              ),
+              title: Text(
+                environment.isEmpty
+                    ? 'קירור'
+                    : clipEnvironmentName(environment),
+              ),
+              actions: [
+                Center(
+                  child: Text(
+                    _syncLabel(
+                      pendingCount: pendingCount,
+                      sharing: sharing,
+                      hub: hub,
+                    ),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  key: const Key('open-settings'),
+                  tooltip: 'הגדרות',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) => const SettingsPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.settings),
+                ),
+                const SizedBox(width: 12),
+              ],
             ),
-            const SizedBox(width: 12),
-          ],
-        ),
-        body: Column(
-          children: [
-            if (alerts.isNotEmpty) _DismissingAlert(alert: alerts.first),
-            Expanded(
-              child: IndexedStack(
-                index: _index,
-                children: const [
-                  CheckInPanel(),
-                  CheckOutPanel(),
-                  LiveLogFeed(),
-                ],
+            body: Column(
+              children: [
+                if (alerts.isNotEmpty) _DismissingAlert(alert: alerts.first),
+                Expanded(
+                  child: IndexedStack(
+                    index: _index,
+                    children: const [
+                      CheckInPanel(),
+                      CheckOutPanel(),
+                      LiveLogFeed(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: _index,
+              onDestinationSelected: (index) => setState(() => _index = index),
+              destinations: const [
+                NavigationDestination(icon: Icon(Icons.login), label: 'קליטה'),
+                NavigationDestination(icon: Icon(Icons.logout), label: 'הוצאה'),
+                NavigationDestination(
+                  icon: Icon(Icons.kitchen_outlined),
+                  selectedIcon: Icon(Icons.kitchen),
+                  label: 'במקרר',
+                ),
+              ],
+            ),
+          ),
+          if (askOnNextTap)
+            Positioned.fill(
+              child: GestureDetector(
+                key: const Key('worker-idle-gate'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _askForWorker(required: true),
               ),
             ),
-          ],
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (index) => setState(() => _index = index),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.login), label: 'קליטה'),
-            NavigationDestination(icon: Icon(Icons.logout), label: 'הוצאה'),
-            NavigationDestination(
-              icon: Icon(Icons.kitchen_outlined),
-              selectedIcon: Icon(Icons.kitchen),
-              label: 'במקרר',
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

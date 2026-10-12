@@ -1,5 +1,5 @@
-/// How long a chosen worker stays signed in without a tap.
-const workerIdleLimit = Duration(minutes: 10);
+/// How long a chosen worker stays signed in when settings have no timeout.
+const defaultWorkerIdleLimit = Duration(seconds: 600);
 
 /// The worker currently responsible for actions on this tablet.
 class WorkerSession {
@@ -9,13 +9,13 @@ class WorkerSession {
   final String workerName;
   final DateTime? activeAt;
 
-  bool isActive(DateTime now) {
+  bool isActive(DateTime now, {Duration idle = defaultWorkerIdleLimit}) {
     final id = workerId;
     final at = activeAt;
     if (id == null || id.isEmpty || workerName.trim().isEmpty || at == null) {
       return false;
     }
-    return now.toUtc().difference(at.toUtc()) < workerIdleLimit;
+    return now.toUtc().difference(at.toUtc()) < idle;
   }
 }
 
@@ -23,6 +23,7 @@ class WorkerSession {
 bool workerAllowsAction({
   required WorkerSession? session,
   required DateTime now,
+  Duration idle = defaultWorkerIdleLimit,
 }) {
-  return session?.isActive(now) ?? false;
+  return session?.isActive(now, idle: idle) ?? false;
 }

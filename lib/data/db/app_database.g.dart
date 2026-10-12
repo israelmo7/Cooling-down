@@ -2952,6 +2952,18 @@ class $LocalSettingsTable extends LocalSettings
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _workerIdleSecondsMeta = const VerificationMeta(
+    'workerIdleSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> workerIdleSeconds = GeneratedColumn<int>(
+    'worker_idle_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(600),
+  );
   static const VerificationMeta _smtpHostMeta = const VerificationMeta(
     'smtpHost',
   );
@@ -3052,6 +3064,7 @@ class $LocalSettingsTable extends LocalSettings
     lastSyncError,
     hubEnabled,
     confirmAction,
+    workerIdleSeconds,
     smtpHost,
     smtpPort,
     smtpUser,
@@ -3188,6 +3201,15 @@ class $LocalSettingsTable extends LocalSettings
         ),
       );
     }
+    if (data.containsKey('worker_idle_seconds')) {
+      context.handle(
+        _workerIdleSecondsMeta,
+        workerIdleSeconds.isAcceptableOrUnknown(
+          data['worker_idle_seconds']!,
+          _workerIdleSecondsMeta,
+        ),
+      );
+    }
     if (data.containsKey('smtp_host')) {
       context.handle(
         _smtpHostMeta,
@@ -3308,6 +3330,10 @@ class $LocalSettingsTable extends LocalSettings
         DriftSqlType.bool,
         data['${effectivePrefix}confirm_action'],
       )!,
+      workerIdleSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}worker_idle_seconds'],
+      )!,
       smtpHost: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}smtp_host'],
@@ -3362,6 +3388,7 @@ class LocalSettingsRow extends DataClass
   final String? lastSyncError;
   final bool hubEnabled;
   final bool confirmAction;
+  final int workerIdleSeconds;
   final String smtpHost;
   final int smtpPort;
   final String smtpUser;
@@ -3385,6 +3412,7 @@ class LocalSettingsRow extends DataClass
     this.lastSyncError,
     required this.hubEnabled,
     required this.confirmAction,
+    required this.workerIdleSeconds,
     required this.smtpHost,
     required this.smtpPort,
     required this.smtpUser,
@@ -3415,6 +3443,7 @@ class LocalSettingsRow extends DataClass
     }
     map['hub_enabled'] = Variable<bool>(hubEnabled);
     map['confirm_action'] = Variable<bool>(confirmAction);
+    map['worker_idle_seconds'] = Variable<int>(workerIdleSeconds);
     map['smtp_host'] = Variable<String>(smtpHost);
     map['smtp_port'] = Variable<int>(smtpPort);
     map['smtp_user'] = Variable<String>(smtpUser);
@@ -3450,6 +3479,7 @@ class LocalSettingsRow extends DataClass
           : Value(lastSyncError),
       hubEnabled: Value(hubEnabled),
       confirmAction: Value(confirmAction),
+      workerIdleSeconds: Value(workerIdleSeconds),
       smtpHost: Value(smtpHost),
       smtpPort: Value(smtpPort),
       smtpUser: Value(smtpUser),
@@ -3485,6 +3515,7 @@ class LocalSettingsRow extends DataClass
       lastSyncError: serializer.fromJson<String?>(json['lastSyncError']),
       hubEnabled: serializer.fromJson<bool>(json['hubEnabled']),
       confirmAction: serializer.fromJson<bool>(json['confirmAction']),
+      workerIdleSeconds: serializer.fromJson<int>(json['workerIdleSeconds']),
       smtpHost: serializer.fromJson<String>(json['smtpHost']),
       smtpPort: serializer.fromJson<int>(json['smtpPort']),
       smtpUser: serializer.fromJson<String>(json['smtpUser']),
@@ -3513,6 +3544,7 @@ class LocalSettingsRow extends DataClass
       'lastSyncError': serializer.toJson<String?>(lastSyncError),
       'hubEnabled': serializer.toJson<bool>(hubEnabled),
       'confirmAction': serializer.toJson<bool>(confirmAction),
+      'workerIdleSeconds': serializer.toJson<int>(workerIdleSeconds),
       'smtpHost': serializer.toJson<String>(smtpHost),
       'smtpPort': serializer.toJson<int>(smtpPort),
       'smtpUser': serializer.toJson<String>(smtpUser),
@@ -3539,6 +3571,7 @@ class LocalSettingsRow extends DataClass
     Value<String?> lastSyncError = const Value.absent(),
     bool? hubEnabled,
     bool? confirmAction,
+    int? workerIdleSeconds,
     String? smtpHost,
     int? smtpPort,
     String? smtpUser,
@@ -3564,6 +3597,7 @@ class LocalSettingsRow extends DataClass
         : this.lastSyncError,
     hubEnabled: hubEnabled ?? this.hubEnabled,
     confirmAction: confirmAction ?? this.confirmAction,
+    workerIdleSeconds: workerIdleSeconds ?? this.workerIdleSeconds,
     smtpHost: smtpHost ?? this.smtpHost,
     smtpPort: smtpPort ?? this.smtpPort,
     smtpUser: smtpUser ?? this.smtpUser,
@@ -3617,6 +3651,9 @@ class LocalSettingsRow extends DataClass
       confirmAction: data.confirmAction.present
           ? data.confirmAction.value
           : this.confirmAction,
+      workerIdleSeconds: data.workerIdleSeconds.present
+          ? data.workerIdleSeconds.value
+          : this.workerIdleSeconds,
       smtpHost: data.smtpHost.present ? data.smtpHost.value : this.smtpHost,
       smtpPort: data.smtpPort.present ? data.smtpPort.value : this.smtpPort,
       smtpUser: data.smtpUser.present ? data.smtpUser.value : this.smtpUser,
@@ -3651,6 +3688,7 @@ class LocalSettingsRow extends DataClass
           ..write('lastSyncError: $lastSyncError, ')
           ..write('hubEnabled: $hubEnabled, ')
           ..write('confirmAction: $confirmAction, ')
+          ..write('workerIdleSeconds: $workerIdleSeconds, ')
           ..write('smtpHost: $smtpHost, ')
           ..write('smtpPort: $smtpPort, ')
           ..write('smtpUser: $smtpUser, ')
@@ -3679,6 +3717,7 @@ class LocalSettingsRow extends DataClass
     lastSyncError,
     hubEnabled,
     confirmAction,
+    workerIdleSeconds,
     smtpHost,
     smtpPort,
     smtpUser,
@@ -3706,6 +3745,7 @@ class LocalSettingsRow extends DataClass
           other.lastSyncError == this.lastSyncError &&
           other.hubEnabled == this.hubEnabled &&
           other.confirmAction == this.confirmAction &&
+          other.workerIdleSeconds == this.workerIdleSeconds &&
           other.smtpHost == this.smtpHost &&
           other.smtpPort == this.smtpPort &&
           other.smtpUser == this.smtpUser &&
@@ -3731,6 +3771,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
   final Value<String?> lastSyncError;
   final Value<bool> hubEnabled;
   final Value<bool> confirmAction;
+  final Value<int> workerIdleSeconds;
   final Value<String> smtpHost;
   final Value<int> smtpPort;
   final Value<String> smtpUser;
@@ -3755,6 +3796,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.lastSyncError = const Value.absent(),
     this.hubEnabled = const Value.absent(),
     this.confirmAction = const Value.absent(),
+    this.workerIdleSeconds = const Value.absent(),
     this.smtpHost = const Value.absent(),
     this.smtpPort = const Value.absent(),
     this.smtpUser = const Value.absent(),
@@ -3780,6 +3822,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.lastSyncError = const Value.absent(),
     this.hubEnabled = const Value.absent(),
     this.confirmAction = const Value.absent(),
+    this.workerIdleSeconds = const Value.absent(),
     this.smtpHost = const Value.absent(),
     this.smtpPort = const Value.absent(),
     this.smtpUser = const Value.absent(),
@@ -3808,6 +3851,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Expression<String>? lastSyncError,
     Expression<bool>? hubEnabled,
     Expression<bool>? confirmAction,
+    Expression<int>? workerIdleSeconds,
     Expression<String>? smtpHost,
     Expression<int>? smtpPort,
     Expression<String>? smtpUser,
@@ -3834,6 +3878,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       if (lastSyncError != null) 'last_sync_error': lastSyncError,
       if (hubEnabled != null) 'hub_enabled': hubEnabled,
       if (confirmAction != null) 'confirm_action': confirmAction,
+      if (workerIdleSeconds != null) 'worker_idle_seconds': workerIdleSeconds,
       if (smtpHost != null) 'smtp_host': smtpHost,
       if (smtpPort != null) 'smtp_port': smtpPort,
       if (smtpUser != null) 'smtp_user': smtpUser,
@@ -3861,6 +3906,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Value<String?>? lastSyncError,
     Value<bool>? hubEnabled,
     Value<bool>? confirmAction,
+    Value<int>? workerIdleSeconds,
     Value<String>? smtpHost,
     Value<int>? smtpPort,
     Value<String>? smtpUser,
@@ -3886,6 +3932,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       lastSyncError: lastSyncError ?? this.lastSyncError,
       hubEnabled: hubEnabled ?? this.hubEnabled,
       confirmAction: confirmAction ?? this.confirmAction,
+      workerIdleSeconds: workerIdleSeconds ?? this.workerIdleSeconds,
       smtpHost: smtpHost ?? this.smtpHost,
       smtpPort: smtpPort ?? this.smtpPort,
       smtpUser: smtpUser ?? this.smtpUser,
@@ -3945,6 +3992,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     if (confirmAction.present) {
       map['confirm_action'] = Variable<bool>(confirmAction.value);
     }
+    if (workerIdleSeconds.present) {
+      map['worker_idle_seconds'] = Variable<int>(workerIdleSeconds.value);
+    }
     if (smtpHost.present) {
       map['smtp_host'] = Variable<String>(smtpHost.value);
     }
@@ -3990,6 +4040,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
           ..write('lastSyncError: $lastSyncError, ')
           ..write('hubEnabled: $hubEnabled, ')
           ..write('confirmAction: $confirmAction, ')
+          ..write('workerIdleSeconds: $workerIdleSeconds, ')
           ..write('smtpHost: $smtpHost, ')
           ..write('smtpPort: $smtpPort, ')
           ..write('smtpUser: $smtpUser, ')
@@ -7298,6 +7349,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder =
       Value<String?> lastSyncError,
       Value<bool> hubEnabled,
       Value<bool> confirmAction,
+      Value<int> workerIdleSeconds,
       Value<String> smtpHost,
       Value<int> smtpPort,
       Value<String> smtpUser,
@@ -7324,6 +7376,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder =
       Value<String?> lastSyncError,
       Value<bool> hubEnabled,
       Value<bool> confirmAction,
+      Value<int> workerIdleSeconds,
       Value<String> smtpHost,
       Value<int> smtpPort,
       Value<String> smtpUser,
@@ -7415,6 +7468,11 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<bool> get confirmAction => $composableBuilder(
     column: $table.confirmAction,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get workerIdleSeconds => $composableBuilder(
+    column: $table.workerIdleSeconds,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7538,6 +7596,11 @@ class $$LocalSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get workerIdleSeconds => $composableBuilder(
+    column: $table.workerIdleSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get smtpHost => $composableBuilder(
     column: $table.smtpHost,
     builder: (column) => ColumnOrderings(column),
@@ -7652,6 +7715,11 @@ class $$LocalSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get workerIdleSeconds => $composableBuilder(
+    column: $table.workerIdleSeconds,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get smtpHost =>
       $composableBuilder(column: $table.smtpHost, builder: (column) => column);
 
@@ -7730,6 +7798,7 @@ class $$LocalSettingsTableTableManager
                 Value<String?> lastSyncError = const Value.absent(),
                 Value<bool> hubEnabled = const Value.absent(),
                 Value<bool> confirmAction = const Value.absent(),
+                Value<int> workerIdleSeconds = const Value.absent(),
                 Value<String> smtpHost = const Value.absent(),
                 Value<int> smtpPort = const Value.absent(),
                 Value<String> smtpUser = const Value.absent(),
@@ -7754,6 +7823,7 @@ class $$LocalSettingsTableTableManager
                 lastSyncError: lastSyncError,
                 hubEnabled: hubEnabled,
                 confirmAction: confirmAction,
+                workerIdleSeconds: workerIdleSeconds,
                 smtpHost: smtpHost,
                 smtpPort: smtpPort,
                 smtpUser: smtpUser,
@@ -7780,6 +7850,7 @@ class $$LocalSettingsTableTableManager
                 Value<String?> lastSyncError = const Value.absent(),
                 Value<bool> hubEnabled = const Value.absent(),
                 Value<bool> confirmAction = const Value.absent(),
+                Value<int> workerIdleSeconds = const Value.absent(),
                 Value<String> smtpHost = const Value.absent(),
                 Value<int> smtpPort = const Value.absent(),
                 Value<String> smtpUser = const Value.absent(),
@@ -7804,6 +7875,7 @@ class $$LocalSettingsTableTableManager
                 lastSyncError: lastSyncError,
                 hubEnabled: hubEnabled,
                 confirmAction: confirmAction,
+                workerIdleSeconds: workerIdleSeconds,
                 smtpHost: smtpHost,
                 smtpPort: smtpPort,
                 smtpUser: smtpUser,
