@@ -50,7 +50,6 @@ class DriftSettingsRepository implements SettingsRepository {
         syncCursor: serverUrl == previous.serverUrl
             ? const Value.absent()
             : const Value(0),
-        hubEnabled: Value(settings.hubEnabled),
         confirmAction: Value(settings.confirmAction),
         workerIdleSeconds: Value(
           settings.workerIdleSeconds < 1
@@ -69,11 +68,6 @@ class DriftSettingsRepository implements SettingsRepository {
           settings.workerRefreshEndMinute.clamp(0, 23 * 60 + 59).toInt(),
         ),
         settingsPassword: Value(settings.settingsPassword.trim()),
-        smtpHost: Value(settings.smtpHost.trim()),
-        smtpPort: Value(settings.smtpPort.clamp(1, 65535).toInt()),
-        smtpUser: Value(settings.smtpUser.trim()),
-        smtpPassword: Value(settings.smtpPassword),
-        smtpFrom: Value(settings.smtpFrom.trim()),
       ),
     );
   }
@@ -115,7 +109,6 @@ class DriftSettingsRepository implements SettingsRepository {
       syncCursor: row.syncCursor,
       lastSyncAt: row.lastSyncAt,
       lastSyncError: row.lastSyncError,
-      hubEnabled: row.hubEnabled,
       confirmAction: row.confirmAction,
       workerIdleSeconds: row.workerIdleSeconds,
       workerRefreshMode: WorkerRefreshMode.parse(row.workerRefreshMode),
@@ -124,11 +117,6 @@ class DriftSettingsRepository implements SettingsRepository {
       workerRefreshIntervalHours: row.workerRefreshIntervalHours,
       workerRefreshEndMinute: row.workerRefreshEndMinute,
       settingsPassword: row.settingsPassword,
-      smtpHost: row.smtpHost,
-      smtpPort: row.smtpPort,
-      smtpUser: row.smtpUser,
-      smtpPassword: row.smtpPassword,
-      smtpFrom: row.smtpFrom,
     );
   }
 }

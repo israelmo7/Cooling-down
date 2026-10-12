@@ -1,6 +1,6 @@
 # Cooling-down
 
-Tablet app, in Hebrew, for logging refrigerator check-in and check-out temperatures in commercial kitchens and pharmacies. Each confirm writes to SQLite on the tablet first. If the shop Wi-Fi is down, the row stays on the tablet and syncs when the shop computer is reachable again. The computer keeps the shared database and emails the owner at 00:00 with a report of the day that just ended.
+Version 0.1. A Hebrew tablet logs refrigerator check-in and check-out. The shop computer keeps the archive and sends the midnight report. Each confirm writes to SQLite on the tablet first. If the shop Wi-Fi is down, the row stays on the tablet and syncs when the shop computer is reachable again. The computer keeps the shared database and emails the owner at 00:00 with a report of the day that just ended.
 
 Check-in and check-out stay separate rows. A log is never edited. If two tablets check the same item out, both temperatures are kept, an alert is recorded, and the earliest check-out is the one that closes the item.
 
@@ -48,5 +48,4 @@ At 00:00 the computer emails that environment's owner a Hebrew report of the pre
 - `lib/presentation` — check-in, check-out, the fridge list, and settings
 - `lib/domain` — product, log, alert, and report models
 - `lib/data` — Drift database, repositories, and sync
-- `server/` — optional shelf server for shared logs and owner email
-- `backend/postgres/schema.sql` — PostgreSQL shape for a later Supabase project
+- `server/` — shop computer: sync, admin page, and midnight email

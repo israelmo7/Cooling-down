@@ -40,7 +40,6 @@ class DeviceSettings {
     required this.syncCursor,
     this.lastSyncAt,
     this.lastSyncError,
-    this.hubEnabled = false,
     this.confirmAction = false,
     this.workerIdleSeconds = defaultWorkerIdleSeconds,
     this.workerRefreshMode = WorkerRefreshMode.idle,
@@ -49,11 +48,6 @@ class DeviceSettings {
     this.workerRefreshIntervalHours = 8,
     this.workerRefreshEndMinute = 20 * 60,
     this.settingsPassword = '',
-    this.smtpHost = '',
-    this.smtpPort = 587,
-    this.smtpUser = '',
-    this.smtpPassword = '',
-    this.smtpFrom = '',
   });
 
   final String deviceId;
@@ -68,7 +62,6 @@ class DeviceSettings {
   final int syncCursor;
   final DateTime? lastSyncAt;
   final String? lastSyncError;
-  final bool hubEnabled;
   final bool confirmAction;
   final int workerIdleSeconds;
   final WorkerRefreshMode workerRefreshMode;
@@ -77,11 +70,6 @@ class DeviceSettings {
   final int workerRefreshIntervalHours;
   final int workerRefreshEndMinute;
   final String settingsPassword;
-  final String smtpHost;
-  final int smtpPort;
-  final String smtpUser;
-  final String smtpPassword;
-  final String smtpFrom;
 
   bool get hasServer => serverUrl.trim().isNotEmpty;
 
@@ -112,7 +100,6 @@ class DeviceSettings {
     int? syncCursor,
     DateTime? lastSyncAt,
     String? lastSyncError,
-    bool? hubEnabled,
     bool? confirmAction,
     int? workerIdleSeconds,
     WorkerRefreshMode? workerRefreshMode,
@@ -121,11 +108,6 @@ class DeviceSettings {
     int? workerRefreshIntervalHours,
     int? workerRefreshEndMinute,
     String? settingsPassword,
-    String? smtpHost,
-    int? smtpPort,
-    String? smtpUser,
-    String? smtpPassword,
-    String? smtpFrom,
     bool clearLastSyncAt = false,
     bool clearLastSyncError = false,
   }) {
@@ -144,7 +126,6 @@ class DeviceSettings {
       lastSyncError: clearLastSyncError
           ? null
           : lastSyncError ?? this.lastSyncError,
-      hubEnabled: hubEnabled ?? this.hubEnabled,
       confirmAction: confirmAction ?? this.confirmAction,
       workerIdleSeconds: workerIdleSeconds ?? this.workerIdleSeconds,
       workerRefreshMode: workerRefreshMode ?? this.workerRefreshMode,
@@ -156,11 +137,6 @@ class DeviceSettings {
       workerRefreshEndMinute:
           workerRefreshEndMinute ?? this.workerRefreshEndMinute,
       settingsPassword: settingsPassword ?? this.settingsPassword,
-      smtpHost: smtpHost ?? this.smtpHost,
-      smtpPort: smtpPort ?? this.smtpPort,
-      smtpUser: smtpUser ?? this.smtpUser,
-      smtpPassword: smtpPassword ?? this.smtpPassword,
-      smtpFrom: smtpFrom ?? this.smtpFrom,
     );
   }
 }

@@ -10,7 +10,6 @@ import '../../domain/settings/device_settings.dart';
 import '../db/app_database.dart';
 import '../sync/gateway_factory.dart';
 import '../sync/sync_gateway.dart';
-import 'hub_report.dart';
 
 class DailyReportService {
   DailyReportService(
@@ -102,34 +101,19 @@ class DailyReportService {
       );
     }
 
-    final ReportPostResult result;
-    if (current.hubEnabled) {
-      result = await acceptOwnerReport(
-        db: _db,
-        settings: current,
-        report: ReportPost(
-          id: id,
-          environment: current.environmentName,
-          reportDate: date,
-          ownerEmail: current.ownerEmail.trim(),
-          subject: content.subject,
-          body: content.body,
-        ),
-      );
-    } else if (!current.hasServer) {
+    if (!current.hasServer) {
       return 'נשמר בטאבלט. יש להגדיר מחשב כדי לשלוח את המייל.';
-    } else {
-      result = await _gatewayFor(current).postReport(
-        ReportPost(
-          id: id,
-          environment: current.environmentName,
-          reportDate: date,
-          ownerEmail: current.ownerEmail.trim(),
-          subject: content.subject,
-          body: content.body,
-        ),
-      );
     }
+    final result = await _gatewayFor(current).postReport(
+      ReportPost(
+        id: id,
+        environment: current.environmentName,
+        reportDate: date,
+        ownerEmail: current.ownerEmail.trim(),
+        subject: content.subject,
+        body: content.body,
+      ),
+    );
     final emailed =
         result.status == ReportStatus.sent ||
         result.status == ReportStatus.alreadySent;
@@ -142,9 +126,6 @@ class DailyReportService {
         lastError: Value(result.error),
       ),
     );
-    if (current.hubEnabled && result.status == ReportStatus.stored) {
-      return 'נשמר בטאבלט. יש להגדיר שרת דואר בהגדרות כדי לשלוח את המייל.';
-    }
     return _message(result);
   }
 

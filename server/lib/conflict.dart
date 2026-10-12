@@ -2,7 +2,7 @@ import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
 
-/// Matches the tablet function in lib/domain/sync/checkout_conflict.dart.
+/// Stable id so the same double check-out is stored once.
 String checkoutConflictAlertId(String movementId) {
   return _uuid.v5(
     Namespace.url.value,

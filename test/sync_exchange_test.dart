@@ -8,83 +8,12 @@ import 'package:cooling_down/data/repositories/drift_log_repository.dart';
 import 'package:cooling_down/data/repositories/drift_settings_repository.dart';
 import 'package:cooling_down/data/repositories/drift_sync_repository.dart';
 import 'package:cooling_down/data/sync/http_sync_gateway.dart';
-import 'package:cooling_down/data/sync/remote_apply.dart';
 import 'package:cooling_down/data/sync/sync_gateway.dart';
-import 'package:cooling_down/domain/entities/alert.dart';
-import 'package:cooling_down/domain/entities/refrigeration_log.dart';
 import 'package:cooling_down/domain/settings/device_settings.dart';
-import 'package:cooling_down/domain/sync/checkout_conflict.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
-  test('applying the same remote log twice does not duplicate it', () async {
-    final database = AppDatabase.memory();
-    addTearDown(database.close);
-    final applier = RemoteApplier(database);
-    final change = _logChange(
-      seq: 1,
-      id: 'remote-in',
-      movementId: 'move-1',
-      eventType: 'check_in',
-    );
-
-    await applier.apply([change]);
-    await applier.apply([change]);
-
-    final logs = await database.select(database.refrigerationLogs).get();
-    expect(logs, hasLength(1));
-    final outbox = await database.select(database.syncOutbox).get();
-    expect(outbox, isEmpty);
-  });
-
-  test(
-    'a second remote check-out is kept and closes the holding once',
-    () async {
-      final database = AppDatabase.memory();
-      addTearDown(database.close);
-      final logs = DriftLogRepository(database);
-      final checkIn = await logs.insertCheckIn(
-        productId: SeedIds.wholeMilk,
-        fridgeId: SeedIds.kitchenFridge,
-        temperatureCelsius: 3,
-        occurredAt: DateTime.utc(2026, 10, 11, 8),
-        workerName: 'דנה',
-      );
-      await logs.insertCheckOut(
-        movementId: checkIn.movementId,
-        temperatureCelsius: 4,
-        occurredAt: DateTime.utc(2026, 10, 11, 12),
-        workerName: 'דנה',
-      );
-
-      final applier = RemoteApplier(database);
-      final remoteOut = _logChange(
-        seq: 4,
-        id: 'remote-out',
-        movementId: checkIn.movementId,
-        eventType: 'check_out',
-        occurredAt: '2026-10-11T12:05:00.000Z',
-      );
-      await applier.apply([remoteOut]);
-      await applier.apply([remoteOut]);
-
-      final stored = await database.select(database.refrigerationLogs).get();
-      expect(
-        stored.where((row) => row.eventType == LogEventType.checkOut),
-        hasLength(2),
-      );
-      expect(await logs.watchOpenHoldings().first, isEmpty);
-      final alerts = await database.select(database.alerts).get();
-      final conflict = alerts.where(
-        (row) => row.kind == AlertKind.syncConflict,
-      );
-      expect(conflict, hasLength(1));
-      expect(conflict.single.id, checkoutConflictAlertId(checkIn.movementId));
-      expect(conflict.single.message, contains('Whole milk'));
-    },
-  );
-
   test('sync uploads this tablet and leaves another tablet out', () async {
     final database = AppDatabase.memory();
     addTearDown(database.close);
@@ -132,7 +61,6 @@ void main() {
     final saved = await settings.ensure();
 
     expect(attempt.synced, 1);
-    expect(attempt.pulled, 0);
     expect(attempt.remaining, 0);
     expect(holdings.map((row) => row.productName), isNot(contains('Insulin')));
     expect(holdings.map((row) => row.productName), contains('חזה עוף'));

@@ -55,10 +55,6 @@ class _TabletShellState extends ConsumerState<TabletShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      final current = ref.read(settingsProvider).asData?.value;
-      if (current?.hubEnabled == true) {
-        ref.read(tabletHubProvider).apply(current, restart: true);
-      }
       _tick();
       _armWorkerRefresh();
       setState(() {});
@@ -226,7 +222,6 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final pendingCount = ref.watch(pendingSyncCountProvider).asData?.value ?? 0;
     final settings = ref.watch(settingsProvider).asData?.value;
     final sharing = settings?.hasServer ?? false;
-    final hub = settings?.hubEnabled ?? false;
     final environment = settings?.environmentName.trim() ?? '';
     final session = ref.watch(workerSessionProvider).asData?.value;
     final workers = ref.watch(workersProvider).asData?.value;
@@ -240,7 +235,6 @@ class _TabletShellState extends ConsumerState<TabletShell>
         workers != null &&
         workers.isNotEmpty &&
         refresh.promptsOnTap(DateTime.now(), session);
-    ref.watch(tabletHubProvider);
 
     return Listener(
       behavior: HitTestBehavior.translucent,
@@ -300,11 +294,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
               actions: [
                 Center(
                   child: Text(
-                    _syncLabel(
-                      pendingCount: pendingCount,
-                      sharing: sharing,
-                      hub: hub,
-                    ),
+                    _syncLabel(pendingCount: pendingCount, sharing: sharing),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -369,14 +359,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
     );
   }
 
-  String _syncLabel({
-    required int pendingCount,
-    required bool sharing,
-    required bool hub,
-  }) {
-    if (hub) {
-      return 'משתף ברשת המקומית';
-    }
+  String _syncLabel({required int pendingCount, required bool sharing}) {
     if (!sharing) {
       return pendingCount == 0
           ? 'נשמר בטאבלט'

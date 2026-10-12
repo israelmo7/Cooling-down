@@ -2,7 +2,7 @@ import '../../domain/repositories/settings_repository.dart';
 import '../../domain/repositories/sync_repository.dart';
 import '../reports/daily_report_service.dart';
 
-/// Pulls other tablets, then sends the end-of-day report when it is due.
+/// Uploads queued rows, then asks the shop computer to keep today's report.
 class TabletMaintenance {
   TabletMaintenance({this.settings, this.sync, this.reports});
 
@@ -22,7 +22,7 @@ class TabletMaintenance {
       return;
     }
     final current = await settingsRepository.ensure();
-    if (!current.hubEnabled && current.hasServer) {
+    if (current.hasServer) {
       await syncRepository.trySync();
     }
     await reportService.deliverToday(manual: false);

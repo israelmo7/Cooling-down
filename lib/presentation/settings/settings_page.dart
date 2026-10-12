@@ -101,7 +101,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       dailyReportEnabled: true,
       reportHour: 0,
       reportMinute: 0,
-      hubEnabled: false,
       confirmAction: _confirmAction,
       workerIdleSeconds: idleSeconds,
       workerRefreshMode: _refreshMode,

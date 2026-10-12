@@ -4,19 +4,19 @@ import 'package:uuid/uuid.dart';
 
 import '../db/app_database.dart';
 import '../db/converters.dart';
-import 'feed.dart';
 
 const _uuid = Uuid();
 
+/// Queues one insert for the shop computer. The tablet does not keep a copy
+/// for other tablets to pull.
 Future<void> enqueueInsert(
   AppDatabase db, {
   required String entityType,
   required String entityId,
   required Map<String, Object?> payload,
   required DateTime createdAt,
-  String originDeviceId = '',
-}) async {
-  await db
+}) {
+  return db
       .into(db.syncOutbox)
       .insert(
         SyncOutboxCompanion.insert(
@@ -29,12 +29,4 @@ Future<void> enqueueInsert(
           createdAt: createdAt,
         ),
       );
-  final origin = payload['origin_device_id'];
-  await rememberFeed(
-    db,
-    entityType: entityType,
-    entityId: entityId,
-    originDeviceId: origin is String ? origin : originDeviceId,
-    payload: payload,
-  );
 }

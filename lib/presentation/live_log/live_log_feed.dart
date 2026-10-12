@@ -29,7 +29,10 @@ class LiveLogFeed extends ConsumerWidget {
                     ? const Center(
                         child: Text(
                           'אין כרגע פריטים במקרר.',
-                          style: TextStyle(fontSize: 18, color: Color(0xFF5C6B70)),
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Color(0xFF5C6B70),
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       )

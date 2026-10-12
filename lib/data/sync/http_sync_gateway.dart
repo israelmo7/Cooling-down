@@ -53,9 +53,7 @@ class HttpSyncGateway implements SyncGateway {
       }
       final decoded = jsonDecode(response.body);
       if (decoded is! Map) {
-        return const SyncExchange.offline(
-          'התשובה מהמחשב לא קריאה.',
-        );
+        return const SyncExchange.offline('התשובה מהמחשב לא קריאה.');
       }
       return SyncExchange(
         reachable: true,

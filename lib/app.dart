@@ -75,7 +75,10 @@ class CoolingDownApp extends StatelessWidget {
             minimumSize: const Size(64, 56),
             elevation: 0,
             shape: RoundedRectangleBorder(borderRadius: radius),
-            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            textStyle: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
@@ -84,7 +87,10 @@ class CoolingDownApp extends StatelessWidget {
             shape: RoundedRectangleBorder(borderRadius: radius),
             side: const BorderSide(color: line),
             foregroundColor: ink,
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         navigationBarTheme: NavigationBarThemeData(

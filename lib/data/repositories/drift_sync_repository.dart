@@ -140,10 +140,7 @@ class DriftSyncRepository implements SyncRepository {
     final synced = pending
         .where((row) => result.acceptedIds.contains(row.entityId))
         .length;
-    return SyncAttempt(
-      synced: synced,
-      remaining: pending.length - synced,
-    );
+    return SyncAttempt(synced: synced, remaining: pending.length - synced);
   }
 
   Future<void> _restore(List<SyncOutboxRow> rows, String error) async {
