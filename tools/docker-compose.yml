@@ -1,0 +1,16 @@
+# Shop computer. Tablets on the shop Wi-Fi call port 8080.
+# Midnight mail uses TZ. Change it when the shop is in another zone.
+services:
+  server:
+    image: cooling-down-server:0.1.0
+    container_name: cooling-down-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Jerusalem
+      PORT: "8080"
+      DATA_PATH: /data/cooling_down_server.sqlite
+    volumes:
+      - ./data:/data
+    working_dir: /data
