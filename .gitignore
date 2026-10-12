@@ -54,3 +54,7 @@ sync_token.txt
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+
+# USB packages downloaded for a shop PC
+server-usb/packages/*
+!server-usb/packages/.gitkeep

@@ -6,15 +6,15 @@ final _assignment = RegExp(
 );
 final _plainValue = RegExp(r'^[A-Za-z0-9_./:@+-]*$');
 
-/// `.env` in the working directory, or `server/.env` when the process is
+/// `.env` in the working directory, or `server-ssh/.env` when the process is
 /// started from the repository root.
 File resolveEnvFile() {
   final local = File('.env');
   if (local.existsSync()) {
     return local;
   }
-  final nested = File('server/.env');
-  if (nested.existsSync() || Directory('server').existsSync()) {
+  final nested = File('server-ssh/.env');
+  if (nested.existsSync() || Directory('server-ssh').existsSync()) {
     return nested;
   }
   return local;
