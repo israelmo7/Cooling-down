@@ -171,6 +171,7 @@ class DailyReportService {
             temperatureCelsius: row.temperatureCelsius,
             occurredAt: row.occurredAt,
             fridgeName: fridgeNames[row.fridgeId] ?? row.fridgeId,
+            workerName: row.workerNameSnapshot,
           ),
       ],
       stillInside: holdings,
@@ -212,6 +213,7 @@ class DailyReportService {
           productName: row.productNameSnapshot,
           fridgeName: fridgeNames[row.fridgeId] ?? row.fridgeId,
           checkedInAt: row.occurredAt,
+          workerName: row.workerNameSnapshot,
         ),
     ];
   }

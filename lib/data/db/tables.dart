@@ -50,6 +50,9 @@ class RefrigerationLogs extends Table {
   DateTimeColumn get createdAt => dateTime().named('created_at')();
   TextColumn get originDeviceId =>
       text().named('origin_device_id').withDefault(const Constant(''))();
+  TextColumn get workerNameSnapshot => text()
+      .named('worker_name_snapshot')
+      .withDefault(const Constant(''))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -58,6 +61,19 @@ class RefrigerationLogs extends Table {
   List<String> get customConstraints => [
     "CHECK (event_type IN ('check_in', 'check_out'))",
   ];
+}
+
+@DataClassName('WorkerRow')
+class Workers extends Table {
+  @override
+  String get tableName => 'workers';
+
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  DateTimeColumn get createdAt => dateTime().named('created_at')();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 @DataClassName('AlertRow')
@@ -131,6 +147,10 @@ class LocalSettings extends Table {
       text().named('smtp_password').withDefault(const Constant(''))();
   TextColumn get smtpFrom =>
       text().named('smtp_from').withDefault(const Constant(''))();
+  TextColumn get currentWorkerId =>
+      text().named('current_worker_id').nullable()();
+  DateTimeColumn get workerActiveAt =>
+      dateTime().named('worker_active_at').nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

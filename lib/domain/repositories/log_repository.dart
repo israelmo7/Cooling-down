@@ -10,12 +10,14 @@ abstract class LogRepository {
     required String fridgeId,
     required double temperatureCelsius,
     DateTime? occurredAt,
+    String workerName = '',
   });
 
   Future<RefrigerationLog> insertCheckOut({
     required String movementId,
     required double temperatureCelsius,
     DateTime? occurredAt,
+    String workerName = '',
   });
 
   Stream<List<OpenHolding>> watchOpenHoldings();

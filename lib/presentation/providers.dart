@@ -10,6 +10,7 @@ import '../data/repositories/drift_log_repository.dart';
 import '../data/repositories/drift_product_repository.dart';
 import '../data/repositories/drift_settings_repository.dart';
 import '../data/repositories/drift_sync_repository.dart';
+import '../data/repositories/drift_worker_repository.dart';
 import '../data/sync/gateway_factory.dart';
 import '../data/sync/sync_gateway.dart';
 import '../data/sync/tablet_hub.dart';
@@ -17,12 +18,15 @@ import '../domain/entities/alert.dart';
 import '../domain/entities/fridge.dart';
 import '../domain/entities/open_holding.dart';
 import '../domain/entities/product.dart';
+import '../domain/entities/worker.dart';
+import '../domain/workers/worker_session.dart';
 import '../domain/reports/daily_report.dart';
 import '../domain/repositories/alert_repository.dart';
 import '../domain/repositories/log_repository.dart';
 import '../domain/repositories/product_repository.dart';
 import '../domain/repositories/settings_repository.dart';
 import '../domain/repositories/sync_repository.dart';
+import '../domain/repositories/worker_repository.dart';
 import '../domain/settings/device_settings.dart';
 
 final clockProvider = Provider<Clock>((ref) => const Clock());
@@ -51,6 +55,10 @@ final syncGatewayFactoryProvider =
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   return DriftProductRepository(ref.watch(appDatabaseProvider));
+});
+
+final workerRepositoryProvider = Provider<WorkerRepository>((ref) {
+  return DriftWorkerRepository(ref.watch(appDatabaseProvider));
 });
 
 final logRepositoryProvider = Provider<LogRepository>((ref) {
@@ -116,6 +124,14 @@ final latestReportProvider = StreamProvider<StoredDailyReport?>((ref) {
 
 final productCatalogProvider = StreamProvider<List<Product>>((ref) {
   return ref.watch(productRepositoryProvider).watchAll();
+});
+
+final workersProvider = StreamProvider<List<Worker>>((ref) {
+  return ref.watch(workerRepositoryProvider).watchAll();
+});
+
+final workerSessionProvider = StreamProvider<WorkerSession>((ref) {
+  return ref.watch(workerRepositoryProvider).watchSession();
 });
 
 final productSearchProvider = StreamProvider.family<List<Product>, String>(

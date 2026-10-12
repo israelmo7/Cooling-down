@@ -52,12 +52,19 @@ class AdminGate {
   }
 }
 
-void mountAdmin(Router router, {required SyncStore store, required AdminGate gate}) {
+void mountAdmin(
+  Router router, {
+  required SyncStore store,
+  required AdminGate gate,
+}) {
   router
     ..get('/admin', (Request request) => _page(request, store, gate))
     ..post('/admin/login', (Request request) => _login(request, gate))
     ..post('/admin/logout', (Request request) => _logout(request, gate))
-    ..post('/admin/email', (Request request) => _saveEmail(request, store, gate));
+    ..post(
+      '/admin/email',
+      (Request request) => _saveEmail(request, store, gate),
+    );
 }
 
 Response _page(Request request, SyncStore store, AdminGate gate) {
@@ -70,12 +77,16 @@ Response _page(Request request, SyncStore store, AdminGate gate) {
     );
   }
   if (!gate.allows(request)) {
-    return _html(_loginForm(failed: request.url.queryParameters['error'] == '1'));
+    return _html(
+      _loginForm(failed: request.url.queryParameters['error'] == '1'),
+    );
   }
   final sections = StringBuffer();
   final environments = store.environmentSummaries();
   if (environments.isEmpty) {
-    sections.writeln('<p>עדיין אין סביבות. טאבלט מעלה נתונים אחרי הסנכרון הראשון.</p>');
+    sections.writeln(
+      '<p>עדיין אין סביבות. טאבלט מעלה נתונים אחרי הסנכרון הראשון.</p>',
+    );
   }
   for (final environment in environments) {
     final name = environment['name'] as String;
@@ -91,8 +102,11 @@ Response _page(Request request, SyncStore store, AdminGate gate) {
         final temperature = log.temperature == null
             ? ''
             : ' ${log.temperature!.toStringAsFixed(1)}°C';
+        final worker = log.workerName.trim().isEmpty
+            ? ''
+            : ' · ${_escape(log.workerName.trim())}';
         rows.writeln(
-          '<li>${_escape(_clock(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}</li>',
+          '<li>${_escape(_clock(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker</li>',
         );
       }
       rows.writeln('</ul>');
@@ -113,13 +127,10 @@ Response _page(Request request, SyncStore store, AdminGate gate) {
 ''');
   }
   return _html(
-    _shell(
-      'לוח ניהול',
-      '''
+    _shell('לוח ניהול', '''
 <form method="post" action="/admin/logout"><button type="submit">יציאה</button></form>
 $sections
-''',
-    ),
+'''),
   );
 }
 
@@ -132,8 +143,7 @@ Future<Response> _login(Request request, AdminGate gate) async {
   return _redirect(
     '/admin',
     headers: {
-      'set-cookie':
-          'admin_session=$token; HttpOnly; Path=/admin; SameSite=Lax',
+      'set-cookie': 'admin_session=$token; HttpOnly; Path=/admin; SameSite=Lax',
     },
   );
 }
@@ -160,18 +170,17 @@ Future<Response> _saveEmail(
 }
 
 String _loginForm({required bool failed}) {
-  final error = failed ? '<p class="error">שם המשתמש או הסיסמה שגויים.</p>' : '';
-  return _shell(
-    'כניסה ללוח הניהול',
-    '''
+  final error = failed
+      ? '<p class="error">שם המשתמש או הסיסמה שגויים.</p>'
+      : '';
+  return _shell('כניסה ללוח הניהול', '''
 $error
 <form method="post" action="/admin/login">
   <label>שם משתמש <input name="user" autocomplete="username" required></label>
   <label>סיסמה <input name="password" type="password" autocomplete="current-password" required></label>
   <button type="submit">כניסה</button>
 </form>
-''',
-  );
+''');
 }
 
 String _shell(String title, String body) {

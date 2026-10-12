@@ -246,6 +246,7 @@ void main() {
           ..._log(id: 'log-day', movementId: 'move-day', eventType: 'check_in'),
           'product_name_snapshot': 'חלב',
           'fridge_name': 'מקרר מטבח',
+          'worker_name_snapshot': 'דנה',
           'temperature_celsius': 4.0,
           'occurred_at': occurred.toUtc().toIso8601String(),
         }),
@@ -261,6 +262,7 @@ void main() {
     expect(mailer.lastTo, 'owner@shop.test');
     expect(mailer.lastSubject, contains('2026-10-11'));
     expect(mailer.lastBody, contains('חלב'));
+    expect(mailer.lastBody, contains('דנה'));
     expect(mailer.lastBody, contains('מסקנה:'));
   });
 }

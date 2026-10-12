@@ -73,6 +73,9 @@ class RemoteApplier {
             originDeviceId: Value(
               _optionalString(payload, 'origin_device_id') ?? change.deviceId,
             ),
+            workerNameSnapshot: Value(
+              _optionalString(payload, 'worker_name_snapshot') ?? '',
+            ),
           ),
         );
     await rememberFeed(

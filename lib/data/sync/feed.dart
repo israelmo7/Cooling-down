@@ -48,6 +48,7 @@ Future<void> backfillSyncFeed(AppDatabase db) async {
         'occurred_at': row.occurredAt.toUtc().toIso8601String(),
         'created_at': row.createdAt.toUtc().toIso8601String(),
         'origin_device_id': row.originDeviceId,
+        'worker_name_snapshot': row.workerNameSnapshot,
       },
     );
   }

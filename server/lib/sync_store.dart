@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS environments (
 ''');
     _addColumn('refrigeration_logs', 'temperature', 'REAL');
     _addColumn('refrigeration_logs', 'fridge_name', 'TEXT');
+    _addColumn('refrigeration_logs', 'worker_name', 'TEXT');
   }
 
   factory SyncStore.memory({ReportMailer? mailer, String ownerEmail = ''}) {
@@ -336,7 +337,7 @@ ON CONFLICT(name) DO UPDATE SET owner_email = excluded.owner_email
   List<StoredLogLine> _logs(String environment) {
     final rows = _db.select(
       '''
-SELECT event_type, occurred_at, product_name, temperature, fridge_name
+SELECT event_type, occurred_at, product_name, temperature, fridge_name, worker_name
 FROM refrigeration_logs
 WHERE environment = ?
 ''',
@@ -350,6 +351,7 @@ WHERE environment = ?
           productName: row['product_name'] as String,
           temperature: (row['temperature'] as num?)?.toDouble(),
           fridgeName: row['fridge_name'] as String? ?? '',
+          workerName: row['worker_name'] as String? ?? '',
         ),
     ];
   }
@@ -471,12 +473,13 @@ INSERT INTO sync_events (
     }
     final temperature = payload['temperature_celsius'];
     final fridgeName = payload['fridge_name'];
+    final workerName = payload['worker_name_snapshot'];
     _db.execute(
       '''
 INSERT INTO refrigeration_logs (
   id, environment, movement_id, event_type, occurred_at, product_name,
-  temperature, fridge_name
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  temperature, fridge_name, worker_name
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''',
       [
         id,
@@ -487,6 +490,7 @@ INSERT INTO refrigeration_logs (
         productName,
         temperature is num ? temperature.toDouble() : null,
         fridgeName is String ? fridgeName : '',
+        workerName is String ? workerName : '',
       ],
     );
     if (eventType != 'check_out') {

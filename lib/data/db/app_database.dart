@@ -14,6 +14,7 @@ part 'app_database.g.dart';
   tables: [
     Products,
     Fridges,
+    Workers,
     RefrigerationLogs,
     Alerts,
     SyncOutbox,
@@ -28,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -68,6 +69,18 @@ SET daily_report_enabled = 1, report_hour = 0, report_minute = 0
       }
       if (from < 6) {
         await migrator.addColumn(products, products.listed);
+      }
+      if (from < 7) {
+        await migrator.createTable(workers);
+        await migrator.addColumn(
+          refrigerationLogs,
+          refrigerationLogs.workerNameSnapshot,
+        );
+        await migrator.addColumn(
+          localSettings,
+          localSettings.currentWorkerId,
+        );
+        await migrator.addColumn(localSettings, localSettings.workerActiveAt);
       }
     },
     beforeOpen: (details) async {

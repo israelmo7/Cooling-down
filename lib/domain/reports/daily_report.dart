@@ -14,6 +14,7 @@ class ReportMovement {
     required this.temperatureCelsius,
     required this.occurredAt,
     required this.fridgeName,
+    this.workerName = '',
   });
 
   final String productName;
@@ -21,6 +22,7 @@ class ReportMovement {
   final double temperatureCelsius;
   final DateTime occurredAt;
   final String fridgeName;
+  final String workerName;
 }
 
 class ReportHolding {
@@ -28,11 +30,13 @@ class ReportHolding {
     required this.productName,
     required this.fridgeName,
     required this.checkedInAt,
+    this.workerName = '',
   });
 
   final String productName;
   final String fridgeName;
   final DateTime checkedInAt;
+  final String workerName;
 }
 
 class ReportNotice {
@@ -146,7 +150,7 @@ DailyReportContent buildDailyReport({
     title: 'תנועות',
     lines: [
       for (final row in movements)
-        '${formatReportClock(row.occurredAt)} ${row.productName} ${_eventWord(row.eventLabel)} ב-${row.temperatureCelsius.toStringAsFixed(1)}°C (${row.fridgeName})',
+        '${formatReportClock(row.occurredAt)} ${row.productName} ${_eventWord(row.eventLabel)} ב-${row.temperatureCelsius.toStringAsFixed(1)}°C (${row.fridgeName})${_workerSuffix(row.workerName)}',
     ],
   );
   _writeList(
@@ -154,7 +158,7 @@ DailyReportContent buildDailyReport({
     title: 'עדיין במקרר',
     lines: [
       for (final row in stillInside)
-        '${row.productName} ב${row.fridgeName} מאז ${formatReportClock(row.checkedInAt)}',
+        '${row.productName} ב${row.fridgeName} מאז ${formatReportClock(row.checkedInAt)}${_workerSuffix(row.workerName)}',
     ],
     empty: 'אין פריטים שנשארו במקרר.',
   );
@@ -239,4 +243,12 @@ String _conclusion({
 
 String _eventWord(String eventLabel) {
   return eventLabel == 'in' ? 'נכנס' : 'יצא';
+}
+
+String _workerSuffix(String workerName) {
+  final name = workerName.trim();
+  if (name.isEmpty) {
+    return '';
+  }
+  return ' · $name';
 }

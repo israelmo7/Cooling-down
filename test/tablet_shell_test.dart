@@ -410,4 +410,76 @@ void main() {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('check-in asks who is working and stores that name', (
+    tester,
+  ) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('open-settings')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byKey(const Key('unlock-settings')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('settings-password')),
+      '123459876',
+    );
+    await tester.tap(find.byKey(const Key('confirm-settings-password')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.ensureVisible(find.byKey(const Key('settings-worker-list')));
+    await tester.tap(find.byKey(const Key('settings-worker-list')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.ensureVisible(find.byKey(const Key('add-worker')));
+    await tester.enterText(find.byKey(const Key('new-worker-name')), 'דנה');
+    await tester.tap(find.byKey(const Key('add-worker')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    Navigator.of(tester.element(find.text('הגדרות'))).pop();
+    await tester.pumpAndSettle();
+    expect(find.text('מי עובד עכשיו?'), findsOneWidget);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('worker-picker')),
+        matching: find.text('דנה'),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('חלב'));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('confirm-check-in')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final stored = await database.select(database.refrigerationLogs).get();
+    expect(stored.single.workerNameSnapshot, 'דנה');
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }

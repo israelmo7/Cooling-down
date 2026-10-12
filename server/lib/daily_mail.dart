@@ -13,6 +13,7 @@ class StoredLogLine {
     required this.productName,
     required this.temperature,
     required this.fridgeName,
+    this.workerName = '',
   });
 
   final String eventType;
@@ -20,6 +21,7 @@ class StoredLogLine {
   final String productName;
   final double? temperature;
   final String fridgeName;
+  final String workerName;
 }
 
 class StoredNotice {
@@ -36,16 +38,13 @@ ClosedDayReport buildClosedDayReport({
   required List<StoredNotice> notices,
 }) {
   final date = _dateKey(day);
-  final dayLogs =
-      logs.where((row) => _sameDay(row.occurredAt, day)).toList()
-        ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+  final dayLogs = logs.where((row) => _sameDay(row.occurredAt, day)).toList()
+    ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
   final dayNotices = notices
       .where((row) => _sameDay(row.createdAt, day))
       .toList();
   final checkIns = dayLogs.where((row) => row.eventType == 'check_in').length;
-  final checkOuts = dayLogs
-      .where((row) => row.eventType == 'check_out')
-      .length;
+  final checkOuts = dayLogs.where((row) => row.eventType == 'check_out').length;
   final buffer = StringBuffer()
     ..writeln('סביבה: $environmentName')
     ..writeln('תאריך: $date')
@@ -64,8 +63,11 @@ ClosedDayReport buildClosedDayReport({
           ? ''
           : ' ב-${row.temperature!.toStringAsFixed(1)}°C';
       final fridge = row.fridgeName.isEmpty ? '' : ' (${row.fridgeName})';
+      final worker = row.workerName.trim().isEmpty
+          ? ''
+          : ' · ${row.workerName.trim()}';
       buffer.writeln(
-        '- ${_clock(row.occurredAt)} ${row.productName} $word$temperature$fridge',
+        '- ${_clock(row.occurredAt)} ${row.productName} $word$temperature$fridge$worker',
       );
     }
     if (dayLogs.length > 20) {

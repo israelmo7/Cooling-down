@@ -20,6 +20,7 @@ class RefrigerationLog {
     required this.occurredAt,
     required this.createdAt,
     this.originDeviceId = '',
+    this.workerNameSnapshot = '',
   });
 
   final String id;
@@ -32,4 +33,5 @@ class RefrigerationLog {
   final DateTime occurredAt;
   final DateTime createdAt;
   final String originDeviceId;
+  final String workerNameSnapshot;
 }

@@ -7,6 +7,7 @@ import '../../data/db/seed_ids.dart';
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/failures.dart';
+import '../../domain/workers/worker_session.dart';
 import '../format.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
@@ -50,13 +51,24 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final fridge = _environmentFridge(
       ref.read(fridgesProvider).asData?.value ?? const [],
     );
-    if (product == null || fridge == null || _saving) {
+    final workers = ref.read(workersProvider).asData?.value;
+    final session = ref.read(workerSessionProvider).asData?.value;
+    final workerName = session?.workerName.trim() ?? '';
+    if (product == null ||
+        fridge == null ||
+        _saving ||
+        !workerAllowsAction(
+          workers: workers,
+          session: session,
+          now: DateTime.now(),
+        )) {
       return;
     }
+    final who = workerName.isEmpty ? '' : ' · $workerName';
     final accepted = await confirmRecordedAction(
       context,
       enabled: ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
-      action: 'קליטה: ${product.name} ב-${formatCelsius(_temperature)}',
+      action: 'קליטה: ${product.name} ב-${formatCelsius(_temperature)}$who',
     );
     if (!accepted || !mounted) {
       return;
@@ -69,6 +81,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
             productId: product.id,
             fridgeId: fridge.id,
             temperatureCelsius: _temperature,
+            workerName: workerName,
           );
       if (!mounted) {
         return;
@@ -134,7 +147,15 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final fridge = fridges.asData == null
         ? null
         : _environmentFridge(fridges.asData!.value);
-    final canConfirm = _selectedProduct != null && fridge != null && !_saving;
+    final canConfirm =
+        _selectedProduct != null &&
+        fridge != null &&
+        !_saving &&
+        workerAllowsAction(
+          workers: ref.watch(workersProvider).asData?.value,
+          session: ref.watch(workerSessionProvider).asData?.value,
+          now: DateTime.now(),
+        );
     final visible =
         products.asData?.value.any((item) => item.id == _selectedProduct?.id) ??
         false;

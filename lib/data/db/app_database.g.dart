@@ -664,6 +664,264 @@ class FridgesCompanion extends UpdateCompanion<FridgeRow> {
   }
 }
 
+class $WorkersTable extends Workers with TableInfo<$WorkersTable, WorkerRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WorkersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'workers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WorkerRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WorkerRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WorkerRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WorkersTable createAlias(String alias) {
+    return $WorkersTable(attachedDatabase, alias);
+  }
+}
+
+class WorkerRow extends DataClass implements Insertable<WorkerRow> {
+  final String id;
+  final String name;
+  final DateTime createdAt;
+  const WorkerRow({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  WorkersCompanion toCompanion(bool nullToAbsent) {
+    return WorkersCompanion(
+      id: Value(id),
+      name: Value(name),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory WorkerRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WorkerRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  WorkerRow copyWith({String? id, String? name, DateTime? createdAt}) =>
+      WorkerRow(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  WorkerRow copyWithCompanion(WorkersCompanion data) {
+    return WorkerRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkerRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WorkerRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.createdAt == this.createdAt);
+}
+
+class WorkersCompanion extends UpdateCompanion<WorkerRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const WorkersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WorkersCompanion.insert({
+    required String id,
+    required String name,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       createdAt = Value(createdAt);
+  static Insertable<WorkerRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WorkersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return WorkersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $RefrigerationLogsTable extends RefrigerationLogs
     with TableInfo<$RefrigerationLogsTable, RefrigerationLogRow> {
   @override
@@ -785,6 +1043,18 @@ class $RefrigerationLogsTable extends RefrigerationLogs
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _workerNameSnapshotMeta =
+      const VerificationMeta('workerNameSnapshot');
+  @override
+  late final GeneratedColumn<String> workerNameSnapshot =
+      GeneratedColumn<String>(
+        'worker_name_snapshot',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -797,6 +1067,7 @@ class $RefrigerationLogsTable extends RefrigerationLogs
     occurredAt,
     createdAt,
     originDeviceId,
+    workerNameSnapshot,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -886,6 +1157,15 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         ),
       );
     }
+    if (data.containsKey('worker_name_snapshot')) {
+      context.handle(
+        _workerNameSnapshotMeta,
+        workerNameSnapshot.isAcceptableOrUnknown(
+          data['worker_name_snapshot']!,
+          _workerNameSnapshotMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -937,6 +1217,10 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         DriftSqlType.string,
         data['${effectivePrefix}origin_device_id'],
       )!,
+      workerNameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worker_name_snapshot'],
+      )!,
     );
   }
 
@@ -961,6 +1245,7 @@ class RefrigerationLogRow extends DataClass
   final DateTime occurredAt;
   final DateTime createdAt;
   final String originDeviceId;
+  final String workerNameSnapshot;
   const RefrigerationLogRow({
     required this.id,
     required this.movementId,
@@ -972,6 +1257,7 @@ class RefrigerationLogRow extends DataClass
     required this.occurredAt,
     required this.createdAt,
     required this.originDeviceId,
+    required this.workerNameSnapshot,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -990,6 +1276,7 @@ class RefrigerationLogRow extends DataClass
     map['occurred_at'] = Variable<DateTime>(occurredAt);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['origin_device_id'] = Variable<String>(originDeviceId);
+    map['worker_name_snapshot'] = Variable<String>(workerNameSnapshot);
     return map;
   }
 
@@ -1005,6 +1292,7 @@ class RefrigerationLogRow extends DataClass
       occurredAt: Value(occurredAt),
       createdAt: Value(createdAt),
       originDeviceId: Value(originDeviceId),
+      workerNameSnapshot: Value(workerNameSnapshot),
     );
   }
 
@@ -1028,6 +1316,9 @@ class RefrigerationLogRow extends DataClass
       occurredAt: serializer.fromJson<DateTime>(json['occurredAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       originDeviceId: serializer.fromJson<String>(json['originDeviceId']),
+      workerNameSnapshot: serializer.fromJson<String>(
+        json['workerNameSnapshot'],
+      ),
     );
   }
   @override
@@ -1044,6 +1335,7 @@ class RefrigerationLogRow extends DataClass
       'occurredAt': serializer.toJson<DateTime>(occurredAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'originDeviceId': serializer.toJson<String>(originDeviceId),
+      'workerNameSnapshot': serializer.toJson<String>(workerNameSnapshot),
     };
   }
 
@@ -1058,6 +1350,7 @@ class RefrigerationLogRow extends DataClass
     DateTime? occurredAt,
     DateTime? createdAt,
     String? originDeviceId,
+    String? workerNameSnapshot,
   }) => RefrigerationLogRow(
     id: id ?? this.id,
     movementId: movementId ?? this.movementId,
@@ -1069,6 +1362,7 @@ class RefrigerationLogRow extends DataClass
     occurredAt: occurredAt ?? this.occurredAt,
     createdAt: createdAt ?? this.createdAt,
     originDeviceId: originDeviceId ?? this.originDeviceId,
+    workerNameSnapshot: workerNameSnapshot ?? this.workerNameSnapshot,
   );
   RefrigerationLogRow copyWithCompanion(RefrigerationLogsCompanion data) {
     return RefrigerationLogRow(
@@ -1092,6 +1386,9 @@ class RefrigerationLogRow extends DataClass
       originDeviceId: data.originDeviceId.present
           ? data.originDeviceId.value
           : this.originDeviceId,
+      workerNameSnapshot: data.workerNameSnapshot.present
+          ? data.workerNameSnapshot.value
+          : this.workerNameSnapshot,
     );
   }
 
@@ -1107,7 +1404,8 @@ class RefrigerationLogRow extends DataClass
           ..write('temperatureCelsius: $temperatureCelsius, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('createdAt: $createdAt, ')
-          ..write('originDeviceId: $originDeviceId')
+          ..write('originDeviceId: $originDeviceId, ')
+          ..write('workerNameSnapshot: $workerNameSnapshot')
           ..write(')'))
         .toString();
   }
@@ -1124,6 +1422,7 @@ class RefrigerationLogRow extends DataClass
     occurredAt,
     createdAt,
     originDeviceId,
+    workerNameSnapshot,
   );
   @override
   bool operator ==(Object other) =>
@@ -1138,7 +1437,8 @@ class RefrigerationLogRow extends DataClass
           other.temperatureCelsius == this.temperatureCelsius &&
           other.occurredAt == this.occurredAt &&
           other.createdAt == this.createdAt &&
-          other.originDeviceId == this.originDeviceId);
+          other.originDeviceId == this.originDeviceId &&
+          other.workerNameSnapshot == this.workerNameSnapshot);
 }
 
 class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
@@ -1152,6 +1452,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
   final Value<DateTime> occurredAt;
   final Value<DateTime> createdAt;
   final Value<String> originDeviceId;
+  final Value<String> workerNameSnapshot;
   final Value<int> rowid;
   const RefrigerationLogsCompanion({
     this.id = const Value.absent(),
@@ -1164,6 +1465,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     this.occurredAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.originDeviceId = const Value.absent(),
+    this.workerNameSnapshot = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RefrigerationLogsCompanion.insert({
@@ -1177,6 +1479,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     required DateTime occurredAt,
     required DateTime createdAt,
     this.originDeviceId = const Value.absent(),
+    this.workerNameSnapshot = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        movementId = Value(movementId),
@@ -1198,6 +1501,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     Expression<DateTime>? occurredAt,
     Expression<DateTime>? createdAt,
     Expression<String>? originDeviceId,
+    Expression<String>? workerNameSnapshot,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1212,6 +1516,8 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
       if (occurredAt != null) 'occurred_at': occurredAt,
       if (createdAt != null) 'created_at': createdAt,
       if (originDeviceId != null) 'origin_device_id': originDeviceId,
+      if (workerNameSnapshot != null)
+        'worker_name_snapshot': workerNameSnapshot,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1227,6 +1533,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     Value<DateTime>? occurredAt,
     Value<DateTime>? createdAt,
     Value<String>? originDeviceId,
+    Value<String>? workerNameSnapshot,
     Value<int>? rowid,
   }) {
     return RefrigerationLogsCompanion(
@@ -1240,6 +1547,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
       occurredAt: occurredAt ?? this.occurredAt,
       createdAt: createdAt ?? this.createdAt,
       originDeviceId: originDeviceId ?? this.originDeviceId,
+      workerNameSnapshot: workerNameSnapshot ?? this.workerNameSnapshot,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1281,6 +1589,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     if (originDeviceId.present) {
       map['origin_device_id'] = Variable<String>(originDeviceId.value);
     }
+    if (workerNameSnapshot.present) {
+      map['worker_name_snapshot'] = Variable<String>(workerNameSnapshot.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1300,6 +1611,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
           ..write('occurredAt: $occurredAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('originDeviceId: $originDeviceId, ')
+          ..write('workerNameSnapshot: $workerNameSnapshot, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2700,6 +3012,29 @@ class $LocalSettingsTable extends LocalSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _currentWorkerIdMeta = const VerificationMeta(
+    'currentWorkerId',
+  );
+  @override
+  late final GeneratedColumn<String> currentWorkerId = GeneratedColumn<String>(
+    'current_worker_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _workerActiveAtMeta = const VerificationMeta(
+    'workerActiveAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> workerActiveAt =
+      GeneratedColumn<DateTime>(
+        'worker_active_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2722,6 +3057,8 @@ class $LocalSettingsTable extends LocalSettings
     smtpUser,
     smtpPassword,
     smtpFrom,
+    currentWorkerId,
+    workerActiveAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2884,6 +3221,24 @@ class $LocalSettingsTable extends LocalSettings
         smtpFrom.isAcceptableOrUnknown(data['smtp_from']!, _smtpFromMeta),
       );
     }
+    if (data.containsKey('current_worker_id')) {
+      context.handle(
+        _currentWorkerIdMeta,
+        currentWorkerId.isAcceptableOrUnknown(
+          data['current_worker_id']!,
+          _currentWorkerIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('worker_active_at')) {
+      context.handle(
+        _workerActiveAtMeta,
+        workerActiveAt.isAcceptableOrUnknown(
+          data['worker_active_at']!,
+          _workerActiveAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2973,6 +3328,14 @@ class $LocalSettingsTable extends LocalSettings
         DriftSqlType.string,
         data['${effectivePrefix}smtp_from'],
       )!,
+      currentWorkerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}current_worker_id'],
+      ),
+      workerActiveAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}worker_active_at'],
+      ),
     );
   }
 
@@ -3004,6 +3367,8 @@ class LocalSettingsRow extends DataClass
   final String smtpUser;
   final String smtpPassword;
   final String smtpFrom;
+  final String? currentWorkerId;
+  final DateTime? workerActiveAt;
   const LocalSettingsRow({
     required this.id,
     required this.deviceId,
@@ -3025,6 +3390,8 @@ class LocalSettingsRow extends DataClass
     required this.smtpUser,
     required this.smtpPassword,
     required this.smtpFrom,
+    this.currentWorkerId,
+    this.workerActiveAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3053,6 +3420,12 @@ class LocalSettingsRow extends DataClass
     map['smtp_user'] = Variable<String>(smtpUser);
     map['smtp_password'] = Variable<String>(smtpPassword);
     map['smtp_from'] = Variable<String>(smtpFrom);
+    if (!nullToAbsent || currentWorkerId != null) {
+      map['current_worker_id'] = Variable<String>(currentWorkerId);
+    }
+    if (!nullToAbsent || workerActiveAt != null) {
+      map['worker_active_at'] = Variable<DateTime>(workerActiveAt);
+    }
     return map;
   }
 
@@ -3082,6 +3455,12 @@ class LocalSettingsRow extends DataClass
       smtpUser: Value(smtpUser),
       smtpPassword: Value(smtpPassword),
       smtpFrom: Value(smtpFrom),
+      currentWorkerId: currentWorkerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currentWorkerId),
+      workerActiveAt: workerActiveAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workerActiveAt),
     );
   }
 
@@ -3111,6 +3490,8 @@ class LocalSettingsRow extends DataClass
       smtpUser: serializer.fromJson<String>(json['smtpUser']),
       smtpPassword: serializer.fromJson<String>(json['smtpPassword']),
       smtpFrom: serializer.fromJson<String>(json['smtpFrom']),
+      currentWorkerId: serializer.fromJson<String?>(json['currentWorkerId']),
+      workerActiveAt: serializer.fromJson<DateTime?>(json['workerActiveAt']),
     );
   }
   @override
@@ -3137,6 +3518,8 @@ class LocalSettingsRow extends DataClass
       'smtpUser': serializer.toJson<String>(smtpUser),
       'smtpPassword': serializer.toJson<String>(smtpPassword),
       'smtpFrom': serializer.toJson<String>(smtpFrom),
+      'currentWorkerId': serializer.toJson<String?>(currentWorkerId),
+      'workerActiveAt': serializer.toJson<DateTime?>(workerActiveAt),
     };
   }
 
@@ -3161,6 +3544,8 @@ class LocalSettingsRow extends DataClass
     String? smtpUser,
     String? smtpPassword,
     String? smtpFrom,
+    Value<String?> currentWorkerId = const Value.absent(),
+    Value<DateTime?> workerActiveAt = const Value.absent(),
   }) => LocalSettingsRow(
     id: id ?? this.id,
     deviceId: deviceId ?? this.deviceId,
@@ -3184,6 +3569,12 @@ class LocalSettingsRow extends DataClass
     smtpUser: smtpUser ?? this.smtpUser,
     smtpPassword: smtpPassword ?? this.smtpPassword,
     smtpFrom: smtpFrom ?? this.smtpFrom,
+    currentWorkerId: currentWorkerId.present
+        ? currentWorkerId.value
+        : this.currentWorkerId,
+    workerActiveAt: workerActiveAt.present
+        ? workerActiveAt.value
+        : this.workerActiveAt,
   );
   LocalSettingsRow copyWithCompanion(LocalSettingsCompanion data) {
     return LocalSettingsRow(
@@ -3233,6 +3624,12 @@ class LocalSettingsRow extends DataClass
           ? data.smtpPassword.value
           : this.smtpPassword,
       smtpFrom: data.smtpFrom.present ? data.smtpFrom.value : this.smtpFrom,
+      currentWorkerId: data.currentWorkerId.present
+          ? data.currentWorkerId.value
+          : this.currentWorkerId,
+      workerActiveAt: data.workerActiveAt.present
+          ? data.workerActiveAt.value
+          : this.workerActiveAt,
     );
   }
 
@@ -3258,13 +3655,15 @@ class LocalSettingsRow extends DataClass
           ..write('smtpPort: $smtpPort, ')
           ..write('smtpUser: $smtpUser, ')
           ..write('smtpPassword: $smtpPassword, ')
-          ..write('smtpFrom: $smtpFrom')
+          ..write('smtpFrom: $smtpFrom, ')
+          ..write('currentWorkerId: $currentWorkerId, ')
+          ..write('workerActiveAt: $workerActiveAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     deviceId,
     deviceName,
@@ -3285,7 +3684,9 @@ class LocalSettingsRow extends DataClass
     smtpUser,
     smtpPassword,
     smtpFrom,
-  );
+    currentWorkerId,
+    workerActiveAt,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3309,7 +3710,9 @@ class LocalSettingsRow extends DataClass
           other.smtpPort == this.smtpPort &&
           other.smtpUser == this.smtpUser &&
           other.smtpPassword == this.smtpPassword &&
-          other.smtpFrom == this.smtpFrom);
+          other.smtpFrom == this.smtpFrom &&
+          other.currentWorkerId == this.currentWorkerId &&
+          other.workerActiveAt == this.workerActiveAt);
 }
 
 class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
@@ -3333,6 +3736,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
   final Value<String> smtpUser;
   final Value<String> smtpPassword;
   final Value<String> smtpFrom;
+  final Value<String?> currentWorkerId;
+  final Value<DateTime?> workerActiveAt;
   final Value<int> rowid;
   const LocalSettingsCompanion({
     this.id = const Value.absent(),
@@ -3355,6 +3760,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.smtpUser = const Value.absent(),
     this.smtpPassword = const Value.absent(),
     this.smtpFrom = const Value.absent(),
+    this.currentWorkerId = const Value.absent(),
+    this.workerActiveAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalSettingsCompanion.insert({
@@ -3378,6 +3785,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.smtpUser = const Value.absent(),
     this.smtpPassword = const Value.absent(),
     this.smtpFrom = const Value.absent(),
+    this.currentWorkerId = const Value.absent(),
+    this.workerActiveAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        deviceId = Value(deviceId),
@@ -3404,6 +3813,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Expression<String>? smtpUser,
     Expression<String>? smtpPassword,
     Expression<String>? smtpFrom,
+    Expression<String>? currentWorkerId,
+    Expression<DateTime>? workerActiveAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3428,6 +3839,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       if (smtpUser != null) 'smtp_user': smtpUser,
       if (smtpPassword != null) 'smtp_password': smtpPassword,
       if (smtpFrom != null) 'smtp_from': smtpFrom,
+      if (currentWorkerId != null) 'current_worker_id': currentWorkerId,
+      if (workerActiveAt != null) 'worker_active_at': workerActiveAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3453,6 +3866,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Value<String>? smtpUser,
     Value<String>? smtpPassword,
     Value<String>? smtpFrom,
+    Value<String?>? currentWorkerId,
+    Value<DateTime?>? workerActiveAt,
     Value<int>? rowid,
   }) {
     return LocalSettingsCompanion(
@@ -3476,6 +3891,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       smtpUser: smtpUser ?? this.smtpUser,
       smtpPassword: smtpPassword ?? this.smtpPassword,
       smtpFrom: smtpFrom ?? this.smtpFrom,
+      currentWorkerId: currentWorkerId ?? this.currentWorkerId,
+      workerActiveAt: workerActiveAt ?? this.workerActiveAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3543,6 +3960,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     if (smtpFrom.present) {
       map['smtp_from'] = Variable<String>(smtpFrom.value);
     }
+    if (currentWorkerId.present) {
+      map['current_worker_id'] = Variable<String>(currentWorkerId.value);
+    }
+    if (workerActiveAt.present) {
+      map['worker_active_at'] = Variable<DateTime>(workerActiveAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3572,6 +3995,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
           ..write('smtpUser: $smtpUser, ')
           ..write('smtpPassword: $smtpPassword, ')
           ..write('smtpFrom: $smtpFrom, ')
+          ..write('currentWorkerId: $currentWorkerId, ')
+          ..write('workerActiveAt: $workerActiveAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4570,6 +4995,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ProductsTable products = $ProductsTable(this);
   late final $FridgesTable fridges = $FridgesTable(this);
+  late final $WorkersTable workers = $WorkersTable(this);
   late final $RefrigerationLogsTable refrigerationLogs =
       $RefrigerationLogsTable(this);
   late final $AlertsTable alerts = $AlertsTable(this);
@@ -4584,6 +5010,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     products,
     fridges,
+    workers,
     refrigerationLogs,
     alerts,
     syncOutbox,
@@ -5281,6 +5708,169 @@ typedef $$FridgesTableProcessedTableManager =
       FridgeRow,
       PrefetchHooks Function({bool refrigerationLogsRefs})
     >;
+typedef $$WorkersTableCreateCompanionBuilder = WorkersCompanion Function({
+  required String id,
+  required String name,
+  required DateTime createdAt,
+  Value<int> rowid,
+});
+typedef $$WorkersTableUpdateCompanionBuilder = WorkersCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+class $$WorkersTableFilterComposer
+    extends Composer<_$AppDatabase, $WorkersTable> {
+  $$WorkersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WorkersTableOrderingComposer
+    extends Composer<_$AppDatabase, $WorkersTable> {
+  $$WorkersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WorkersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WorkersTable> {
+  $$WorkersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$WorkersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WorkersTable,
+          WorkerRow,
+          $$WorkersTableFilterComposer,
+          $$WorkersTableOrderingComposer,
+          $$WorkersTableAnnotationComposer,
+          $$WorkersTableCreateCompanionBuilder,
+          $$WorkersTableUpdateCompanionBuilder,
+          (WorkerRow, BaseReferences<_$AppDatabase, $WorkersTable, WorkerRow>),
+          WorkerRow,
+          PrefetchHooks Function()
+        > {
+  $$WorkersTableTableManager(_$AppDatabase db, $WorkersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WorkersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WorkersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WorkersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WorkersCompanion(
+                id: id,
+                name: name,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WorkersCompanion.insert(
+                id: id,
+                name: name,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$WorkersTable, WorkerRow>(table),
+                  BaseReferences<_$AppDatabase, $WorkersTable, WorkerRow>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WorkersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WorkersTable,
+      WorkerRow,
+      $$WorkersTableFilterComposer,
+      $$WorkersTableOrderingComposer,
+      $$WorkersTableAnnotationComposer,
+      $$WorkersTableCreateCompanionBuilder,
+      $$WorkersTableUpdateCompanionBuilder,
+      (WorkerRow, BaseReferences<_$AppDatabase, $WorkersTable, WorkerRow>),
+      WorkerRow,
+      PrefetchHooks Function()
+    >;
 typedef $$RefrigerationLogsTableCreateCompanionBuilder =
     RefrigerationLogsCompanion Function({
       required String id,
@@ -5293,6 +5883,7 @@ typedef $$RefrigerationLogsTableCreateCompanionBuilder =
       required DateTime occurredAt,
       required DateTime createdAt,
       Value<String> originDeviceId,
+      Value<String> workerNameSnapshot,
       Value<int> rowid,
     });
 typedef $$RefrigerationLogsTableUpdateCompanionBuilder =
@@ -5307,6 +5898,7 @@ typedef $$RefrigerationLogsTableUpdateCompanionBuilder =
       Value<DateTime> occurredAt,
       Value<DateTime> createdAt,
       Value<String> originDeviceId,
+      Value<String> workerNameSnapshot,
       Value<int> rowid,
     });
 
@@ -5424,6 +6016,11 @@ class $$RefrigerationLogsTableFilterComposer
 
   ColumnFilters<String> get originDeviceId => $composableBuilder(
     column: $table.originDeviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workerNameSnapshot => $composableBuilder(
+    column: $table.workerNameSnapshot,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5548,6 +6145,11 @@ class $$RefrigerationLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get workerNameSnapshot => $composableBuilder(
+    column: $table.workerNameSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ProductsTableOrderingComposer get productId {
     final $$ProductsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -5635,6 +6237,11 @@ class $$RefrigerationLogsTableAnnotationComposer
 
   GeneratedColumn<String> get originDeviceId => $composableBuilder(
     column: $table.originDeviceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get workerNameSnapshot => $composableBuilder(
+    column: $table.workerNameSnapshot,
     builder: (column) => column,
   );
 
@@ -5757,6 +6364,7 @@ class $$RefrigerationLogsTableTableManager
                 Value<DateTime> occurredAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> originDeviceId = const Value.absent(),
+                Value<String> workerNameSnapshot = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RefrigerationLogsCompanion(
                 id: id,
@@ -5769,6 +6377,7 @@ class $$RefrigerationLogsTableTableManager
                 occurredAt: occurredAt,
                 createdAt: createdAt,
                 originDeviceId: originDeviceId,
+                workerNameSnapshot: workerNameSnapshot,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5783,6 +6392,7 @@ class $$RefrigerationLogsTableTableManager
                 required DateTime occurredAt,
                 required DateTime createdAt,
                 Value<String> originDeviceId = const Value.absent(),
+                Value<String> workerNameSnapshot = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RefrigerationLogsCompanion.insert(
                 id: id,
@@ -5795,6 +6405,7 @@ class $$RefrigerationLogsTableTableManager
                 occurredAt: occurredAt,
                 createdAt: createdAt,
                 originDeviceId: originDeviceId,
+                workerNameSnapshot: workerNameSnapshot,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6692,6 +7303,8 @@ typedef $$LocalSettingsTableCreateCompanionBuilder =
       Value<String> smtpUser,
       Value<String> smtpPassword,
       Value<String> smtpFrom,
+      Value<String?> currentWorkerId,
+      Value<DateTime?> workerActiveAt,
       Value<int> rowid,
     });
 typedef $$LocalSettingsTableUpdateCompanionBuilder =
@@ -6716,6 +7329,8 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder =
       Value<String> smtpUser,
       Value<String> smtpPassword,
       Value<String> smtpFrom,
+      Value<String?> currentWorkerId,
+      Value<DateTime?> workerActiveAt,
       Value<int> rowid,
     });
 
@@ -6825,6 +7440,16 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get smtpFrom => $composableBuilder(
     column: $table.smtpFrom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currentWorkerId => $composableBuilder(
+    column: $table.currentWorkerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get workerActiveAt => $composableBuilder(
+    column: $table.workerActiveAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6937,6 +7562,16 @@ class $$LocalSettingsTableOrderingComposer
     column: $table.smtpFrom,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get currentWorkerId => $composableBuilder(
+    column: $table.currentWorkerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get workerActiveAt => $composableBuilder(
+    column: $table.workerActiveAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalSettingsTableAnnotationComposer
@@ -7033,6 +7668,16 @@ class $$LocalSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get smtpFrom =>
       $composableBuilder(column: $table.smtpFrom, builder: (column) => column);
+
+  GeneratedColumn<String> get currentWorkerId => $composableBuilder(
+    column: $table.currentWorkerId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get workerActiveAt => $composableBuilder(
+    column: $table.workerActiveAt,
+    builder: (column) => column,
+  );
 }
 
 class $$LocalSettingsTableTableManager
@@ -7090,6 +7735,8 @@ class $$LocalSettingsTableTableManager
                 Value<String> smtpUser = const Value.absent(),
                 Value<String> smtpPassword = const Value.absent(),
                 Value<String> smtpFrom = const Value.absent(),
+                Value<String?> currentWorkerId = const Value.absent(),
+                Value<DateTime?> workerActiveAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSettingsCompanion(
                 id: id,
@@ -7112,6 +7759,8 @@ class $$LocalSettingsTableTableManager
                 smtpUser: smtpUser,
                 smtpPassword: smtpPassword,
                 smtpFrom: smtpFrom,
+                currentWorkerId: currentWorkerId,
+                workerActiveAt: workerActiveAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7136,6 +7785,8 @@ class $$LocalSettingsTableTableManager
                 Value<String> smtpUser = const Value.absent(),
                 Value<String> smtpPassword = const Value.absent(),
                 Value<String> smtpFrom = const Value.absent(),
+                Value<String?> currentWorkerId = const Value.absent(),
+                Value<DateTime?> workerActiveAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSettingsCompanion.insert(
                 id: id,
@@ -7158,6 +7809,8 @@ class $$LocalSettingsTableTableManager
                 smtpUser: smtpUser,
                 smtpPassword: smtpPassword,
                 smtpFrom: smtpFrom,
+                currentWorkerId: currentWorkerId,
+                workerActiveAt: workerActiveAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7716,6 +8369,8 @@ class $AppDatabaseManager {
       $$ProductsTableTableManager(_db, _db.products);
   $$FridgesTableTableManager get fridges =>
       $$FridgesTableTableManager(_db, _db.fridges);
+  $$WorkersTableTableManager get workers =>
+      $$WorkersTableTableManager(_db, _db.workers);
   $$RefrigerationLogsTableTableManager get refrigerationLogs =>
       $$RefrigerationLogsTableTableManager(_db, _db.refrigerationLogs);
   $$AlertsTableTableManager get alerts =>

@@ -28,6 +28,7 @@ class DriftLogRepository implements LogRepository {
     required String fridgeId,
     required double temperatureCelsius,
     DateTime? occurredAt,
+    String workerName = '',
   }) {
     return _db.transaction(() async {
       final product = await (_db.select(
@@ -56,6 +57,7 @@ class DriftLogRepository implements LogRepository {
         occurredAt: capturedAt,
         createdAt: capturedAt,
         originDeviceId: deviceId,
+        workerNameSnapshot: workerName.trim(),
       );
       await _insertLog(log);
       await _maybeAlert(
@@ -73,6 +75,7 @@ class DriftLogRepository implements LogRepository {
     required String movementId,
     required double temperatureCelsius,
     DateTime? occurredAt,
+    String workerName = '',
   }) {
     return _db.transaction(() async {
       final checkIn =
@@ -117,6 +120,7 @@ class DriftLogRepository implements LogRepository {
         occurredAt: capturedAt,
         createdAt: capturedAt,
         originDeviceId: deviceId,
+        workerNameSnapshot: workerName.trim(),
       );
       await _insertLog(log);
       await _maybeAlert(
@@ -186,6 +190,7 @@ class DriftLogRepository implements LogRepository {
             occurredAt: log.occurredAt,
             createdAt: log.createdAt,
             originDeviceId: Value(log.originDeviceId),
+            workerNameSnapshot: Value(log.workerNameSnapshot),
           ),
         );
     final fridge = await (_db.select(
@@ -207,6 +212,7 @@ class DriftLogRepository implements LogRepository {
         'occurred_at': log.occurredAt.toIso8601String(),
         'created_at': log.createdAt.toIso8601String(),
         'origin_device_id': log.originDeviceId,
+        'worker_name_snapshot': log.workerNameSnapshot,
       },
       createdAt: log.createdAt,
     );

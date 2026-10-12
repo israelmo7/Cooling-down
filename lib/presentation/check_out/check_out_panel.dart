@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/open_holding.dart';
 import '../../domain/failures.dart';
+import '../../domain/workers/worker_session.dart';
 import '../format.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
@@ -37,14 +38,23 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
         break;
       }
     }
-    if (holding == null) {
+    final workers = ref.read(workersProvider).asData?.value;
+    final session = ref.read(workerSessionProvider).asData?.value;
+    final workerName = session?.workerName.trim() ?? '';
+    if (holding == null ||
+        !workerAllowsAction(
+          workers: workers,
+          session: session,
+          now: DateTime.now(),
+        )) {
       return;
     }
+    final who = workerName.isEmpty ? '' : ' · $workerName';
     final accepted = await confirmRecordedAction(
       context,
-      enabled:
-          ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
-      action: 'הוצאה: ${holding.productName} ב-${formatCelsius(_temperature)}',
+      enabled: ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
+      action:
+          'הוצאה: ${holding.productName} ב-${formatCelsius(_temperature)}$who',
     );
     if (!accepted || !mounted) {
       return;
@@ -56,6 +66,7 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
           .insertCheckOut(
             movementId: movementId,
             temperatureCelsius: _temperature,
+            workerName: workerName,
           );
       if (!mounted) {
         return;
@@ -100,7 +111,14 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
             (item) => item.movementId == _selectedMovementId,
           );
           final canConfirm =
-              _selectedMovementId != null && selectedStillOpen && !_saving;
+              _selectedMovementId != null &&
+              selectedStillOpen &&
+              !_saving &&
+              workerAllowsAction(
+                workers: ref.watch(workersProvider).asData?.value,
+                session: ref.watch(workerSessionProvider).asData?.value,
+                now: DateTime.now(),
+              );
           return LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 800;
@@ -194,9 +212,8 @@ class _CheckOutControls extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'השעה נרשמת ברגע האישור',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF5C6B70),
-            ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: const Color(0xFF5C6B70)),
           ),
           const SizedBox(height: 16),
           ConfirmBar(
@@ -251,7 +268,10 @@ class _OpenItemList extends StatelessWidget {
                     hasAnyItems && query.trim().isNotEmpty
                         ? 'אין פריט פתוח שמתאים לסינון.'
                         : 'אין כרגע פריטים במקרר.',
-                    style: const TextStyle(fontSize: 16, color: Color(0xFF5C6B70)),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF5C6B70),
+                    ),
                   ),
                 )
               : ListView.separated(

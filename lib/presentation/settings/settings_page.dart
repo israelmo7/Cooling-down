@@ -10,6 +10,7 @@ import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
 import '../widgets/transient_notice.dart';
 import 'product_catalog.dart';
+import 'worker_catalog.dart';
 
 const settingsEditPassword = '123459876';
 
@@ -202,6 +203,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       const SizedBox(height: 8),
       ProductCatalogEditor(
         key: const ValueKey('product-catalog'),
+        unlocked: _canEdit,
+      ),
+      const SizedBox(height: 8),
+      WorkerCatalogEditor(
+        key: const ValueKey('worker-catalog'),
         unlocked: _canEdit,
       ),
     ];

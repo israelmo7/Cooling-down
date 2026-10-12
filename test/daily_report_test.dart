@@ -115,6 +115,7 @@ void main() {
       fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 12,
       occurredAt: DateTime(2026, 10, 11, 18),
+      workerName: 'דנה',
     );
     final current = await settings.ensure();
     await settings.save(
@@ -139,6 +140,7 @@ void main() {
     expect(stored!.reportDate, '2026-10-11');
     expect(stored.status, ReportStatus.waiting);
     expect(stored.body, contains('חלב'));
+    expect(stored.body, contains('דנה'));
     expect(stored.body, contains('אזהרות טמפרטורה'));
     expect(stored.body, contains('מסקנה:'));
   });
