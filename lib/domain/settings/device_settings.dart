@@ -48,6 +48,7 @@ class DeviceSettings {
     this.workerRefreshStartMinute = 8 * 60,
     this.workerRefreshIntervalHours = 8,
     this.workerRefreshEndMinute = 20 * 60,
+    this.settingsPassword = '',
     this.smtpHost = '',
     this.smtpPort = 587,
     this.smtpUser = '',
@@ -75,6 +76,7 @@ class DeviceSettings {
   final int workerRefreshStartMinute;
   final int workerRefreshIntervalHours;
   final int workerRefreshEndMinute;
+  final String settingsPassword;
   final String smtpHost;
   final int smtpPort;
   final String smtpUser;
@@ -118,6 +120,7 @@ class DeviceSettings {
     int? workerRefreshStartMinute,
     int? workerRefreshIntervalHours,
     int? workerRefreshEndMinute,
+    String? settingsPassword,
     String? smtpHost,
     int? smtpPort,
     String? smtpUser,
@@ -152,6 +155,7 @@ class DeviceSettings {
           workerRefreshIntervalHours ?? this.workerRefreshIntervalHours,
       workerRefreshEndMinute:
           workerRefreshEndMinute ?? this.workerRefreshEndMinute,
+      settingsPassword: settingsPassword ?? this.settingsPassword,
       smtpHost: smtpHost ?? this.smtpHost,
       smtpPort: smtpPort ?? this.smtpPort,
       smtpUser: smtpUser ?? this.smtpUser,

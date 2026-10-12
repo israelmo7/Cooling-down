@@ -68,6 +68,7 @@ class DriftSettingsRepository implements SettingsRepository {
         workerRefreshEndMinute: Value(
           settings.workerRefreshEndMinute.clamp(0, 23 * 60 + 59).toInt(),
         ),
+        settingsPassword: Value(settings.settingsPassword.trim()),
         smtpHost: Value(settings.smtpHost.trim()),
         smtpPort: Value(settings.smtpPort.clamp(1, 65535).toInt()),
         smtpUser: Value(settings.smtpUser.trim()),
@@ -122,6 +123,7 @@ class DriftSettingsRepository implements SettingsRepository {
       workerRefreshStartMinute: row.workerRefreshStartMinute,
       workerRefreshIntervalHours: row.workerRefreshIntervalHours,
       workerRefreshEndMinute: row.workerRefreshEndMinute,
+      settingsPassword: row.settingsPassword,
       smtpHost: row.smtpHost,
       smtpPort: row.smtpPort,
       smtpUser: row.smtpUser,

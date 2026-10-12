@@ -3025,6 +3025,18 @@ class $LocalSettingsTable extends LocalSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(1200),
   );
+  static const VerificationMeta _settingsPasswordMeta = const VerificationMeta(
+    'settingsPassword',
+  );
+  @override
+  late final GeneratedColumn<String> settingsPassword = GeneratedColumn<String>(
+    'settings_password',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _smtpHostMeta = const VerificationMeta(
     'smtpHost',
   );
@@ -3131,6 +3143,7 @@ class $LocalSettingsTable extends LocalSettings
     workerRefreshStartMinute,
     workerRefreshIntervalHours,
     workerRefreshEndMinute,
+    settingsPassword,
     smtpHost,
     smtpPort,
     smtpUser,
@@ -3321,6 +3334,15 @@ class $LocalSettingsTable extends LocalSettings
         ),
       );
     }
+    if (data.containsKey('settings_password')) {
+      context.handle(
+        _settingsPasswordMeta,
+        settingsPassword.isAcceptableOrUnknown(
+          data['settings_password']!,
+          _settingsPasswordMeta,
+        ),
+      );
+    }
     if (data.containsKey('smtp_host')) {
       context.handle(
         _smtpHostMeta,
@@ -3465,6 +3487,10 @@ class $LocalSettingsTable extends LocalSettings
         DriftSqlType.int,
         data['${effectivePrefix}worker_refresh_end_minute'],
       )!,
+      settingsPassword: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}settings_password'],
+      )!,
       smtpHost: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}smtp_host'],
@@ -3525,6 +3551,7 @@ class LocalSettingsRow extends DataClass
   final int workerRefreshStartMinute;
   final int workerRefreshIntervalHours;
   final int workerRefreshEndMinute;
+  final String settingsPassword;
   final String smtpHost;
   final int smtpPort;
   final String smtpUser;
@@ -3554,6 +3581,7 @@ class LocalSettingsRow extends DataClass
     required this.workerRefreshStartMinute,
     required this.workerRefreshIntervalHours,
     required this.workerRefreshEndMinute,
+    required this.settingsPassword,
     required this.smtpHost,
     required this.smtpPort,
     required this.smtpUser,
@@ -3594,6 +3622,7 @@ class LocalSettingsRow extends DataClass
       workerRefreshIntervalHours,
     );
     map['worker_refresh_end_minute'] = Variable<int>(workerRefreshEndMinute);
+    map['settings_password'] = Variable<String>(settingsPassword);
     map['smtp_host'] = Variable<String>(smtpHost);
     map['smtp_port'] = Variable<int>(smtpPort);
     map['smtp_user'] = Variable<String>(smtpUser);
@@ -3635,6 +3664,7 @@ class LocalSettingsRow extends DataClass
       workerRefreshStartMinute: Value(workerRefreshStartMinute),
       workerRefreshIntervalHours: Value(workerRefreshIntervalHours),
       workerRefreshEndMinute: Value(workerRefreshEndMinute),
+      settingsPassword: Value(settingsPassword),
       smtpHost: Value(smtpHost),
       smtpPort: Value(smtpPort),
       smtpUser: Value(smtpUser),
@@ -3682,6 +3712,7 @@ class LocalSettingsRow extends DataClass
       workerRefreshEndMinute: serializer.fromJson<int>(
         json['workerRefreshEndMinute'],
       ),
+      settingsPassword: serializer.fromJson<String>(json['settingsPassword']),
       smtpHost: serializer.fromJson<String>(json['smtpHost']),
       smtpPort: serializer.fromJson<int>(json['smtpPort']),
       smtpUser: serializer.fromJson<String>(json['smtpUser']),
@@ -3720,6 +3751,7 @@ class LocalSettingsRow extends DataClass
         workerRefreshIntervalHours,
       ),
       'workerRefreshEndMinute': serializer.toJson<int>(workerRefreshEndMinute),
+      'settingsPassword': serializer.toJson<String>(settingsPassword),
       'smtpHost': serializer.toJson<String>(smtpHost),
       'smtpPort': serializer.toJson<int>(smtpPort),
       'smtpUser': serializer.toJson<String>(smtpUser),
@@ -3752,6 +3784,7 @@ class LocalSettingsRow extends DataClass
     int? workerRefreshStartMinute,
     int? workerRefreshIntervalHours,
     int? workerRefreshEndMinute,
+    String? settingsPassword,
     String? smtpHost,
     int? smtpPort,
     String? smtpUser,
@@ -3786,6 +3819,7 @@ class LocalSettingsRow extends DataClass
         workerRefreshIntervalHours ?? this.workerRefreshIntervalHours,
     workerRefreshEndMinute:
         workerRefreshEndMinute ?? this.workerRefreshEndMinute,
+    settingsPassword: settingsPassword ?? this.settingsPassword,
     smtpHost: smtpHost ?? this.smtpHost,
     smtpPort: smtpPort ?? this.smtpPort,
     smtpUser: smtpUser ?? this.smtpUser,
@@ -3857,6 +3891,9 @@ class LocalSettingsRow extends DataClass
       workerRefreshEndMinute: data.workerRefreshEndMinute.present
           ? data.workerRefreshEndMinute.value
           : this.workerRefreshEndMinute,
+      settingsPassword: data.settingsPassword.present
+          ? data.settingsPassword.value
+          : this.settingsPassword,
       smtpHost: data.smtpHost.present ? data.smtpHost.value : this.smtpHost,
       smtpPort: data.smtpPort.present ? data.smtpPort.value : this.smtpPort,
       smtpUser: data.smtpUser.present ? data.smtpUser.value : this.smtpUser,
@@ -3897,6 +3934,7 @@ class LocalSettingsRow extends DataClass
           ..write('workerRefreshStartMinute: $workerRefreshStartMinute, ')
           ..write('workerRefreshIntervalHours: $workerRefreshIntervalHours, ')
           ..write('workerRefreshEndMinute: $workerRefreshEndMinute, ')
+          ..write('settingsPassword: $settingsPassword, ')
           ..write('smtpHost: $smtpHost, ')
           ..write('smtpPort: $smtpPort, ')
           ..write('smtpUser: $smtpUser, ')
@@ -3931,6 +3969,7 @@ class LocalSettingsRow extends DataClass
     workerRefreshStartMinute,
     workerRefreshIntervalHours,
     workerRefreshEndMinute,
+    settingsPassword,
     smtpHost,
     smtpPort,
     smtpUser,
@@ -3964,6 +4003,7 @@ class LocalSettingsRow extends DataClass
           other.workerRefreshStartMinute == this.workerRefreshStartMinute &&
           other.workerRefreshIntervalHours == this.workerRefreshIntervalHours &&
           other.workerRefreshEndMinute == this.workerRefreshEndMinute &&
+          other.settingsPassword == this.settingsPassword &&
           other.smtpHost == this.smtpHost &&
           other.smtpPort == this.smtpPort &&
           other.smtpUser == this.smtpUser &&
@@ -3995,6 +4035,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
   final Value<int> workerRefreshStartMinute;
   final Value<int> workerRefreshIntervalHours;
   final Value<int> workerRefreshEndMinute;
+  final Value<String> settingsPassword;
   final Value<String> smtpHost;
   final Value<int> smtpPort;
   final Value<String> smtpUser;
@@ -4025,6 +4066,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.workerRefreshStartMinute = const Value.absent(),
     this.workerRefreshIntervalHours = const Value.absent(),
     this.workerRefreshEndMinute = const Value.absent(),
+    this.settingsPassword = const Value.absent(),
     this.smtpHost = const Value.absent(),
     this.smtpPort = const Value.absent(),
     this.smtpUser = const Value.absent(),
@@ -4056,6 +4098,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.workerRefreshStartMinute = const Value.absent(),
     this.workerRefreshIntervalHours = const Value.absent(),
     this.workerRefreshEndMinute = const Value.absent(),
+    this.settingsPassword = const Value.absent(),
     this.smtpHost = const Value.absent(),
     this.smtpPort = const Value.absent(),
     this.smtpUser = const Value.absent(),
@@ -4090,6 +4133,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Expression<int>? workerRefreshStartMinute,
     Expression<int>? workerRefreshIntervalHours,
     Expression<int>? workerRefreshEndMinute,
+    Expression<String>? settingsPassword,
     Expression<String>? smtpHost,
     Expression<int>? smtpPort,
     Expression<String>? smtpUser,
@@ -4125,6 +4169,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
         'worker_refresh_interval_hours': workerRefreshIntervalHours,
       if (workerRefreshEndMinute != null)
         'worker_refresh_end_minute': workerRefreshEndMinute,
+      if (settingsPassword != null) 'settings_password': settingsPassword,
       if (smtpHost != null) 'smtp_host': smtpHost,
       if (smtpPort != null) 'smtp_port': smtpPort,
       if (smtpUser != null) 'smtp_user': smtpUser,
@@ -4158,6 +4203,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Value<int>? workerRefreshStartMinute,
     Value<int>? workerRefreshIntervalHours,
     Value<int>? workerRefreshEndMinute,
+    Value<String>? settingsPassword,
     Value<String>? smtpHost,
     Value<int>? smtpPort,
     Value<String>? smtpUser,
@@ -4192,6 +4238,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
           workerRefreshIntervalHours ?? this.workerRefreshIntervalHours,
       workerRefreshEndMinute:
           workerRefreshEndMinute ?? this.workerRefreshEndMinute,
+      settingsPassword: settingsPassword ?? this.settingsPassword,
       smtpHost: smtpHost ?? this.smtpHost,
       smtpPort: smtpPort ?? this.smtpPort,
       smtpUser: smtpUser ?? this.smtpUser,
@@ -4275,6 +4322,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
         workerRefreshEndMinute.value,
       );
     }
+    if (settingsPassword.present) {
+      map['settings_password'] = Variable<String>(settingsPassword.value);
+    }
     if (smtpHost.present) {
       map['smtp_host'] = Variable<String>(smtpHost.value);
     }
@@ -4326,6 +4376,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
           ..write('workerRefreshStartMinute: $workerRefreshStartMinute, ')
           ..write('workerRefreshIntervalHours: $workerRefreshIntervalHours, ')
           ..write('workerRefreshEndMinute: $workerRefreshEndMinute, ')
+          ..write('settingsPassword: $settingsPassword, ')
           ..write('smtpHost: $smtpHost, ')
           ..write('smtpPort: $smtpPort, ')
           ..write('smtpUser: $smtpUser, ')
@@ -7640,6 +7691,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder =
       Value<int> workerRefreshStartMinute,
       Value<int> workerRefreshIntervalHours,
       Value<int> workerRefreshEndMinute,
+      Value<String> settingsPassword,
       Value<String> smtpHost,
       Value<int> smtpPort,
       Value<String> smtpUser,
@@ -7672,6 +7724,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder =
       Value<int> workerRefreshStartMinute,
       Value<int> workerRefreshIntervalHours,
       Value<int> workerRefreshEndMinute,
+      Value<String> settingsPassword,
       Value<String> smtpHost,
       Value<int> smtpPort,
       Value<String> smtpUser,
@@ -7793,6 +7846,11 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<int> get workerRefreshEndMinute => $composableBuilder(
     column: $table.workerRefreshEndMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get settingsPassword => $composableBuilder(
+    column: $table.settingsPassword,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7946,6 +8004,11 @@ class $$LocalSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get settingsPassword => $composableBuilder(
+    column: $table.settingsPassword,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get smtpHost => $composableBuilder(
     column: $table.smtpHost,
     builder: (column) => ColumnOrderings(column),
@@ -8090,6 +8153,11 @@ class $$LocalSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get settingsPassword => $composableBuilder(
+    column: $table.settingsPassword,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get smtpHost =>
       $composableBuilder(column: $table.smtpHost, builder: (column) => column);
 
@@ -8174,6 +8242,7 @@ class $$LocalSettingsTableTableManager
                 Value<int> workerRefreshStartMinute = const Value.absent(),
                 Value<int> workerRefreshIntervalHours = const Value.absent(),
                 Value<int> workerRefreshEndMinute = const Value.absent(),
+                Value<String> settingsPassword = const Value.absent(),
                 Value<String> smtpHost = const Value.absent(),
                 Value<int> smtpPort = const Value.absent(),
                 Value<String> smtpUser = const Value.absent(),
@@ -8204,6 +8273,7 @@ class $$LocalSettingsTableTableManager
                 workerRefreshStartMinute: workerRefreshStartMinute,
                 workerRefreshIntervalHours: workerRefreshIntervalHours,
                 workerRefreshEndMinute: workerRefreshEndMinute,
+                settingsPassword: settingsPassword,
                 smtpHost: smtpHost,
                 smtpPort: smtpPort,
                 smtpUser: smtpUser,
@@ -8236,6 +8306,7 @@ class $$LocalSettingsTableTableManager
                 Value<int> workerRefreshStartMinute = const Value.absent(),
                 Value<int> workerRefreshIntervalHours = const Value.absent(),
                 Value<int> workerRefreshEndMinute = const Value.absent(),
+                Value<String> settingsPassword = const Value.absent(),
                 Value<String> smtpHost = const Value.absent(),
                 Value<int> smtpPort = const Value.absent(),
                 Value<String> smtpUser = const Value.absent(),
@@ -8266,6 +8337,7 @@ class $$LocalSettingsTableTableManager
                 workerRefreshStartMinute: workerRefreshStartMinute,
                 workerRefreshIntervalHours: workerRefreshIntervalHours,
                 workerRefreshEndMinute: workerRefreshEndMinute,
+                settingsPassword: settingsPassword,
                 smtpHost: smtpHost,
                 smtpPort: smtpPort,
                 smtpUser: smtpUser,

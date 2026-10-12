@@ -151,6 +151,8 @@ class LocalSettings extends Table {
   IntColumn get workerRefreshEndMinute => integer()
       .named('worker_refresh_end_minute')
       .withDefault(const Constant(1200))();
+  TextColumn get settingsPassword =>
+      text().named('settings_password').withDefault(const Constant(''))();
   TextColumn get smtpHost =>
       text().named('smtp_host').withDefault(const Constant(''))();
   IntColumn get smtpPort =>

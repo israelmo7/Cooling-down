@@ -30,6 +30,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _refreshStart = TextEditingController();
   final _refreshHours = TextEditingController();
   final _refreshEnd = TextEditingController();
+  final _settingsPassword = TextEditingController();
   var _loaded = false;
   var _unlocked = false;
   var _busy = false;
@@ -52,6 +53,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _refreshStart.dispose();
     _refreshHours.dispose();
     _refreshEnd.dispose();
+    _settingsPassword.dispose();
     super.dispose();
   }
 
@@ -91,6 +93,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _refreshHours.text = '$intervalHours';
     _refreshStart.text = formatClockMinutes(startMinute);
     _refreshEnd.text = formatClockMinutes(endMinute);
+    final typedPassword = _settingsPassword.text.trim();
+    final settingsPassword = typedPassword.isEmpty
+        ? current.settingsPassword
+        : typedPassword;
+    _settingsPassword.clear();
     final next = current.copyWith(
       environmentName: clipEnvironmentName(_environment.text),
       serverUrl: _serverUrl.text,
@@ -106,6 +113,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       workerRefreshStartMinute: startMinute,
       workerRefreshIntervalHours: intervalHours,
       workerRefreshEndMinute: endMinute,
+      settingsPassword: settingsPassword,
     );
     await ref.read(settingsRepositoryProvider).save(next);
     return ref.read(settingsRepositoryProvider).ensure();
@@ -161,9 +169,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _promptUnlock() async {
+    final settings = await ref.read(settingsRepositoryProvider).ensure();
+    if (!mounted) {
+      return;
+    }
+    final saved = settings.settingsPassword.trim();
     final unlocked = await showDialog<bool>(
       context: context,
-      builder: (context) => const _PasswordDialog(),
+      builder: (context) => _PasswordDialog(
+        password: saved.isEmpty ? settingsEditPassword : saved,
+      ),
     );
     if (unlocked == true && mounted) {
       setState(() => _unlocked = true);
@@ -245,6 +260,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           controller: _token,
           label: 'אסימון גישה',
           helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
+        ),
+        _field(
+          controller: _settingsPassword,
+          label: 'סיסמה',
+          obscure: true,
+          keyboard: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(12),
+          ],
         ),
       ] else ...[
         const SizedBox(height: 8),
@@ -385,18 +410,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextButton(
-          key: const Key('worker-refresh'),
-          onPressed: _busy ? null : _pickRefreshMode,
-          style: TextButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.onSurface,
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            key: const Key('worker-refresh'),
+            onPressed: _busy ? null : _pickRefreshMode,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(64, 56),
+              foregroundColor: const Color(0xFF122428),
+              textStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Text(
+              'רענון עובד',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
           ),
-          child: const Text('רענון עובד'),
         ),
+        const SizedBox(height: 16),
         if (_refreshMode == WorkerRefreshMode.idle)
           _field(
             controller: _idleSeconds,
@@ -532,7 +565,9 @@ String _refreshModeLabel(WorkerRefreshMode mode) {
 }
 
 class _PasswordDialog extends StatefulWidget {
-  const _PasswordDialog();
+  const _PasswordDialog({required this.password});
+
+  final String password;
 
   @override
   State<_PasswordDialog> createState() => _PasswordDialogState();
@@ -550,7 +585,7 @@ class _PasswordDialogState extends State<_PasswordDialog> {
 
   void _submit() {
     final entered = _controller.text.replaceAll(RegExp(r'\D'), '');
-    if (entered == settingsEditPassword) {
+    if (entered == widget.password) {
       Navigator.of(context).pop(true);
       return;
     }

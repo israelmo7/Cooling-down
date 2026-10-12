@@ -165,6 +165,7 @@ void main() {
     expect(find.byKey(const Key('settings-field-אסימון גישה')), findsNothing);
     expect(find.byKey(const Key('settings-field-כתובת המחשב')), findsNothing);
     expect(find.byKey(const Key('worker-refresh')), findsNothing);
+    expect(find.byKey(const Key('settings-field-סיסמה')), findsNothing);
     expect(find.byKey(const Key('settings-field-שניות')), findsNothing);
     expect(find.text('הקפצה'), findsNothing);
     expect(find.text('לוח ניהול'), findsOneWidget);
@@ -204,11 +205,20 @@ void main() {
     expect(find.text('שמירה'), findsOneWidget);
     expect(find.byKey(const Key('confirm-action')), findsNothing);
     expect(find.text('אימות פעולה'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('settings-field-כתובת המחשב')),
-      200,
-      scrollable: find.byType(Scrollable).first,
+    final settingsList = find.byWidgetPredicate(
+      (widget) =>
+          widget is Scrollable && widget.axisDirection == AxisDirection.down,
     );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-field-סיסמה')),
+      300,
+      scrollable: settingsList.first,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('settings-field-סיסמה'))),
+      alignment: 1,
+    );
+    await tester.pump();
     expect(find.byKey(const Key('settings-field-אסימון גישה')), findsOneWidget);
     expect(find.byKey(const Key('settings-field-כתובת המחשב')), findsOneWidget);
     expect(
@@ -225,6 +235,21 @@ void main() {
             .dy,
       ),
     );
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('settings-field-סיסמה')))
+          .controller
+          ?.text,
+      isEmpty,
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-field-סיסמה'))).dy,
+      greaterThan(
+        tester
+            .getTopLeft(find.byKey(const Key('settings-field-אסימון גישה')))
+            .dy,
+      ),
+    );
     expect(find.byKey(const Key('worker-refresh')), findsOneWidget);
     expect(
       tester
@@ -238,7 +263,13 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const Key('settings-product-list')),
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          )
+          .first,
     );
     if (find.byKey(const Key('add-product')).evaluate().isEmpty) {
       await tester.tap(find.byKey(const Key('settings-product-list')));
@@ -516,7 +547,13 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const Key('settings-worker-list')),
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          )
+          .first,
     );
     await tester.tap(find.byKey(const Key('settings-worker-list')));
     await tester.pump();
@@ -750,6 +787,18 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const Key('worker-refresh')),
+              matching: find.text('רענון עובד'),
+            ),
+          )
+          .style
+          ?.fontWeight,
+      FontWeight.w700,
+    );
     await tester.tap(find.byKey(const Key('worker-refresh')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
@@ -889,6 +938,102 @@ void main() {
       isNotNull,
     );
 
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('a saved settings password replaces the built-in one', (
+    tester,
+  ) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('open-settings')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.byKey(const Key('unlock-settings')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('settings-password')),
+      '123459876',
+    );
+    await tester.tap(find.byKey(const Key('confirm-settings-password')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final fieldsScroll = Scrollable.of(
+      tester.element(find.byKey(const Key('settings-field-שם הסביבה'))),
+    );
+    fieldsScroll.position.jumpTo(fieldsScroll.position.maxScrollExtent);
+    await tester.pump();
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('settings-field-סיסמה'))),
+      alignment: 0.5,
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('settings-field-סיסמה')))
+          .controller
+          ?.text,
+      isEmpty,
+    );
+    await tester.enterText(
+      find.byKey(const Key('settings-field-סיסמה')),
+      '1111',
+    );
+    await tester.tap(find.text('שמירה'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('settings-field-סיסמה')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('unlock-settings')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('settings-password')),
+      '123459876',
+    );
+    await tester.tap(find.byKey(const Key('confirm-settings-password')));
+    await tester.pump();
+    expect(find.text('הסיסמה שגויה.'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('settings-password')), '1111');
+    await tester.tap(find.byKey(const Key('confirm-settings-password')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('הסיסמה שגויה.'), findsNothing);
+    final unlockedScroll = Scrollable.of(
+      tester.element(find.byKey(const Key('settings-field-שם הסביבה'))),
+    );
+    unlockedScroll.position.jumpTo(unlockedScroll.position.maxScrollExtent);
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('settings-field-סיסמה')))
+          .controller
+          ?.text,
+      isEmpty,
+    );
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     final closing = database.close();
