@@ -1,6 +1,7 @@
 import 'package:cooling_down/app.dart';
 import 'package:cooling_down/data/db/app_database.dart';
 import 'package:cooling_down/data/maintenance/tablet_maintenance.dart';
+import 'package:cooling_down/domain/settings/device_settings.dart';
 import 'package:cooling_down/presentation/check_out/check_out_panel.dart';
 import 'package:cooling_down/presentation/providers.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +26,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.byKey(const Key('open-settings')), findsOneWidget);
@@ -34,7 +36,7 @@ void main() {
     expect(find.text('חזה עוף'), findsOneWidget);
     expect(find.text('מקרר'), findsNothing);
     expect(find.text('מקרר מטבח'), findsNothing);
-    expect(find.text('קירור'), findsOneWidget);
+    expect(find.text('מטבח'), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-in')), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-out')), findsNothing);
 
@@ -96,15 +98,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('קירור'), findsOneWidget);
-    expect(find.text('אימות פעולה · כבוי'), findsOneWidget);
+    expect(find.text('מטבח'), findsWidgets);
+    expect(find.text('אימות פעולה'), findsOneWidget);
     expect(
-      tester
-          .widget<OutlinedButton>(find.byKey(const Key('confirm-action')))
-          .onPressed,
-      isNotNull,
+      tester.widget<Switch>(find.byKey(const Key('confirm-action'))).value,
+      isFalse,
     );
     expect(find.text('שם הסביבה'), findsOneWidget);
+    expect(find.text('שם המכשיר'), findsNothing);
+    expect(find.text('מזהה: מטבח'), findsOneWidget);
     expect(find.text('אימייל הבעלים'), findsNothing);
     expect(find.text('מוצרים'), findsOneWidget);
     expect(find.text('חלב'), findsWidgets);
@@ -164,7 +166,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('גבינה'), findsOneWidget);
-    expect(find.text('קירור'), findsOneWidget);
+    expect(find.text('מטבח'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -195,16 +197,25 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('open-settings')));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
 
+    await tester.ensureVisible(find.byKey(const Key('confirm-action')));
+    await tester.pump();
     await tester.tap(find.byKey(const Key('confirm-action')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('אימות פעולה · דולק'), findsOneWidget);
-
-    Navigator.of(tester.element(find.text('הגדרות'))).pop();
+    expect(find.text('האם אתה בטוח?'), findsOneWidget);
+    expect(find.text('הפעלת אימות פעולה'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-recorded-action')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      tester.widget<Switch>(find.byKey(const Key('confirm-action'))).value,
+      isTrue,
+    );
+
+    Navigator.of(tester.element(find.text('הגדרות'))).pop();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('חזה עוף'));
     await tester.pump();
@@ -228,6 +239,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pump();
     expect(find.text('נשמר בטאבלט · 1 ממתינים לסנכרון'), findsOneWidget);
+    expect(find.textContaining('נקלט'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.textContaining('נקלט'), findsNothing);
 
     await tester.tap(find.text('הוצאה'));
     await tester.pump();
@@ -250,6 +265,57 @@ void main() {
     await tester.pump();
     expect(find.text('נשמר בטאבלט · 2 ממתינים לסנכרון'), findsOneWidget);
     expect(find.text('אין כרגע פריטים במקרר.'), findsWidgets);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('environment title is limited to 20 characters', () {
+    expect(clipEnvironmentName('מטבח'), 'מטבח');
+    expect(clipEnvironmentName('  '), 'מטבח');
+    expect(clipEnvironmentName('א' * 25), 'א' * 20);
+  });
+
+  testWidgets('a temperature warning disappears on its own', (tester) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    await tester.tap(find.text('חזה עוף'));
+    await tester.pump();
+    for (var step = 0; step < 4; step++) {
+      await tester.tap(find.byTooltip('העלאת טמפרטורה'));
+      await tester.pump();
+    }
+    await tester.tap(find.byKey(const Key('confirm-check-in')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('מחוץ לטווח'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('מחוץ לטווח'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

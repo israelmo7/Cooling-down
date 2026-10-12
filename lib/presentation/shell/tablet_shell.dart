@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/entities/alert.dart';
+import '../../domain/settings/device_settings.dart';
 import '../check_in/check_in_panel.dart';
 import '../check_out/check_out_panel.dart';
 import '../live_log/live_log_feed.dart';
@@ -52,6 +54,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
       return;
     }
     try {
+      await ref.read(settingsRepositoryProvider).ensure();
       await ref.read(tabletMaintenanceProvider).run();
     } on Object {
       // Sync and report errors stay on the settings row.
@@ -66,11 +69,14 @@ class _TabletShellState extends ConsumerState<TabletShell>
     final settings = ref.watch(settingsProvider).asData?.value;
     final sharing = settings?.hasServer ?? false;
     final hub = settings?.hubEnabled ?? false;
+    final environment = settings?.environmentName.trim() ?? '';
     ref.watch(tabletHubProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('קירור'),
+        title: Text(
+          environment.isEmpty ? 'קירור' : clipEnvironmentName(environment),
+        ),
         actions: [
           Center(
             child: Text(
@@ -98,34 +104,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
       ),
       body: Column(
         children: [
-          if (alerts.isNotEmpty)
-            Material(
-              color: Theme.of(context).colorScheme.errorContainer,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning_amber,
-                      color: Theme.of(context).colorScheme.onErrorContainer,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        alerts.first.message,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          if (alerts.isNotEmpty) _DismissingAlert(alert: alerts.first),
           Expanded(
             child: IndexedStack(
               index: _index,
@@ -164,5 +143,70 @@ class _TabletShellState extends ConsumerState<TabletShell>
           : 'נשמר בטאבלט · $pendingCount ממתינים לסנכרון';
     }
     return pendingCount == 0 ? 'מסונכרן' : '$pendingCount ממתינים לסנכרון';
+  }
+}
+
+class _DismissingAlert extends ConsumerStatefulWidget {
+  const _DismissingAlert({required this.alert});
+
+  final Alert alert;
+
+  @override
+  ConsumerState<_DismissingAlert> createState() => _DismissingAlertState();
+}
+
+class _DismissingAlertState extends ConsumerState<_DismissingAlert> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _arm();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DismissingAlert oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.alert.id != widget.alert.id) {
+      _arm();
+    }
+  }
+
+  void _arm() {
+    _timer?.cancel();
+    _timer = Timer(const Duration(seconds: 3), _dismiss);
+  }
+
+  Future<void> _dismiss() async {
+    await ref.read(alertRepositoryProvider).acknowledge(widget.alert.id);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onErrorContainer;
+    return Material(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                widget.alert.message,
+                style: TextStyle(color: color, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

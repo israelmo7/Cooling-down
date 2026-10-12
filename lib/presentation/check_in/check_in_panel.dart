@@ -11,6 +11,7 @@ import '../format.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
 import '../widgets/station_widgets.dart';
+import '../widgets/transient_notice.dart';
 
 class CheckInPanel extends ConsumerStatefulWidget {
   const CheckInPanel({super.key});
@@ -79,20 +80,16 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
         _searchController.clear();
         _temperature = (fridge.minCelsius + fridge.maxCelsius) / 2;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'נקלט ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
-          ),
-        ),
+      showTransientNotice(
+        context,
+        'נקלט ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
       );
       unawaited(_syncSoon());
     } on CatalogEntryNotFound catch (error) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.message)));
+      showTransientNotice(context, error.message);
     } finally {
       if (mounted) {
         setState(() => _saving = false);

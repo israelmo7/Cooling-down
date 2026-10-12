@@ -1,3 +1,13 @@
+/// Environment names shown on the tablet stay within 20 characters.
+String clipEnvironmentName(String value) {
+  final trimmed = value.trim();
+  final name = trimmed.isEmpty ? 'מטבח' : trimmed;
+  if (name.length <= 20) {
+    return name;
+  }
+  return name.substring(0, 20);
+}
+
 /// Tablet-local preferences. They are not uploaded with the audit log.
 class DeviceSettings {
   const DeviceSettings({

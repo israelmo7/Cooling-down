@@ -39,7 +39,7 @@ class DriftSettingsRepository implements SettingsRepository {
     )..where((table) => table.id.equals(localSettingsId))).write(
       LocalSettingsCompanion(
         deviceName: Value(deviceName.isEmpty ? 'This tablet' : deviceName),
-        environmentName: Value(environment.isEmpty ? 'Kitchen' : environment),
+        environmentName: Value(clipEnvironmentName(environment)),
         serverUrl: Value(serverUrl),
         serverToken: Value(settings.serverToken.trim()),
         ownerEmail: Value(settings.ownerEmail.trim()),

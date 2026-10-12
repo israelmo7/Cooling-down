@@ -7,6 +7,8 @@ import '../../data/sync/server_url.dart';
 import '../../domain/reports/daily_report.dart';
 import '../../domain/settings/device_settings.dart';
 import '../providers.dart';
+import '../widgets/confirm_action_dialog.dart';
+import '../widgets/transient_notice.dart';
 import 'product_catalog.dart';
 
 const settingsEditPassword = '123459876';
@@ -20,7 +22,6 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _environment = TextEditingController();
-  final _deviceName = TextEditingController();
   final _serverUrl = TextEditingController();
   final _token = TextEditingController();
   var _loaded = false;
@@ -37,7 +38,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   @override
   void dispose() {
     _environment.dispose();
-    _deviceName.dispose();
     _serverUrl.dispose();
     _token.dispose();
     super.dispose();
@@ -49,8 +49,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       return;
     }
     setState(() {
-      _environment.text = settings.environmentName;
-      _deviceName.text = settings.deviceName;
+      _environment.text = clipEnvironmentName(settings.environmentName);
       _serverUrl.text = settings.serverUrl;
       _token.text = settings.serverToken;
       _confirmAction = settings.confirmAction;
@@ -61,8 +60,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Future<DeviceSettings?> _save() async {
     final current = await ref.read(settingsRepositoryProvider).ensure();
     final next = current.copyWith(
-      deviceName: _deviceName.text,
-      environmentName: _environment.text,
+      environmentName: clipEnvironmentName(_environment.text),
       serverUrl: _serverUrl.text,
       serverToken: _token.text.trim(),
       dailyReportEnabled: true,
@@ -75,11 +73,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return ref.read(settingsRepositoryProvider).ensure();
   }
 
-  Future<void> _toggleConfirmAction() async {
-    if (_busy) {
+  Future<void> _askConfirmAction(bool next) async {
+    if (_busy || next == _confirmAction) {
       return;
     }
-    final next = !_confirmAction;
+    final accepted = await confirmRecordedAction(
+      context,
+      enabled: true,
+      action: next ? 'הפעלת אימות פעולה' : 'כיבוי אימות פעולה',
+    );
+    if (!accepted || !mounted) {
+      return;
+    }
     setState(() => _confirmAction = next);
     try {
       final current = await ref.read(settingsRepositoryProvider).ensure();
@@ -161,8 +166,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _show(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showTransientNotice(context, message);
   }
 
   @override
@@ -176,17 +180,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         style: Theme.of(context).textTheme.titleMedium,
       ),
       const SizedBox(height: 24),
-      _confirmActionButton(),
+      _confirmActionControl(),
       const SizedBox(height: 8),
       _field(
         controller: _environment,
         label: 'שם הסביבה',
-        helper: 'אותו שם בכל טאבלט שצריך לשתף את אותו מטבח או בית מרקחת.',
-      ),
-      _field(
-        controller: _deviceName,
-        label: 'שם המכשיר',
-        helper: 'כדי להבדיל בין הטאבלטים.',
+        helper: 'השם שמופיע בראש הטאבלט. עד 20 תווים.',
+        inputFormatters: [LengthLimitingTextInputFormatter(20)],
       ),
       if (_unlocked) ...[
         _field(
@@ -235,7 +235,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       Text('דוח אחרון: ${_lastReport(report)}'),
       const SizedBox(height: 8),
       Text(
-        'מזהה מכשיר: ${settings?.deviceId ?? ''}',
+        'מזהה: ${_environment.text}',
         style: Theme.of(context).textTheme.bodySmall,
       ),
     ];
@@ -299,6 +299,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required String helper,
     bool obscure = false,
     TextInputType? keyboard,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -307,8 +308,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         controller: controller,
         obscureText: obscure,
         keyboardType: keyboard,
+        inputFormatters: inputFormatters,
         readOnly: !_unlocked,
         enabled: !_busy,
+        onChanged: (_) => setState(() {}),
         style: const TextStyle(fontSize: 18),
         decoration: InputDecoration(
           labelText: label,
@@ -320,38 +323,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  Widget _confirmActionButton() {
-    final on = _confirmAction;
-    final child = Column(
+  Widget _confirmActionControl() {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(on ? 'אימות פעולה · דולק' : 'אימות פעולה · כבוי'),
-        const SizedBox(height: 4),
-        const Text(
-          'לפני כל קליטה או הוצאה תופיע השאלה ״האם אתה בטוח?״ יחד עם תיאור הפעולה.',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+        Text('אימות פעולה', style: Theme.of(context).textTheme.titleLarge),
+        Switch(
+          key: const Key('confirm-action'),
+          value: _confirmAction,
+          onChanged: _busy ? null : _askConfirmAction,
         ),
       ],
-    );
-    final style = ButtonStyle(
-      alignment: AlignmentDirectional.centerStart,
-      padding: WidgetStateProperty.all(
-        const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      ),
-    );
-    if (on) {
-      return FilledButton(
-        key: const Key('confirm-action'),
-        onPressed: _busy ? null : _toggleConfirmAction,
-        style: style,
-        child: child,
-      );
-    }
-    return OutlinedButton(
-      key: const Key('confirm-action'),
-      onPressed: _busy ? null : _toggleConfirmAction,
-      style: style,
-      child: child,
     );
   }
 

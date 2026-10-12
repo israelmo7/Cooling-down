@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/product.dart';
 import '../providers.dart';
+import '../widgets/transient_notice.dart';
 
 class ProductCatalogEditor extends ConsumerStatefulWidget {
   const ProductCatalogEditor({super.key, required this.unlocked});
@@ -53,10 +54,9 @@ class _ProductCatalogEditorState extends ConsumerState<ProductCatalogEditor> {
     if (!mounted || removed) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('אי אפשר למחוק מוצר שכבר נרשם. אפשר לשנות את השם.'),
-      ),
+    showTransientNotice(
+      context,
+      'אי אפשר למחוק מוצר שכבר נרשם. אפשר לשנות את השם.',
     );
   }
 

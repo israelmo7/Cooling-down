@@ -20,4 +20,10 @@ class DriftAlertRepository implements AlertRepository {
       ]);
     return statement.watch().map((rows) => rows.map(mapAlert).toList());
   }
+
+  @override
+  Future<void> acknowledge(String id) {
+    return (_db.update(_db.alerts)..where((table) => table.id.equals(id)))
+        .write(AlertsCompanion(acknowledgedAt: Value(DateTime.now().toUtc())));
+  }
 }

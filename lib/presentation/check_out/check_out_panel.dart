@@ -9,6 +9,7 @@ import '../format.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
 import '../widgets/station_widgets.dart';
+import '../widgets/transient_notice.dart';
 
 class CheckOutPanel extends ConsumerStatefulWidget {
   const CheckOutPanel({super.key});
@@ -60,12 +61,9 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
         return;
       }
       setState(() => _selectedMovementId = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'הוצא ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
-          ),
-        ),
+      showTransientNotice(
+        context,
+        'הוצא ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
       );
       unawaited(_syncSoon());
     } on NoOpenHoldingException {
@@ -73,9 +71,7 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
         return;
       }
       setState(() => _selectedMovementId = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('הפריט כבר לא נמצא במקרר.')),
-      );
+      showTransientNotice(context, 'הפריט כבר לא נמצא במקרר.');
     } finally {
       if (mounted) {
         setState(() => _saving = false);
