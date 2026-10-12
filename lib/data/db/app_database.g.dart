@@ -2505,7 +2505,7 @@ class $LocalSettingsTable extends LocalSettings
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("daily_report_enabled" IN (0, 1))',
     ),
-    defaultValue: const Constant(false),
+    defaultValue: const Constant(true),
   );
   static const VerificationMeta _reportHourMeta = const VerificationMeta(
     'reportHour',
@@ -2517,7 +2517,7 @@ class $LocalSettingsTable extends LocalSettings
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(21),
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _reportMinuteMeta = const VerificationMeta(
     'reportMinute',

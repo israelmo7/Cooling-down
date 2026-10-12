@@ -14,19 +14,19 @@ class LiveLogFeed extends ConsumerWidget {
     return ScreenBody(
       child: holdings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Text('Could not load the fridge feed: $error'),
+        error: (error, _) => Text('לא ניתן לטעון את המקרר: $error'),
         data: (items) {
           final now = DateTime.now();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                items.isEmpty ? 'Nothing inside' : '${items.length} inside',
+                items.isEmpty ? 'המקרר ריק' : '${items.length} במקרר',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 8),
               Text(
-                'Items still in a fridge',
+                'פריטים שנמצאים כרגע במקרר',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 24),
@@ -34,7 +34,7 @@ class LiveLogFeed extends ConsumerWidget {
                 child: items.isEmpty
                     ? const Center(
                         child: Text(
-                          'Nothing is in a fridge right now.',
+                          'אין כרגע פריטים במקרר.',
                           style: TextStyle(fontSize: 28),
                           textAlign: TextAlign.center,
                         ),
@@ -73,7 +73,7 @@ class LiveLogFeed extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'In at ${formatCelsius(holding.checkInTemperatureCelsius)}',
+                                    'נקלט ב-${formatCelsius(holding.checkInTemperatureCelsius)}',
                                     style: const TextStyle(fontSize: 20),
                                   ),
                                   const SizedBox(height: 4),

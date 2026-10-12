@@ -28,6 +28,8 @@ Future<void> rememberFeed(
 /// Puts logs and alerts that already exist into the feed once.
 Future<void> backfillSyncFeed(AppDatabase db) async {
   final logs = await db.select(db.refrigerationLogs).get();
+  final fridges = await db.select(db.fridges).get();
+  final fridgeNames = {for (final fridge in fridges) fridge.id: fridge.name};
   for (final row in logs) {
     await rememberFeed(
       db,
@@ -40,6 +42,7 @@ Future<void> backfillSyncFeed(AppDatabase db) async {
         'product_id': row.productId,
         'product_name_snapshot': row.productNameSnapshot,
         'fridge_id': row.fridgeId,
+        'fridge_name': fridgeNames[row.fridgeId] ?? '',
         'event_type': row.eventType.storageValue,
         'temperature_celsius': row.temperatureCelsius,
         'occurred_at': row.occurredAt.toUtc().toIso8601String(),

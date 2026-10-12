@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -31,6 +32,11 @@ Future<void> main() async {
   } else {
     stdout.writeln('Email is on via $smtpHost.');
   }
+  stdout.writeln('A daily report is emailed at 00:00 for the day that just ended.');
+  unawaited(store.sendClosedDay(DateTime.now()));
+  Timer.periodic(const Duration(minutes: 1), (_) {
+    unawaited(store.sendClosedDay(DateTime.now()));
+  });
 }
 
 Future<String> _loadToken() async {

@@ -17,12 +17,14 @@ class SyncRequest {
     required this.environment,
     required this.cursor,
     required this.push,
+    this.ownerEmail = '',
   });
 
   final String deviceId;
   final String environment;
   final int cursor;
   final List<SyncPushItem> push;
+  final String ownerEmail;
 }
 
 class SyncChange {

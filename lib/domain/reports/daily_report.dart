@@ -89,7 +89,14 @@ String formatReportClock(DateTime instant) {
   return '$hour:$minute';
 }
 
+/// The calendar day that closed at the most recent local midnight.
+DateTime closedReportDay(DateTime nowLocal) {
+  final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+  return startOfToday.subtract(const Duration(days: 1));
+}
+
 /// Due after the configured local time, until the report is emailed or stored.
+/// At 00:00 the report covers [closedReportDay] and stays due until it is sent.
 bool isDailyReportDue({
   required bool enabled,
   required DateTime nowLocal,
@@ -127,41 +134,41 @@ DailyReportContent buildDailyReport({
   final checkIns = movements.where((row) => row.eventLabel == 'in').length;
   final checkOuts = movements.where((row) => row.eventLabel == 'out').length;
   final buffer = StringBuffer()
-    ..writeln('Environment: $environmentName')
-    ..writeln('Date: $date')
+    ..writeln('סביבה: $environmentName')
+    ..writeln('תאריך: $date')
     ..writeln()
-    ..writeln('What happened')
-    ..writeln('- $checkIns check-ins')
-    ..writeln('- $checkOuts check-outs');
+    ..writeln('מה קרה')
+    ..writeln('- $checkIns קליטות')
+    ..writeln('- $checkOuts הוצאות');
 
   _writeList(
     buffer,
-    title: 'Movements',
+    title: 'תנועות',
     lines: [
       for (final row in movements)
-        '${formatReportClock(row.occurredAt)} ${row.productName} checked ${row.eventLabel} at ${row.temperatureCelsius.toStringAsFixed(1)}°C (${row.fridgeName})',
+        '${formatReportClock(row.occurredAt)} ${row.productName} ${_eventWord(row.eventLabel)} ב-${row.temperatureCelsius.toStringAsFixed(1)}°C (${row.fridgeName})',
     ],
   );
   _writeList(
     buffer,
-    title: 'Still inside',
+    title: 'עדיין במקרר',
     lines: [
       for (final row in stillInside)
-        '${row.productName} in ${row.fridgeName} since ${formatReportClock(row.checkedInAt)}',
+        '${row.productName} ב${row.fridgeName} מאז ${formatReportClock(row.checkedInAt)}',
     ],
-    empty: 'Nothing is still in a fridge.',
+    empty: 'אין פריטים שנשארו במקרר.',
   );
   _writeList(
     buffer,
-    title: 'Temperature warnings',
+    title: 'אזהרות טמפרטורה',
     lines: [for (final row in temperatureAlerts) row.message],
-    empty: 'No temperature warnings.',
+    empty: 'אין אזהרות טמפרטורה.',
   );
   _writeList(
     buffer,
-    title: 'Conflicts',
+    title: 'קונפליקטים',
     lines: [for (final row in conflicts) row.message],
-    empty: 'No conflicting check-outs.',
+    empty: 'אין קונפליקטים.',
   );
   buffer
     ..writeln()
@@ -176,7 +183,7 @@ DailyReportContent buildDailyReport({
     );
 
   return DailyReportContent(
-    subject: 'Cooling down report · $environmentName · $date',
+    subject: 'דוח קירור · $environmentName · $date',
     body: buffer.toString(),
   );
 }
@@ -199,7 +206,7 @@ void _writeList(
     buffer.writeln('- $line');
   }
   if (lines.length > 20) {
-    buffer.writeln('- ${lines.length - 20} more');
+    buffer.writeln('- ועוד ${lines.length - 20}');
   }
 }
 
@@ -211,15 +218,25 @@ String _conclusion({
   required int conflicts,
 }) {
   if (temperatureAlerts == 0 && conflicts == 0 && stillInside == 0) {
-    return 'Conclusion: the day closed cleanly. Temperatures stayed in range, every check-out agreed, and nothing is still in a fridge ($checkIns in, $checkOuts out).';
+    return 'מסקנה: היום נסגר בצורה תקינה. הטמפרטורות היו בטווח, כל ההוצאות תאמו, ואין פריטים שנשארו במקרר ($checkIns קליטות, $checkOuts הוצאות).';
   }
   final parts = <String>[
     if (temperatureAlerts > 0)
-      '$temperatureAlerts temperature warning${temperatureAlerts == 1 ? '' : 's'} need a look',
+      temperatureAlerts == 1
+          ? 'אזהרת טמפרטורה אחת דורשת בדיקה'
+          : '$temperatureAlerts אזהרות טמפרטורה דורשות בדיקה',
     if (conflicts > 0)
-      '$conflicts check-out conflict${conflicts == 1 ? '' : 's'} kept both temperatures; the earliest check-out closed the item',
+      conflicts == 1
+          ? 'קונפליקט אחד שמר את שתי הטמפרטורות; ההוצאה המוקדמת סגרה את הפריט'
+          : '$conflicts קונפליקטים שמרו את שתי הטמפרטורות; ההוצאה המוקדמת סגרה את הפריט',
     if (stillInside > 0)
-      '$stillInside item${stillInside == 1 ? ' is' : 's are'} still inside',
+      stillInside == 1
+          ? 'פריט אחד עדיין במקרר'
+          : '$stillInside פריטים עדיין במקרר',
   ];
-  return 'Conclusion: ${parts.join('; ')}.';
+  return 'מסקנה: ${parts.join('; ')}.';
+}
+
+String _eventWord(String eventLabel) {
+  return eventLabel == 'in' ? 'נכנס' : 'יצא';
 }

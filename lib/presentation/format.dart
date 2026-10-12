@@ -8,13 +8,13 @@ String formatClock(DateTime utc) {
 String formatInside(DateTime checkedInAt, DateTime now) {
   final elapsed = now.toUtc().difference(checkedInAt.toUtc());
   if (elapsed.inMinutes < 1) {
-    return 'Just now';
+    return 'עכשיו';
   }
   if (elapsed.inHours < 1) {
-    return '${elapsed.inMinutes} min inside';
+    return '${elapsed.inMinutes} דק׳ במקרר';
   }
   final minutes = elapsed.inMinutes.remainder(60);
-  return '${elapsed.inHours} h $minutes min inside';
+  return '${elapsed.inHours} שע׳ $minutes דק׳ במקרר';
 }
 
 String formatCelsius(double temperature) =>

@@ -40,10 +40,12 @@ Future<Response> _sync(Request request, SyncStore store) async {
     return _json(400, {'error': 'push must be a list.'});
   }
   try {
+    final ownerEmail = body['owner_email'];
     final result = store.exchange(
       deviceId: deviceId,
       environment: environment,
       cursor: cursor.toInt(),
+      ownerEmail: ownerEmail is String ? ownerEmail : null,
       push: [
         for (final item in push)
           if (item is Map)

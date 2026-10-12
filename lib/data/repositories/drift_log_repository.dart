@@ -34,13 +34,13 @@ class DriftLogRepository implements LogRepository {
         _db.products,
       )..where((table) => table.id.equals(productId))).getSingleOrNull();
       if (product == null) {
-        throw const CatalogEntryNotFound('Product was not found.');
+        throw const CatalogEntryNotFound('המוצר לא נמצא.');
       }
       final fridge = await (_db.select(
         _db.fridges,
       )..where((table) => table.id.equals(fridgeId))).getSingleOrNull();
       if (fridge == null) {
-        throw const CatalogEntryNotFound('Fridge was not found.');
+        throw const CatalogEntryNotFound('המקרר לא נמצא.');
       }
 
       final capturedAt = (occurredAt ?? _clock.now()).toUtc();
@@ -61,7 +61,7 @@ class DriftLogRepository implements LogRepository {
       await _maybeAlert(
         log: log,
         fridge: mapFridge(fridge),
-        eventLabel: 'checked in',
+        eventLabel: 'נקלט',
         capturedAt: capturedAt,
       );
       return log;
@@ -97,7 +97,7 @@ class DriftLogRepository implements LogRepository {
         _db.fridges,
       )..where((table) => table.id.equals(checkIn.fridgeId))).getSingleOrNull();
       if (fridge == null) {
-        throw const CatalogEntryNotFound('Fridge was not found.');
+        throw const CatalogEntryNotFound('המקרר לא נמצא.');
       }
 
       final product =
@@ -122,7 +122,7 @@ class DriftLogRepository implements LogRepository {
       await _maybeAlert(
         log: log,
         fridge: mapFridge(fridge),
-        eventLabel: 'checked out',
+        eventLabel: 'הוצא',
         capturedAt: capturedAt,
       );
       return log;
@@ -188,6 +188,9 @@ class DriftLogRepository implements LogRepository {
             originDeviceId: Value(log.originDeviceId),
           ),
         );
+    final fridge = await (_db.select(
+      _db.fridges,
+    )..where((table) => table.id.equals(log.fridgeId))).getSingleOrNull();
     await enqueueInsert(
       _db,
       entityType: 'refrigeration_log',
@@ -198,6 +201,7 @@ class DriftLogRepository implements LogRepository {
         'product_id': log.productId,
         'product_name_snapshot': log.productNameSnapshot,
         'fridge_id': log.fridgeId,
+        'fridge_name': fridge?.name ?? '',
         'event_type': log.eventType.storageValue,
         'temperature_celsius': log.temperatureCelsius,
         'occurred_at': log.occurredAt.toIso8601String(),
@@ -224,7 +228,7 @@ class DriftLogRepository implements LogRepository {
       productId: log.productId,
       logId: log.id,
       message:
-          '${log.productNameSnapshot} $eventLabel at ${log.temperatureCelsius.toStringAsFixed(1)}°C, outside ${fridge.name} range ${fridge.minCelsius.toStringAsFixed(1)}–${fridge.maxCelsius.toStringAsFixed(1)}°C.',
+          '${log.productNameSnapshot} $eventLabel ב-${log.temperatureCelsius.toStringAsFixed(1)}°C, מחוץ לטווח של ${fridge.name} (${fridge.minCelsius.toStringAsFixed(1)}–${fridge.maxCelsius.toStringAsFixed(1)}°C).',
       createdAt: capturedAt,
       originDeviceId: log.originDeviceId,
     );

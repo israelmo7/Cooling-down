@@ -70,7 +70,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cooling down'),
+        title: const Text('קירור'),
         actions: [
           Center(
             child: Text(
@@ -83,7 +83,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
           ),
           IconButton(
             key: const Key('open-settings'),
-            tooltip: 'Settings',
+            tooltip: 'הגדרות',
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -107,7 +107,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
                   vertical: 12,
                 ),
                 child: Text(
-                  'This tablet is the shared copy. Leave it open on the Wi-Fi.',
+                  'הטאבלט הזה הוא העותק המשותף. יש להשאיר אותו פתוח ברשת.',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSecondaryContainer,
                     fontSize: 16,
@@ -155,12 +155,12 @@ class _TabletShellState extends ConsumerState<TabletShell>
         selectedIndex: _index,
         onDestinationSelected: (index) => setState(() => _index = index),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.login), label: 'Check in'),
-          NavigationDestination(icon: Icon(Icons.logout), label: 'Check out'),
+          NavigationDestination(icon: Icon(Icons.login), label: 'קליטה'),
+          NavigationDestination(icon: Icon(Icons.logout), label: 'הוצאה'),
           NavigationDestination(
             icon: Icon(Icons.kitchen_outlined),
             selectedIcon: Icon(Icons.kitchen),
-            label: 'In the fridge',
+            label: 'במקרר',
           ),
         ],
       ),
@@ -173,13 +173,13 @@ class _TabletShellState extends ConsumerState<TabletShell>
     required bool hub,
   }) {
     if (hub) {
-      return 'Sharing on this Wi-Fi';
+      return 'משתף ברשת המקומית';
     }
     if (!sharing) {
       return pendingCount == 0
-          ? 'Saved on this tablet'
-          : 'Saved on this tablet · $pendingCount waiting to sync';
+          ? 'נשמר בטאבלט'
+          : 'נשמר בטאבלט · $pendingCount ממתינים לסנכרון';
     }
-    return pendingCount == 0 ? 'Synced' : '$pendingCount waiting to sync';
+    return pendingCount == 0 ? 'מסונכרן' : '$pendingCount ממתינים לסנכרון';
   }
 }

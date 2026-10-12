@@ -145,6 +145,39 @@ void main() {
     expect(allowed.status, 200);
     expect(allowed.json['cursor'], 0);
   });
+
+  test('midnight emails yesterday once from the stored logs', () async {
+    final mailer = _RecordingMailer();
+    final store = SyncStore.memory(mailer: mailer);
+    addTearDown(store.close);
+    final occurred = DateTime(2026, 10, 11, 15);
+    store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      ownerEmail: 'owner@shop.test',
+      push: [
+        _push('refrigeration_log', {
+          ..._log(id: 'log-day', movementId: 'move-day', eventType: 'check_in'),
+          'product_name_snapshot': 'חלב',
+          'fridge_name': 'מקרר מטבח',
+          'temperature_celsius': 4.0,
+          'occurred_at': occurred.toUtc().toIso8601String(),
+        }),
+      ],
+    );
+
+    final first = await store.sendClosedDay(DateTime(2026, 10, 12, 0, 1));
+    final second = await store.sendClosedDay(DateTime(2026, 10, 12, 8));
+
+    expect(first, ['sent']);
+    expect(second, isEmpty);
+    expect(mailer.sent, 1);
+    expect(mailer.lastTo, 'owner@shop.test');
+    expect(mailer.lastSubject, contains('2026-10-11'));
+    expect(mailer.lastBody, contains('חלב'));
+    expect(mailer.lastBody, contains('מסקנה:'));
+  });
 }
 
 Map<String, dynamic> _log({
@@ -172,6 +205,9 @@ Map<String, dynamic> _push(String type, Map<String, dynamic> payload) {
 
 class _RecordingMailer implements ReportMailer {
   int sent = 0;
+  String? lastTo;
+  String? lastSubject;
+  String? lastBody;
 
   @override
   Future<bool> send({
@@ -180,6 +216,9 @@ class _RecordingMailer implements ReportMailer {
     required String body,
   }) async {
     sent += 1;
+    lastTo = to;
+    lastSubject = subject;
+    lastBody = body;
     return true;
   }
 }

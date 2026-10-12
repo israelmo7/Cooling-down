@@ -11,5 +11,5 @@ String checkoutConflictAlertId(String movementId) {
 }
 
 String checkoutConflictMessage(String productName) {
-  return '$productName was checked out more than once for the same stay. Both temperatures were kept. The earliest check-out closed it.';
+  return '$productName הוצא יותר מפעם אחת לאותה שהייה. שתי הטמפרטורות נשמרו. ההוצאה המוקדמת ביותר סגרה את הפריט.';
 }

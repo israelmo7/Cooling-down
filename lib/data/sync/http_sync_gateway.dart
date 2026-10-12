@@ -32,6 +32,8 @@ class HttpSyncGateway implements SyncGateway {
               'device_id': request.deviceId,
               'environment': request.environment,
               'cursor': request.cursor,
+              if (request.ownerEmail.trim().isNotEmpty)
+                'owner_email': request.ownerEmail.trim(),
               'push': [
                 for (final item in request.push)
                   {
@@ -44,15 +46,15 @@ class HttpSyncGateway implements SyncGateway {
           )
           .timeout(const Duration(seconds: 20));
       if (response.statusCode == 401) {
-        return const SyncExchange.offline('The server rejected the token.');
+        return const SyncExchange.offline('המחשב דחה את האסימון.');
       }
       if (response.statusCode != 200) {
-        return SyncExchange.offline('Server responded ${response.statusCode}.');
+        return SyncExchange.offline('המחשב החזיר ${response.statusCode}.');
       }
       final decoded = jsonDecode(response.body);
       if (decoded is! Map) {
         return const SyncExchange.offline(
-          'The server sent an unreadable response.',
+          'התשובה מהמחשב לא קריאה.',
         );
       }
       return SyncExchange(
@@ -107,20 +109,20 @@ class HttpSyncGateway implements SyncGateway {
       if (response.statusCode == 401) {
         return const ReportPostResult(
           status: 'failed',
-          error: 'The server rejected the token.',
+          error: 'המחשב דחה את האסימון.',
         );
       }
       if (response.statusCode != 200) {
         return ReportPostResult(
           status: 'failed',
-          error: 'Server responded ${response.statusCode}.',
+          error: 'המחשב החזיר ${response.statusCode}.',
         );
       }
       final decoded = jsonDecode(response.body);
       if (decoded is! Map) {
         return const ReportPostResult(
           status: 'failed',
-          error: 'The server sent an unreadable response.',
+          error: 'התשובה מהמחשב לא קריאה.',
         );
       }
       return ReportPostResult(

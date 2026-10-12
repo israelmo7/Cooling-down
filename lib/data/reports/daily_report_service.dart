@@ -47,7 +47,8 @@ class DailyReportService {
   Future<String> deliverToday({required bool manual}) async {
     final current = await settings.ensure();
     final nowLocal = _clock.now().toLocal();
-    final date = reportDateKey(nowLocal);
+    final day = closedReportDay(nowLocal);
+    final date = reportDateKey(day);
     final existing = await _find(current.environmentName, date);
 
     if (!manual &&
@@ -64,13 +65,13 @@ class DailyReportService {
     if (existing != null &&
         (existing.status == ReportStatus.sent ||
             existing.status == ReportStatus.alreadySent)) {
-      return 'Already emailed for today.';
+      return 'הדוח ליום הזה כבר נשלח.';
     }
     if (current.ownerEmail.trim().isEmpty) {
-      return 'Add the owner email in Settings first.';
+      return 'יש להוסיף את אימייל הבעלים בהגדרות.';
     }
 
-    final content = await _compose(current, nowLocal);
+    final content = await _compose(current, day);
     final id = existing?.id ?? _uuid.v4();
     if (existing == null) {
       await _db
@@ -116,7 +117,7 @@ class DailyReportService {
         ),
       );
     } else if (!current.hasServer) {
-      return 'Saved on this tablet. Add a server to email it.';
+      return 'נשמר בטאבלט. יש להגדיר מחשב כדי לשלוח את המייל.';
     } else {
       result = await _gatewayFor(current).postReport(
         ReportPost(
@@ -142,16 +143,15 @@ class DailyReportService {
       ),
     );
     if (current.hubEnabled && result.status == ReportStatus.stored) {
-      return 'Saved on this tablet. Add the mail server in Settings to email it.';
+      return 'נשמר בטאבלט. יש להגדיר שרת דואר בהגדרות כדי לשלוח את המייל.';
     }
     return _message(result);
   }
 
   Future<DailyReportContent> _compose(
     DeviceSettings settings,
-    DateTime nowLocal,
+    DateTime day,
   ) async {
-    final day = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
     final fridges = await _db.select(_db.fridges).get();
     final fridgeNames = {for (final fridge in fridges) fridge.id: fridge.name};
     final logs = await _db.select(_db.refrigerationLogs).get();
@@ -250,15 +250,15 @@ class DailyReportService {
   String _message(ReportPostResult result) {
     switch (result.status) {
       case ReportStatus.sent:
-        return 'Emailed the owner.';
+        return 'הדוח נשלח לבעלים.';
       case ReportStatus.alreadySent:
-        return 'Already emailed for today.';
+        return 'הדוח ליום הזה כבר נשלח.';
       case ReportStatus.stored:
-        return 'Saved on the server. Email is not set up there yet.';
+        return 'נשמר במחשב. הדואר שם עדיין לא מוגדר.';
       case ReportStatus.waiting:
-        return 'Saved on this tablet. Add a server to email it.';
+        return 'נשמר בטאבלט. יש להגדיר מחשב כדי לשלוח את המייל.';
       default:
-        return result.error ?? 'The report could not be emailed.';
+        return result.error ?? 'לא ניתן היה לשלוח את הדוח.';
     }
   }
 }

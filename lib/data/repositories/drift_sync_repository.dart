@@ -57,7 +57,7 @@ class DriftSyncRepository implements SyncRepository {
       return SyncAttempt(
         synced: 0,
         remaining: pending.length,
-        stoppedBecause: 'offline',
+        stoppedBecause: 'אין חיבור למחשב',
       );
     }
 
@@ -74,6 +74,7 @@ class DriftSyncRepository implements SyncRepository {
           deviceId: current.deviceId,
           environment: current.environmentName,
           cursor: current.syncCursor,
+          ownerEmail: current.ownerEmail,
           push: [
             for (final row in pending)
               SyncPushItem(
@@ -95,7 +96,7 @@ class DriftSyncRepository implements SyncRepository {
     }
 
     if (!result.reachable) {
-      final reason = result.error ?? 'offline';
+      final reason = result.error ?? 'אין חיבור למחשב';
       await _restore(pending, reason);
       await settings.recordSync(error: reason);
       return SyncAttempt(
@@ -117,7 +118,7 @@ class DriftSyncRepository implements SyncRepository {
             status: Value(ok ? SyncStatus.synced : SyncStatus.pending),
             lastError: ok
                 ? const Value(null)
-                : const Value('The server did not accept this row.'),
+                : const Value('המחשב לא קיבל את הרשומה.'),
             attemptCount: ok
                 ? const Value.absent()
                 : Value(row.attemptCount + 1),

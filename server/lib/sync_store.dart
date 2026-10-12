@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:sqlite3/sqlite3.dart';
+import 'package:uuid/uuid.dart';
 
 import 'conflict.dart';
+import 'daily_mail.dart';
 import 'mailer.dart';
 
 class SyncStore {
@@ -46,6 +48,14 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   UNIQUE (environment, report_date)
 )
 ''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS environments (
+  name TEXT PRIMARY KEY,
+  owner_email TEXT NOT NULL
+)
+''');
+    _addColumn('refrigeration_logs', 'temperature', 'REAL');
+    _addColumn('refrigeration_logs', 'fridge_name', 'TEXT');
   }
 
   factory SyncStore.memory({ReportMailer? mailer}) {
@@ -54,6 +64,16 @@ CREATE TABLE IF NOT EXISTS daily_reports (
 
   final Database _db;
   final ReportMailer _mailer;
+  final Set<String> _sending = {};
+  final Uuid _uuid = const Uuid();
+
+  void _addColumn(String table, String column, String type) {
+    final columns = _db.select('PRAGMA table_info($table)');
+    final exists = columns.any((row) => row['name'] == column);
+    if (!exists) {
+      _db.execute('ALTER TABLE $table ADD COLUMN $column $type');
+    }
+  }
 
   void close() => _db.close();
 
@@ -62,7 +82,9 @@ CREATE TABLE IF NOT EXISTS daily_reports (
     required String environment,
     required int cursor,
     required List<Map<String, dynamic>> push,
+    String? ownerEmail,
   }) {
+    _rememberOwner(environment, ownerEmail);
     final accepted = <String>[];
     final conflicts = <Map<String, String>>[];
     _db.execute('BEGIN');
@@ -133,9 +155,16 @@ WHERE environment = ? AND report_date = ?
 ''',
       [environment, reportDate],
     );
-    if (existing.isNotEmpty && existing.first['status'] == 'sent') {
+    final key = '$environment|$reportDate';
+    final existingStatus = existing.isEmpty
+        ? null
+        : existing.first['status']?.toString();
+    if (existingStatus == 'sent' ||
+        existingStatus == 'sending' ||
+        _sending.contains(key)) {
       return {'status': 'already_sent'};
     }
+    _sending.add(key);
 
     if (existing.isEmpty) {
       _db.execute(
@@ -181,7 +210,123 @@ WHERE environment = ? AND report_date = ?
         [error.toString(), environment, reportDate],
       );
       return {'status': 'failed', 'error': error.toString()};
+    } finally {
+      _sending.remove(key);
     }
+  }
+
+  /// Emails yesterday's report once the local clock has passed midnight.
+  /// Tablets that were offline keep their rows and sync them when the computer
+  /// is reachable again. A report already marked sent is not mailed twice.
+  Future<List<String>> sendClosedDay(DateTime nowLocal) async {
+    final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    final day = startOfToday.subtract(const Duration(days: 1));
+    final date = _reportDate(day);
+    final targets = _db.select(
+      "SELECT name, owner_email FROM environments WHERE owner_email LIKE '%@%'",
+    );
+    final statuses = <String>[];
+    for (final target in targets) {
+      final environment = target['name'] as String;
+      final ownerEmail = target['owner_email'] as String;
+      final existing = _db.select(
+        '''
+SELECT status FROM daily_reports
+WHERE environment = ? AND report_date = ?
+''',
+        [environment, date],
+      );
+      final status = existing.isEmpty
+          ? null
+          : existing.first['status']?.toString();
+      if (status == 'sent') {
+        continue;
+      }
+      final content = buildClosedDayReport(
+        environmentName: environment,
+        day: day,
+        logs: _logs(environment),
+        notices: _notices(environment),
+      );
+      final result = await submitReport(
+        id: _uuid.v4(),
+        environment: environment,
+        reportDate: date,
+        ownerEmail: ownerEmail,
+        subject: content.subject,
+        body: content.body,
+      );
+      statuses.add(result['status']?.toString() ?? 'failed');
+    }
+    return statuses;
+  }
+
+  void _rememberOwner(String environment, String? ownerEmail) {
+    final email = ownerEmail?.trim() ?? '';
+    if (!email.contains('@')) {
+      return;
+    }
+    _db.execute(
+      '''
+INSERT INTO environments (name, owner_email) VALUES (?, ?)
+ON CONFLICT(name) DO UPDATE SET owner_email = excluded.owner_email
+''',
+      [environment, email],
+    );
+  }
+
+  List<StoredLogLine> _logs(String environment) {
+    final rows = _db.select(
+      '''
+SELECT event_type, occurred_at, product_name, temperature, fridge_name
+FROM refrigeration_logs
+WHERE environment = ?
+''',
+      [environment],
+    );
+    return [
+      for (final row in rows)
+        StoredLogLine(
+          eventType: row['event_type'] as String,
+          occurredAt: DateTime.parse(row['occurred_at'] as String),
+          productName: row['product_name'] as String,
+          temperature: (row['temperature'] as num?)?.toDouble(),
+          fridgeName: row['fridge_name'] as String? ?? '',
+        ),
+    ];
+  }
+
+  List<StoredNotice> _notices(String environment) {
+    final rows = _db.select(
+      '''
+SELECT payload_json FROM sync_events
+WHERE environment = ? AND entity_type = 'alert'
+''',
+      [environment],
+    );
+    final notices = <StoredNotice>[];
+    for (final row in rows) {
+      final decoded = jsonDecode(row['payload_json'] as String);
+      if (decoded is! Map) {
+        continue;
+      }
+      final message = decoded['message'];
+      final createdAt = decoded['created_at'];
+      if (message is! String || createdAt is! String) {
+        continue;
+      }
+      notices.add(
+        StoredNotice(message: message, createdAt: DateTime.parse(createdAt)),
+      );
+    }
+    return notices;
+  }
+
+  String _reportDate(DateTime day) {
+    final year = day.year.toString().padLeft(4, '0');
+    final month = day.month.toString().padLeft(2, '0');
+    final date = day.day.toString().padLeft(2, '0');
+    return '$year-$month-$date';
   }
 
   String _applyPush({
@@ -266,13 +411,25 @@ INSERT INTO sync_events (
         productName is! String) {
       throw const FormatException('A refrigeration log payload is incomplete.');
     }
+    final temperature = payload['temperature_celsius'];
+    final fridgeName = payload['fridge_name'];
     _db.execute(
       '''
 INSERT INTO refrigeration_logs (
-  id, environment, movement_id, event_type, occurred_at, product_name
-) VALUES (?, ?, ?, ?, ?, ?)
+  id, environment, movement_id, event_type, occurred_at, product_name,
+  temperature, fridge_name
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ''',
-      [id, environment, movementId, eventType, occurredAt, productName],
+      [
+        id,
+        environment,
+        movementId,
+        eventType,
+        occurredAt,
+        productName,
+        temperature is num ? temperature.toDouble() : null,
+        fridgeName is String ? fridgeName : '',
+      ],
     );
     if (eventType != 'check_out') {
       return;

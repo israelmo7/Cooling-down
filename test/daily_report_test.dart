@@ -8,25 +8,14 @@ import 'package:cooling_down/domain/reports/daily_report.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('a report is due after the chosen local time until it is sent', () {
-    final morning = DateTime(2026, 10, 11, 8);
-    final evening = DateTime(2026, 10, 11, 21, 5);
-
+  test('a midnight report is due for the day that just closed', () {
+    final justAfterMidnight = DateTime(2026, 10, 12, 0, 1);
+    expect(closedReportDay(justAfterMidnight), DateTime(2026, 10, 11));
     expect(
       isDailyReportDue(
         enabled: true,
-        nowLocal: morning,
-        hour: 21,
-        minute: 0,
-        recordedStatus: null,
-      ),
-      isFalse,
-    );
-    expect(
-      isDailyReportDue(
-        enabled: true,
-        nowLocal: evening,
-        hour: 21,
+        nowLocal: justAfterMidnight,
+        hour: 0,
         minute: 0,
         recordedStatus: null,
       ),
@@ -35,8 +24,8 @@ void main() {
     expect(
       isDailyReportDue(
         enabled: false,
-        nowLocal: evening,
-        hour: 21,
+        nowLocal: justAfterMidnight,
+        hour: 0,
         minute: 0,
         recordedStatus: null,
       ),
@@ -45,8 +34,8 @@ void main() {
     expect(
       isDailyReportDue(
         enabled: true,
-        nowLocal: evening,
-        hour: 21,
+        nowLocal: justAfterMidnight,
+        hour: 0,
         minute: 0,
         recordedStatus: ReportStatus.sent,
       ),
@@ -55,12 +44,12 @@ void main() {
     expect(
       isDailyReportDue(
         enabled: true,
-        nowLocal: evening,
+        nowLocal: DateTime(2026, 10, 12, 8),
         hour: 21,
         minute: 0,
-        recordedStatus: ReportStatus.waiting,
+        recordedStatus: null,
       ),
-      isTrue,
+      isFalse,
     );
   });
 
@@ -89,9 +78,9 @@ void main() {
       conflicts: const [],
     );
     expect(clean.subject, contains('Kitchen'));
-    expect(clean.body, contains('1 check-ins'));
-    expect(clean.body, contains('1 check-outs'));
-    expect(clean.body, contains('closed cleanly'));
+    expect(clean.body, contains('1 קליטות'));
+    expect(clean.body, contains('1 הוצאות'));
+    expect(clean.body, contains('נסגר בצורה תקינה'));
 
     final messy = buildDailyReport(
       environmentName: 'Pharmacy',
@@ -109,30 +98,31 @@ void main() {
         ReportNotice(message: 'Insulin was checked out twice.'),
       ],
     );
-    expect(messy.body, contains('Conclusion:'));
-    expect(messy.body, contains('temperature warning'));
-    expect(messy.body, contains('conflict'));
-    expect(messy.body, contains('still inside'));
+    expect(messy.body, contains('מסקנה:'));
+    expect(messy.body, contains('אזהרת טמפרטורה'));
+    expect(messy.body, contains('קונפליקט'));
+    expect(messy.body, contains('עדיין במקרר'));
   });
 
-  test('the end-of-day service saves a report from today\'s logs', () async {
+  test('midnight saves a report for the day that just closed', () async {
     final database = AppDatabase.memory();
     addTearDown(database.close);
-    final clock = FixedClock(DateTime(2026, 10, 11, 21, 30));
+    final clock = FixedClock(DateTime(2026, 10, 12, 0, 5));
     final logs = DriftLogRepository(database, clock: clock);
     final settings = DriftSettingsRepository(database);
     await logs.insertCheckIn(
       productId: SeedIds.wholeMilk,
       fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 12,
-      occurredAt: clock.now().toLocal().subtract(const Duration(hours: 4)),
+      occurredAt: DateTime(2026, 10, 11, 18),
     );
     final current = await settings.ensure();
     await settings.save(
       current.copyWith(
         ownerEmail: 'owner@example.com',
         dailyReportEnabled: true,
-        reportHour: 21,
+        reportHour: 0,
+        reportMinute: 0,
       ),
     );
     final service = DailyReportService(
@@ -144,11 +134,12 @@ void main() {
     final message = await service.deliverToday(manual: false);
     final stored = await service.watchLatest().first;
 
-    expect(message, contains('Saved on this tablet'));
+    expect(message, contains('נשמר בטאבלט'));
     expect(stored, isNotNull);
-    expect(stored!.status, ReportStatus.waiting);
-    expect(stored.body, contains('Whole milk'));
-    expect(stored.body, contains('Temperature warnings'));
-    expect(stored.body, contains('Conclusion:'));
+    expect(stored!.reportDate, '2026-10-11');
+    expect(stored.status, ReportStatus.waiting);
+    expect(stored.body, contains('חלב'));
+    expect(stored.body, contains('אזהרות טמפרטורה'));
+    expect(stored.body, contains('מסקנה:'));
   });
 }

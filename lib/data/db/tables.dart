@@ -106,9 +106,9 @@ class LocalSettings extends Table {
       text().named('owner_email').withDefault(const Constant(''))();
   BoolColumn get dailyReportEnabled => boolean()
       .named('daily_report_enabled')
-      .withDefault(const Constant(false))();
+      .withDefault(const Constant(true))();
   IntColumn get reportHour =>
-      integer().named('report_hour').withDefault(const Constant(21))();
+      integer().named('report_hour').withDefault(const Constant(0))();
   IntColumn get reportMinute =>
       integer().named('report_minute').withDefault(const Constant(0))();
   IntColumn get syncCursor =>

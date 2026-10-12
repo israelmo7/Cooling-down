@@ -31,7 +31,7 @@ class TemperatureStepper extends StatelessWidget {
     return Row(
       children: [
         IconButton.filled(
-          tooltip: 'Decrease temperature',
+          tooltip: 'הורדת טמפרטורה',
           onPressed: () => onChanged(_step(temperature, -0.5)),
           icon: const Icon(Icons.remove),
           style: IconButton.styleFrom(
@@ -47,7 +47,7 @@ class TemperatureStepper extends StatelessWidget {
           ),
         ),
         IconButton.filled(
-          tooltip: 'Increase temperature',
+          tooltip: 'העלאת טמפרטורה',
           onPressed: () => onChanged(_step(temperature, 0.5)),
           icon: const Icon(Icons.add),
           style: IconButton.styleFrom(

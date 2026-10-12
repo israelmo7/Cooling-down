@@ -1,10 +1,10 @@
 # Cooling-down
 
-Tablet app for logging refrigerator check-in and check-out temperatures in commercial kitchens and pharmacies. Each confirm writes to SQLite first. The tablet works with no network. A server is optional: several tablets that share an environment name and access token push their logs and pull everyone else's.
+Tablet app, in Hebrew, for logging refrigerator check-in and check-out temperatures in commercial kitchens and pharmacies. Each confirm writes to SQLite on the tablet first. If the shop Wi-Fi is down, the row stays on the tablet and syncs when the shop computer is reachable again. The computer keeps the shared database and emails the owner at 00:00 with a report of the day that just ended.
 
 Check-in and check-out stay separate rows. A log is never edited. If two tablets check the same item out, both temperatures are kept, an alert is recorded, and the earliest check-out is the one that closes the item.
 
-Check-in, check-out, and the fridge list are three full-screen tabs. The settings button on the top bar holds the server address, token, owner email, and the end-of-day report time.
+Check-in, check-out, and the fridge list are three full-screen Hebrew tabs. The settings button on the top bar holds the computer address, token, and owner email. The daily report is fixed at midnight.
 
 ## Run
 
@@ -27,7 +27,7 @@ Pick one tablet and leave Cooling down open on the shop Wi-Fi. In Settings, turn
 
 The shared tablet has to stay on this app. Locking it or leaving the app stops sharing until it is opened again. Mailing the owner from that tablet needs the mail server fields in Settings and a Wi-Fi that can reach the internet. Without those fields, the report stays on the tablet.
 
-## Optional computer server
+## Shop computer
 
 From `server/`:
 
@@ -42,7 +42,7 @@ Email is off until these are set in the server process environment: `SMTP_HOST`,
 
 `PORT` defaults to 8080. `DATA_PATH` defaults to `cooling_down_server.sqlite`.
 
-On the tablet, turn on "Email a report at the end of each day" and set the local time. After that time the tablet syncs, writes what happened, and asks the server to email the owner. "Send today's report" does the same immediately. The first successful email for a day wins; a second tablet gets "already emailed".
+On each tablet, enter that address, the token, the same environment name, and the owner email. "שליחת דוח בחצות" is on by default. At 00:00 the computer emails the owner a Hebrew report of the previous day, from the logs that have already synced. If a tablet was offline, its rows stay local and upload on the next successful sync. "שליחת הדוח היומי" asks for that report immediately. The first successful email for a day wins.
 
 ## Layout
 

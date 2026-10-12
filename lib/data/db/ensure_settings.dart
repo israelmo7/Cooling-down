@@ -20,8 +20,8 @@ Future<LocalSettingsRow> ensureLocalSettingsRow(
         LocalSettingsCompanion.insert(
           id: localSettingsId,
           deviceId: (uuid ?? const Uuid()).v4(),
-          deviceName: 'This tablet',
-          environmentName: 'Kitchen',
+          deviceName: 'הטאבלט הזה',
+          environmentName: 'מטבח',
         ),
         mode: InsertMode.insertOrIgnore,
       );

@@ -135,7 +135,7 @@ void main() {
     expect(outbox.single.status.name, 'synced');
     expect(saved.syncCursor, 8);
     expect(saved.lastSyncError, isNull);
-    expect(gateway.request!.environment, 'Kitchen');
+    expect(gateway.request!.environment, 'מטבח');
   });
 
   test('the http gateway posts the batch and reads the reply', () async {

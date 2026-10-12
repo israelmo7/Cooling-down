@@ -85,7 +85,7 @@ void main() {
     expect(logs.single.temperatureCelsius, 12);
     expect(alerts, hasLength(1));
     expect(alerts.single.logId, checkIn.id);
-    expect(alerts.single.message, contains('Whole milk'));
+    expect(alerts.single.message, contains('חלב'));
     expect(outbox, hasLength(2));
     expect(outbox.map((row) => row.entityType).toSet(), {
       'refrigeration_log',

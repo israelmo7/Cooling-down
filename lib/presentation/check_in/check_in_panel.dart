@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -56,10 +58,11 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Checked in ${log.productNameSnapshot} at ${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
+            'נקלט ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
           ),
         ),
       );
+      unawaited(_syncSoon());
     } on CatalogEntryNotFound catch (error) {
       if (!mounted) {
         return;
@@ -70,6 +73,14 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
       if (mounted) {
         setState(() => _saving = false);
       }
+    }
+  }
+
+  Future<void> _syncSoon() async {
+    try {
+      await ref.read(syncRepositoryProvider).trySync();
+    } on Object {
+      // The row stays on this tablet until the shop computer is reachable.
     }
   }
 
@@ -154,13 +165,13 @@ class _CatalogPane extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Product', style: Theme.of(context).textTheme.headlineSmall),
+        Text('מוצר', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 16),
         TextField(
           controller: controller,
           style: const TextStyle(fontSize: 22),
           decoration: const InputDecoration(
-            hintText: 'Search name',
+            hintText: 'חיפוש לפי שם',
             prefixIcon: Icon(Icons.search, size: 32),
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 22),
@@ -171,13 +182,13 @@ class _CatalogPane extends StatelessWidget {
         Expanded(
           child: products.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => Text('Could not load products: $error'),
+            error: (error, _) => Text('לא ניתן לטעון מוצרים: $error'),
             data: (items) {
               if (items.isEmpty) {
                 return const Align(
-                  alignment: Alignment.topLeft,
+                  alignment: AlignmentDirectional.topStart,
                   child: Text(
-                    'No matching products.',
+                    'אין מוצרים תואמים.',
                     style: TextStyle(fontSize: 20),
                   ),
                 );
@@ -241,11 +252,11 @@ class _CheckInControls extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Fridge', style: Theme.of(context).textTheme.headlineSmall),
+        Text('מקרר', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 16),
         fridges.when(
           loading: () => const LinearProgressIndicator(),
-          error: (error, _) => Text('Could not load fridges: $error'),
+          error: (error, _) => Text('לא ניתן לטעון מקררים: $error'),
           data: (items) {
             final choices = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -272,13 +283,13 @@ class _CheckInControls extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'Time is captured when you confirm',
+          'השעה נרשמת ברגע האישור',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 20),
         ConfirmBar(
           buttonKey: const Key('confirm-check-in'),
-          label: saving ? 'Saving…' : 'Confirm check-in',
+          label: saving ? 'שומר…' : 'אישור קליטה',
           onPressed: canConfirm ? onConfirm : null,
         ),
       ],

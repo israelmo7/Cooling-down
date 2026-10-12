@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'presentation/shell/tablet_shell.dart';
 
@@ -11,8 +12,15 @@ class CoolingDownApp extends StatelessWidget {
       seedColor: const Color(0xFF0A6E8A),
     );
     return MaterialApp(
-      title: 'Cooling down',
+      title: 'קירור',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('he'),
+      supportedLocales: const [Locale('he')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: ThemeData(
         colorScheme: colorScheme,
         scaffoldBackgroundColor: colorScheme.surfaceContainerLow,

@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -56,6 +56,12 @@ class AppDatabase extends _$AppDatabase {
         await migrator.addColumn(localSettings, localSettings.smtpPassword);
         await migrator.addColumn(localSettings, localSettings.smtpFrom);
         await migrator.createTable(syncFeed);
+      }
+      if (from < 4) {
+        await customStatement('''
+UPDATE local_settings
+SET daily_report_enabled = 1, report_hour = 0, report_minute = 0
+''');
       }
     },
     beforeOpen: (details) async {
@@ -100,19 +106,19 @@ ON sync_outbox (status, created_at)
       batch.insertAll(fridges, [
         FridgesCompanion.insert(
           id: SeedIds.kitchenFridge,
-          name: 'Kitchen fridge',
+          name: 'מקרר מטבח',
           minCelsius: 0,
           maxCelsius: 5,
         ),
         FridgesCompanion.insert(
           id: SeedIds.pharmacyFridge,
-          name: 'Pharmacy fridge',
+          name: 'מקרר בית מרקחת',
           minCelsius: 2,
           maxCelsius: 8,
         ),
         FridgesCompanion.insert(
           id: SeedIds.freezer,
-          name: 'Freezer',
+          name: 'מקפיא',
           minCelsius: -25,
           maxCelsius: -18,
         ),
@@ -120,25 +126,25 @@ ON sync_outbox (status, created_at)
       batch.insertAll(products, [
         ProductsCompanion.insert(
           id: SeedIds.wholeMilk,
-          name: 'Whole milk',
+          name: 'חלב',
           sku: const Value('MILK'),
           createdAt: createdAt,
         ),
         ProductsCompanion.insert(
           id: SeedIds.chickenBreast,
-          name: 'Chicken breast',
+          name: 'חזה עוף',
           sku: const Value('CHKN'),
           createdAt: createdAt,
         ),
         ProductsCompanion.insert(
           id: SeedIds.insulin,
-          name: 'Insulin',
+          name: 'אינסולין',
           sku: const Value('INSL'),
           createdAt: createdAt,
         ),
         ProductsCompanion.insert(
           id: SeedIds.vaccine,
-          name: 'Vaccine',
+          name: 'חיסון',
           sku: const Value('VACC'),
           createdAt: createdAt,
         ),

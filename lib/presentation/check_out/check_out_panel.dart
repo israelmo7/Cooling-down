@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -40,22 +42,31 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Checked out ${log.productNameSnapshot} at ${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
+            'הוצא ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
           ),
         ),
       );
+      unawaited(_syncSoon());
     } on NoOpenHoldingException {
       if (!mounted) {
         return;
       }
       setState(() => _selectedMovementId = null);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('That item is no longer in a fridge.')),
+        const SnackBar(content: Text('הפריט כבר לא נמצא במקרר.')),
       );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
       }
+    }
+  }
+
+  Future<void> _syncSoon() async {
+    try {
+      await ref.read(syncRepositoryProvider).trySync();
+    } on Object {
+      // The row stays on this tablet until the shop computer is reachable.
     }
   }
 
@@ -65,7 +76,7 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
     return ScreenBody(
       child: holdings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Text('Could not load open items: $error'),
+        error: (error, _) => Text('לא ניתן לטעון פריטים פתוחים: $error'),
         data: (items) {
           final filtered = _filter(items);
           final selectedStillOpen = items.any(
@@ -95,13 +106,13 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Time is captured when you confirm',
+                    'השעה נרשמת ברגע האישור',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 20),
                   ConfirmBar(
                     buttonKey: const Key('confirm-check-out'),
-                    label: _saving ? 'Saving…' : 'Confirm check-out',
+                    label: _saving ? 'שומר…' : 'אישור הוצאה',
                     onPressed: canConfirm ? _confirm : null,
                   ),
                 ],
@@ -118,13 +129,13 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Time is captured when you confirm',
+                      'השעה נרשמת ברגע האישור',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 20),
                     ConfirmBar(
                       buttonKey: const Key('confirm-check-out'),
-                      label: _saving ? 'Saving…' : 'Confirm check-out',
+                      label: _saving ? 'שומר…' : 'אישור הוצאה',
                       onPressed: canConfirm ? _confirm : null,
                     ),
                   ],
@@ -182,12 +193,12 @@ class _OpenItemList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Open items', style: Theme.of(context).textTheme.headlineSmall),
+        Text('פריטים פתוחים', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 16),
         TextField(
           style: const TextStyle(fontSize: 22),
           decoration: const InputDecoration(
-            hintText: 'Filter by product or fridge',
+            hintText: 'סינון לפי מוצר או מקרר',
             prefixIcon: Icon(Icons.search, size: 32),
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 22),
@@ -198,11 +209,11 @@ class _OpenItemList extends StatelessWidget {
         Expanded(
           child: items.isEmpty
               ? Align(
-                  alignment: Alignment.topLeft,
+                  alignment: AlignmentDirectional.topStart,
                   child: Text(
                     hasAnyItems && query.trim().isNotEmpty
-                        ? 'Nothing open matches this filter.'
-                        : 'Nothing is in a fridge right now.',
+                        ? 'אין פריט פתוח שמתאים לסינון.'
+                        : 'אין כרגע פריטים במקרר.',
                     style: const TextStyle(fontSize: 22),
                   ),
                 )
@@ -225,7 +236,7 @@ class _OpenItemList extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${holding.fridgeName} · in at ${formatCelsius(holding.checkInTemperatureCelsius)}',
+                          '${holding.fridgeName} · נקלט ב-${formatCelsius(holding.checkInTemperatureCelsius)}',
                           style: const TextStyle(fontSize: 18),
                         ),
                       ],
@@ -236,7 +247,7 @@ class _OpenItemList extends StatelessWidget {
                       child: selected
                           ? FilledButton(
                               style: FilledButton.styleFrom(
-                                alignment: Alignment.centerLeft,
+                                alignment: AlignmentDirectional.centerStart,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
                                 ),
@@ -246,7 +257,7 @@ class _OpenItemList extends StatelessWidget {
                             )
                           : FilledButton.tonal(
                               style: FilledButton.styleFrom(
-                                alignment: Alignment.centerLeft,
+                                alignment: AlignmentDirectional.centerStart,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
                                 ),

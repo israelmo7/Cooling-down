@@ -26,10 +26,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _smtpPassword = TextEditingController();
   final _smtpFrom = TextEditingController();
   var _loaded = false;
-  var _reportEnabled = false;
+  var _reportEnabled = true;
   var _hubEnabled = false;
-  var _hour = 21;
-  var _minute = 0;
   var _busy = false;
 
   @override
@@ -71,8 +69,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _smtpFrom.text = settings.smtpFrom;
       _reportEnabled = settings.dailyReportEnabled;
       _hubEnabled = settings.hubEnabled;
-      _hour = settings.reportHour;
-      _minute = settings.reportMinute;
       _loaded = true;
     });
   }
@@ -81,7 +77,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final current = await ref.read(settingsRepositoryProvider).ensure();
     final email = _email.text.trim();
     if (email.isNotEmpty && !email.contains('@')) {
-      _show('Enter a full email address.');
+      _show('יש להזין כתובת אימייל מלאה.');
       return null;
     }
     var token = _token.text.trim();
@@ -97,8 +93,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       serverToken: token,
       ownerEmail: email,
       dailyReportEnabled: _reportEnabled,
-      reportHour: _hour,
-      reportMinute: _minute,
+      reportHour: 0,
+      reportMinute: 0,
       hubEnabled: _hubEnabled,
       smtpHost: _smtpHost.text,
       smtpPort: port,
@@ -121,7 +117,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         return;
       }
       if (!saved.hasServer) {
-        _show('Saved on this tablet. Add a server address to share it.');
+        _show('נשמר בטאבלט. יש להזין כתובת מחשב כדי לשתף.');
         return;
       }
       if (attempt.stoppedBecause != null) {
@@ -129,7 +125,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         return;
       }
       _show(
-        'Synced. Sent ${attempt.synced} from this tablet and received ${attempt.pulled}.',
+        'סונכרן. נשלחו ${attempt.synced} מהטאבלט ונקלטו ${attempt.pulled}.',
       );
     });
   }
@@ -177,93 +173,55 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider).asData?.value;
     final report = ref.watch(latestReportProvider).asData?.value;
-    final minutes = {0, 15, 30, 45, _minute}.toList()..sort();
 
     final fields = <Widget>[
       Text(
-        'This tablet keeps every check-in and check-out. A server is optional and lets other tablets share the same kitchen or pharmacy.',
+        'הטאבלט שומר כל קליטה והוצאה גם כשאין רשת. כשהמחשב בחנות זמין, הנתונים עולים אליו. בחצות המחשב שולח לבעלים דוח על היום שהסתיים.',
         style: Theme.of(context).textTheme.titleMedium,
       ),
       const SizedBox(height: 24),
       _field(
         controller: _environment,
-        label: 'Environment name',
-        helper:
-            'Use the same name on every tablet that should share one record.',
+        label: 'שם הסביבה',
+        helper: 'אותו שם בכל טאבלט שצריך לשתף את אותו מטבח או בית מרקחת.',
       ),
       _field(
         controller: _deviceName,
-        label: 'Device name',
-        helper: 'Shown so you can tell the tablets apart.',
+        label: 'שם המכשיר',
+        helper: 'כדי להבדיל בין הטאבלטים.',
       ),
       _field(
         controller: _serverUrl,
-        label: 'Server address',
-        helper: 'Leave empty to stay on this tablet only.',
+        label: 'כתובת המחשב',
+        helper:
+            'למשל http://192.168.1.20:8080. בלי רשת הנתונים נשארים בטאבלט ומסתנכרנים אחר כך.',
       ),
       _field(
         controller: _token,
-        label: 'Access token',
-        helper: 'The token stays on this tablet. Keep the server on your own network.',
+        label: 'אסימון גישה',
+        helper: 'האסימון נשאר בטאבלט. המחשב נשאר ברשת של החנות.',
         obscure: true,
       ),
       _field(
         controller: _email,
-        label: 'Owner email',
-        helper: 'The end-of-day report is sent here when a server is set.',
+        label: 'אימייל הבעלים',
+        helper: 'הדוח היומי נשלח לכאן מהמחשב בחצות.',
         keyboard: TextInputType.emailAddress,
       ),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
-        title: const Text('Email a report at the end of each day'),
+        title: const Text('שליחת דוח בחצות'),
+        subtitle: const Text('ב-00:00 נשלח דוח על היום שהסתיים.'),
         value: _reportEnabled,
         onChanged: _busy
             ? null
             : (value) => setState(() => _reportEnabled = value),
       ),
-      const SizedBox(height: 8),
-      Row(
-        children: [
-          Expanded(
-            child: DropdownButtonFormField<int>(
-              initialValue: _hour,
-              decoration: const InputDecoration(labelText: 'Report hour'),
-              items: [
-                for (var hour = 0; hour < 24; hour++)
-                  DropdownMenuItem(
-                    value: hour,
-                    child: Text(hour.toString().padLeft(2, '0')),
-                  ),
-              ],
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() => _hour = value ?? _hour),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: DropdownButtonFormField<int>(
-              initialValue: _minute,
-              decoration: const InputDecoration(labelText: 'Report minute'),
-              items: [
-                for (final minute in minutes)
-                  DropdownMenuItem(
-                    value: minute,
-                    child: Text(minute.toString().padLeft(2, '0')),
-                  ),
-              ],
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() => _minute = value ?? _minute),
-            ),
-          ),
-        ],
-      ),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
-        title: const Text('This tablet is the shared copy'),
+        title: const Text('הטאבלט הזה הוא העותק המשותף'),
         subtitle: const Text(
-          'Leave this app open. Other tablets use the address below and the token above. This is the same on iPhone and Android.',
+          'השאירו את האפליקציה פתוחה. טאבלטים אחרים משתמשים בכתובת שמופיעה כאן ובאסימון למעלה.',
         ),
         value: _hubEnabled,
         onChanged: _busy
@@ -280,34 +238,34 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             : () => _run(() async {
                 final saved = await _save();
                 if (saved != null && mounted) {
-                  _show('Settings saved.');
+                  _show('ההגדרות נשמרו.');
                 }
               }),
-        child: const Text('Save'),
+        child: const Text('שמירה'),
       ),
       const SizedBox(height: 12),
       OutlinedButton(
         onPressed: _busy ? null : _syncNow,
-        child: const Text('Sync now'),
+        child: const Text('סנכרון עכשיו'),
       ),
       const SizedBox(height: 12),
       OutlinedButton(
         onPressed: _busy ? null : _sendReport,
-        child: const Text("Send today's report"),
+        child: const Text('שליחת הדוח היומי'),
       ),
       const SizedBox(height: 28),
-      Text('Last sync: ${_lastSync(settings)}'),
+      Text('סנכרון אחרון: ${_lastSync(settings)}'),
       const SizedBox(height: 8),
-      Text('Last report: ${_lastReport(report)}'),
+      Text('דוח אחרון: ${_lastReport(report)}'),
       const SizedBox(height: 8),
       Text(
-        'Device id: ${settings?.deviceId ?? ''}',
+        'מזהה מכשיר: ${settings?.deviceId ?? ''}',
         style: Theme.of(context).textTheme.bodySmall,
       ),
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: const Text('הגדרות')),
       body: _loaded
           ? LayoutBuilder(
               builder: (context, constraints) {
@@ -345,27 +303,27 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       const SizedBox(height: 8),
       Text(
         address == null
-            ? 'Save to start sharing on this Wi-Fi.'
-            : 'Other tablets use $address',
+            ? 'שמרו כדי להתחיל שיתוף ברשת.'
+            : 'טאבלטים אחרים משתמשים ב-$address',
       ),
       const SizedBox(height: 16),
       _field(
         controller: _smtpHost,
-        label: 'Mail server',
-        helper: 'Optional. Used when this Wi-Fi can reach the internet.',
+        label: 'שרת דואר',
+        helper: 'רק אם הטאבלט הזה שולח את המייל בעצמו.',
       ),
-      _field(controller: _smtpPort, label: 'Mail port', helper: 'Usually 587.'),
-      _field(controller: _smtpUser, label: 'Mail username', helper: ''),
+      _field(controller: _smtpPort, label: 'יציאת דואר', helper: 'בדרך כלל 587.'),
+      _field(controller: _smtpUser, label: 'שם משתמש לדואר', helper: ''),
       _field(
         controller: _smtpPassword,
-        label: 'Mail password',
-        helper: 'Stays on this tablet.',
+        label: 'סיסמת דואר',
+        helper: 'נשארת בטאבלט.',
         obscure: true,
       ),
       _field(
         controller: _smtpFrom,
-        label: 'Mail from address',
-        helper: 'The address the owner sees as the sender.',
+        label: 'כתובת השולח',
+        helper: 'הכתובת שהבעלים רואה כשולח.',
         keyboard: TextInputType.emailAddress,
       ),
     ];
@@ -398,7 +356,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   String _lastSync(DeviceSettings? settings) {
     if (settings == null || settings.lastSyncAt == null) {
-      return settings?.lastSyncError ?? 'Not synced yet';
+      return settings?.lastSyncError ?? 'עדיין לא סונכרן';
     }
     final clock = formatReportClock(settings.lastSyncAt!);
     final error = settings.lastSyncError;
@@ -410,8 +368,25 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   String _lastReport(StoredDailyReport? report) {
     if (report == null) {
-      return 'None yet';
+      return 'עדיין אין';
     }
-    return '${report.reportDate} · ${report.status}';
+    return '${report.reportDate} · ${_reportStatus(report.status)}';
+  }
+}
+
+String _reportStatus(String status) {
+  switch (status) {
+    case ReportStatus.sent:
+      return 'נשלח';
+    case ReportStatus.alreadySent:
+      return 'כבר נשלח';
+    case ReportStatus.stored:
+      return 'נשמר במחשב';
+    case ReportStatus.waiting:
+      return 'ממתין לשליחה';
+    case ReportStatus.failed:
+      return 'השליחה נכשלה';
+    default:
+      return status;
   }
 }

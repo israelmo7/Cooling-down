@@ -27,11 +27,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.byKey(const Key('open-settings')), findsOneWidget);
-    expect(find.text('Check in'), findsOneWidget);
-    expect(find.text('Check out'), findsOneWidget);
-    expect(find.text('In the fridge'), findsOneWidget);
-    expect(find.text('Chicken breast'), findsOneWidget);
-    expect(find.text('Kitchen fridge'), findsOneWidget);
+    expect(find.text('קליטה'), findsOneWidget);
+    expect(find.text('הוצאה'), findsOneWidget);
+    expect(find.text('במקרר'), findsOneWidget);
+    expect(find.text('חזה עוף'), findsOneWidget);
+    expect(find.text('מקרר מטבח'), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-in')), findsOneWidget);
     expect(find.byKey(const Key('confirm-check-out')), findsNothing);
 
@@ -40,7 +40,7 @@ void main() {
     );
     expect(checkIn.onPressed, isNull);
 
-    await tester.tap(find.text('Check out'));
+    await tester.tap(find.text('הוצאה'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
@@ -50,10 +50,10 @@ void main() {
     );
     expect(checkOut.onPressed, isNull);
 
-    await tester.tap(find.text('In the fridge'));
+    await tester.tap(find.text('במקרר'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('Nothing is in a fridge right now.'), findsOneWidget);
+    expect(find.text('אין כרגע פריטים במקרר.'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -84,10 +84,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Environment name'), findsOneWidget);
-    expect(find.text('Owner email'), findsOneWidget);
-    expect(find.text('Email a report at the end of each day'), findsOneWidget);
-    expect(find.text("Send today's report"), findsOneWidget);
+    expect(find.text('שם הסביבה'), findsOneWidget);
+    expect(find.text('אימייל הבעלים'), findsOneWidget);
+    expect(find.text('שליחת דוח בחצות'), findsOneWidget);
+    expect(find.text('שליחת הדוח היומי'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
