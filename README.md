@@ -45,4 +45,4 @@ Field steps are in `guide.txt`. Settings for the shop computer are `server-ssh/s
 
 - `tablets/` — one Flutter app for Android and iOS. `android/` and `ios/` are the install shells for each store.
 - `server-ssh/` — the shop program, its image, the SSH deploy, and the Windows pack
-- `server-usb/` — Docker and SSH installers for a Linux shop PC that does not have them
+- `server-usb/` — offline installers. Linux packages are in the folder root. Windows Docker and WSL are in `windows/`

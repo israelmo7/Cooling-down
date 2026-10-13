@@ -17,13 +17,15 @@ Shop settings — server-ssh/shop.json
   The program reads .env. apply writes .env from shop.json. /admin can change mail until the next apply.
 
 Windows shop PC
-  The server is a Linux image. Docker Desktop runs it. No Ubuntu install, and no Windows rewrite.
-  Install Docker Desktop once and leave it running.
-  On a 64-bit Intel or AMD computer that already has Docker: bash server-ssh/pack-windows.sh
-  Copy server-ssh/dist/cooling-down to the PC. Edit shop.json there.
-  powershell -ExecutionPolicy Bypass -File .\start.ps1
-  If Windows asks, allow Docker on the private shop network. Tablets need port 8080.
-  server-usb and ssh-window.sh are Linux only. Tablets do not use SSH.
+  The server is a Linux image. Docker Desktop runs it.
+  On a computer with internet and Docker: sh server-usb/windows/fetch.sh arm64
+  Use amd64 for a 64-bit Intel or AMD PC. Copy server-usb/windows to a USB stick.
+  On Windows, in an Administrator PowerShell, from that folder:
+    powershell -ExecutionPolicy Bypass -File .\install.ps1
+  Restart, start Docker Desktop, and run that command again. It prints the token.
+  Tablet address: http://<this-pc>:8080
+  If Windows asks, allow Docker on the private shop network.
+  ssh-window.sh is Linux only. Tablets do not use SSH.
 
 Linux shop PC
   Already possible. Nothing else has to be written.
@@ -44,5 +46,5 @@ When it fails
   Deleting data/.env creates a new token. Tablets need the new one.
   Two environment names split the archive.
   Wrong SMTP stores the report and does not send it. Wrong TZ moves midnight.
-  USB packages must match that Ubuntu version. Windows does not use them.
-  Pack the Windows folder on a 64-bit Intel or AMD computer.
+  Linux USB packages must match that Ubuntu version.
+  The Windows stick must match the PC: arm64 or amd64.

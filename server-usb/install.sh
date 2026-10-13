@@ -42,7 +42,7 @@ else
   if ! command -v apt-get >/dev/null 2>&1; then
     echo "This computer has no packages on the USB and no apt-get."
     echo "On an Ubuntu machine with internet, run server-usb/fetch-packages.sh and copy this folder again."
-    echo "A Windows shop PC does not use this folder. Install Docker Desktop and see guide.txt."
+    echo "A Windows shop PC uses server-usb/windows. See guide.txt."
     exit 1
   fi
   echo "No USB packages found. Installing Docker, Compose, and SSH from the internet."

@@ -59,5 +59,11 @@ sync_token.txt
 server-usb/packages/*
 !server-usb/packages/.gitkeep
 
+# Windows installers downloaded by server-usb/windows/fetch.sh
+server-usb/windows/*
+!server-usb/windows/fetch.sh
+!server-usb/windows/install.ps1
+!server-usb/windows/.gitkeep
+
 # Windows folder produced by pack-windows.sh (image tar is large)
 server-ssh/dist/
