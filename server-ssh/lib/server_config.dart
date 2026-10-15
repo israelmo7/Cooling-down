@@ -1,5 +1,19 @@
 import 'mailer.dart';
 
+/// Clock values the admin page can change. The report hour is read on the
+/// next check. The time zone applies the next time the program starts.
+class ShopSchedule {
+  ShopSchedule({this.timeZone = 'Asia/Jerusalem', this.reportHour = 0});
+
+  String timeZone;
+  int reportHour;
+
+  void replace({required String timeZone, required int reportHour}) {
+    this.timeZone = timeZone;
+    this.reportHour = reportHour;
+  }
+}
+
 /// Values from `.env`, with a non-empty process variable taking precedence.
 class ServerConfig {
   ServerConfig({

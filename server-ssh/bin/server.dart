@@ -17,9 +17,16 @@ Future<void> main(List<String> args) async {
     return;
   }
   final envFile = resolveEnvFile();
+  final fileValues = loadEnvFile(envFile);
   final config = ServerConfig.fromMaps(
-    file: loadEnvFile(envFile),
+    file: fileValues,
     platform: Platform.environment,
+  );
+  final schedule = ShopSchedule(
+    timeZone: fileValues['TZ']?.trim().isNotEmpty == true
+        ? fileValues['TZ']!.trim()
+        : 'Asia/Jerusalem',
+    reportHour: normalizeReportHour(fileValues['REPORT_HOUR'] ?? ''),
   );
   final token = await _loadToken(config.syncToken, envFile);
   final database = sqlite3.open(config.dataPath);
@@ -36,6 +43,10 @@ Future<void> main(List<String> args) async {
       adminPassword: config.adminPassword,
       mail: config.mail,
       envFile: envFile,
+      shopFile: File(
+        '${envFile.parent.path}${Platform.pathSeparator}shop.json',
+      ),
+      schedule: schedule,
     ),
     InternetAddress.anyIPv4,
     config.port,
@@ -53,7 +64,7 @@ Future<void> main(List<String> args) async {
     stdout.writeln('Email is on via ${config.mail.smtpHost}.');
   }
   if (config.mail.ownerEmail.contains('@')) {
-    stdout.writeln('Midnight reports go to ${config.mail.ownerEmail}.');
+    stdout.writeln('Daily reports go to ${config.mail.ownerEmail}.');
   } else {
     stdout.writeln('Set the owner email in shop.json or on /admin.');
   }
@@ -64,12 +75,17 @@ Future<void> main(List<String> args) async {
   } else {
     stdout.writeln('Admin page is /admin for ${config.adminUser}.');
   }
+  final hour = schedule.reportHour.toString().padLeft(2, '0');
   stdout.writeln(
-    'A daily report is emailed at 00:00 for the day that just ended.',
+    'A daily report is emailed at $hour:00 for the day that just ended.',
   );
-  unawaited(store.sendClosedDay(DateTime.now()));
+  unawaited(
+    store.sendClosedDay(DateTime.now(), reportHour: schedule.reportHour),
+  );
   Timer.periodic(const Duration(minutes: 1), (_) {
-    unawaited(store.sendClosedDay(DateTime.now()));
+    unawaited(
+      store.sendClosedDay(DateTime.now(), reportHour: schedule.reportHour),
+    );
   });
 }
 

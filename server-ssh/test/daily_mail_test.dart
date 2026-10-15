@@ -1,6 +1,8 @@
 import 'package:cooling_down_server/daily_mail.dart';
 import 'package:test/test.dart';
 
+String _celsius(num degrees) => '\u2066${degrees.toStringAsFixed(1)}°C\u2069';
+
 void main() {
   test('pairs check-in with check-out and leaves an open item as a dash', () {
     final report = buildClosedDayReport(
@@ -105,22 +107,24 @@ void main() {
     expect(
       report.body,
       contains(
-        'חזה עוף | 3.2°C · יוסי · מקרר מטבח | 08:10 | 5.1°C · דנה · מקרר מטבח | 18:40',
+        'חזה עוף | ${_celsius(3.2)} · יוסי · מקרר מטבח | 08:10 | ${_celsius(5.1)} · דנה · מקרר מטבח | 18:40',
       ),
     );
     expect(
       report.body,
       contains(
-        'אינסולין | 4.5°C · יוסי · מקרר תרופות | 10/10 21:05 | 6.0°C · דנה · מקרר תרופות | 09:30',
+        'אינסולין | ${_celsius(4.5)} · יוסי · מקרר תרופות | 10/10 21:05 | ${_celsius(6)} · דנה · מקרר תרופות | 09:30',
       ),
     );
     expect(
       report.body,
-      contains('חיסון <מנה> | 3.0°C · דנה · מקרר תרופות | 11:00 | - | -'),
+      contains(
+        'חיסון <מנה> | ${_celsius(3)} · דנה · מקרר תרופות | 11:00 | - | -',
+      ),
     );
     expect(
       report.body,
-      contains('חלב | 4.0°C · דנה · מקרר מטבח | 15:00 | - | -'),
+      contains('חלב | ${_celsius(4)} · דנה · מקרר מטבח | 15:00 | - | -'),
     );
     expect(report.body, isNot(contains('גבינה')));
     expect(report.body, isNot(contains('12/10')));

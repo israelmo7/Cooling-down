@@ -6,6 +6,7 @@ import 'package:shelf_router/shelf_router.dart';
 
 import 'admin.dart';
 import 'mailer.dart';
+import 'server_config.dart';
 import 'sync_store.dart';
 
 Handler buildHandler({
@@ -15,6 +16,8 @@ Handler buildHandler({
   String adminPassword = '',
   MailSettings? mail,
   File? envFile,
+  File? shopFile,
+  ShopSchedule? schedule,
 }) {
   final gate = AdminGate(user: adminUser, password: adminPassword);
   final router = Router()
@@ -26,6 +29,8 @@ Handler buildHandler({
     gate: gate,
     mail: mail ?? MailSettings(),
     envFile: envFile,
+    shopFile: shopFile,
+    schedule: schedule ?? ShopSchedule(),
   );
 
   return (Request request) {

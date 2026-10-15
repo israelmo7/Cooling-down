@@ -223,10 +223,17 @@ WHERE environment = ? AND report_date = ?
     }
   }
 
-  /// Emails yesterday's report once the local clock has passed midnight.
+  /// Emails yesterday's report once the local clock has reached [reportHour].
   /// Tablets that were offline keep their rows and sync them when the computer
   /// is reachable again. A report already marked sent is not mailed twice.
-  Future<List<String>> sendClosedDay(DateTime nowLocal) async {
+  Future<List<String>> sendClosedDay(
+    DateTime nowLocal, {
+    int reportHour = 0,
+  }) async {
+    final hour = reportHour < 0 ? 0 : (reportHour > 23 ? 23 : reportHour);
+    if (nowLocal.hour < hour) {
+      return const [];
+    }
     final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
     final day = startOfToday.subtract(const Duration(days: 1));
     final date = _reportDate(day);

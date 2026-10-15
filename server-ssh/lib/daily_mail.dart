@@ -292,12 +292,15 @@ String _how(StoredLogLine? line) {
     return '-';
   }
   final parts = <String>[
-    if (line.temperature != null) '${line.temperature!.toStringAsFixed(1)}°C',
+    if (line.temperature != null)
+      _ltr('${line.temperature!.toStringAsFixed(1)}°C'),
     if (line.workerName.trim().isNotEmpty) line.workerName.trim(),
     if (line.fridgeName.trim().isNotEmpty) line.fridgeName.trim(),
   ];
   return parts.isEmpty ? '-' : parts.join(' · ');
 }
+
+String _ltr(String value) => '\u2066$value\u2069';
 
 String _when(StoredLogLine? line, DateTime day) {
   if (line == null) {

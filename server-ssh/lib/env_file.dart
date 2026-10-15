@@ -107,6 +107,7 @@ const shopSettingKeys = <String>[
   'SMTP_PASSWORD',
   'SMTP_FROM',
   'TZ',
+  'REPORT_HOUR',
 ];
 
 /// Copies [shopFile] into [envFile].
@@ -143,6 +144,9 @@ void applyShopJson({required File shopFile, required File envFile}) {
     if (key == 'TZ' && value.trim().isEmpty) {
       value = 'Asia/Jerusalem';
     }
+    if (key == 'REPORT_HOUR') {
+      value = '${normalizeReportHour(value)}';
+    }
     if (key == 'SYNC_TOKEN' && value.trim().isEmpty) {
       final kept = existing['SYNC_TOKEN']?.trim() ?? '';
       if (kept.isNotEmpty) {
@@ -164,6 +168,46 @@ void applyShopJson({required File shopFile, required File envFile}) {
   if (tokenToRemember != null) {
     rememberShopToken(shopFile, tokenToRemember);
   }
+}
+
+/// Hours 0–23. Anything else, including an empty value, is midnight.
+int normalizeReportHour(String raw) {
+  final hour = int.tryParse(raw.trim());
+  if (hour == null || hour < 0 || hour > 23) {
+    return 0;
+  }
+  return hour;
+}
+
+/// Writes [updates] into [shopFile] and leaves every other key, including the
+/// token. A missing file is created so the next apply sees the panel edit.
+void writeShopKeys(File shopFile, Map<String, String> updates) {
+  final pending = Map<String, String>.from(updates)..remove('SYNC_TOKEN');
+  if (pending.isEmpty) {
+    return;
+  }
+  final Map<String, dynamic> decoded;
+  if (shopFile.existsSync()) {
+    final Object? raw;
+    try {
+      raw = jsonDecode(shopFile.readAsStringSync());
+    } on FormatException {
+      return;
+    }
+    if (raw is! Map) {
+      return;
+    }
+    decoded = Map<String, dynamic>.from(raw);
+  } else {
+    decoded = {};
+  }
+  for (final entry in pending.entries) {
+    decoded[entry.key] = entry.value;
+  }
+  shopFile.parent.createSync(recursive: true);
+  shopFile.writeAsStringSync(
+    '${const JsonEncoder.withIndent('  ').convert(decoded)}\n',
+  );
 }
 
 /// Fills an empty `SYNC_TOKEN` in [shopFile] so the edited file shows the token.

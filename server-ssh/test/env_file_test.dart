@@ -157,6 +157,61 @@ SMTP_PASSWORD="p a s s"
     );
   });
 
+  test('an empty report hour is midnight', () {
+    final dir = Directory.systemTemp.createTempSync('cooling-shop-hour-');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final shop = File('${dir.path}/shop.json')
+      ..writeAsStringSync('{"REPORT_HOUR":"","TZ":"UTC"}');
+    final env = File('${dir.path}/.env');
+
+    applyShopJson(shopFile: shop, envFile: env);
+    expect(loadEnvFile(env)['REPORT_HOUR'], '0');
+    expect(loadEnvFile(env)['TZ'], 'UTC');
+
+    shop.writeAsStringSync('{"REPORT_HOUR":"7"}');
+    applyShopJson(shopFile: shop, envFile: env);
+    expect(loadEnvFile(env)['REPORT_HOUR'], '7');
+
+    shop.writeAsStringSync('{"REPORT_HOUR":"99"}');
+    applyShopJson(shopFile: shop, envFile: env);
+    expect(loadEnvFile(env)['REPORT_HOUR'], '0');
+  });
+
+  test('a panel edit stays in shop.json for the next apply', () {
+    final dir = Directory.systemTemp.createTempSync('cooling-shop-panel-');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final shop = File('${dir.path}/shop.json')
+      ..writeAsStringSync(
+        '{"_readme":"kept","SYNC_TOKEN":"","OWNER_EMAIL":"","TZ":"Asia/Jerusalem"}',
+      );
+    final env = File('${dir.path}/.env');
+    applyShopJson(shopFile: shop, envFile: env);
+    final token = loadEnvFile(env)['SYNC_TOKEN']!;
+
+    writeShopKeys(shop, {
+      'OWNER_EMAIL': 'panel@shop.test',
+      'REPORT_HOUR': '6',
+      'ADMIN_PASSWORD': 'new pass',
+      'SYNC_TOKEN': 'should-not-replace',
+    });
+    writeEnvKeys(env, {
+      'OWNER_EMAIL': 'panel@shop.test',
+      'REPORT_HOUR': '6',
+      'ADMIN_PASSWORD': 'new pass',
+    });
+
+    final saved = jsonDecode(shop.readAsStringSync()) as Map<String, dynamic>;
+    expect(saved['SYNC_TOKEN'], token);
+    expect(saved['_readme'], 'kept');
+    expect(saved['OWNER_EMAIL'], 'panel@shop.test');
+
+    applyShopJson(shopFile: shop, envFile: env);
+    expect(loadEnvFile(env)['SYNC_TOKEN'], token);
+    expect(loadEnvFile(env)['OWNER_EMAIL'], 'panel@shop.test');
+    expect(loadEnvFile(env)['REPORT_HOUR'], '6');
+    expect(loadEnvFile(env)['ADMIN_PASSWORD'], 'new pass');
+  });
+
   test('email stays off until a mail host is saved', () async {
     final mailer = EnvReportMailer(MailSettings());
     final sent = await mailer.send(

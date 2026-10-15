@@ -1,5 +1,5 @@
 {
-  "_readme": "Empty SYNC_TOKEN is filled on first apply and printed. Empty ADMIN_USER or ADMIN_PASSWORD turns /admin off. Empty SMTP_HOST turns mail off; the report is still stored. TZ is the midnight clock.",
+  "_readme": "Empty SYNC_TOKEN is filled on first apply and printed. Empty ADMIN_USER or ADMIN_PASSWORD turns /admin off. Both can also be changed on /admin. Empty SMTP_HOST turns mail off; the report is still stored. TZ is the shop clock and applies on the next start. REPORT_HOUR is 0-23. The page writes mail, the clock, the report hour, and the admin login back here.",
   "SYNC_TOKEN": "",
   "ADMIN_USER": "",
   "ADMIN_PASSWORD": "",
@@ -9,5 +9,6 @@
   "SMTP_USER": "",
   "SMTP_PASSWORD": "",
   "SMTP_FROM": "",
-  "TZ": "Asia/Jerusalem"
+  "TZ": "Asia/Jerusalem",
+  "REPORT_HOUR": "0"
 }

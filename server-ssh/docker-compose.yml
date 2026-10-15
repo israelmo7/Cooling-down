@@ -1,5 +1,5 @@
 # Shop computer. Tablets on the shop Wi-Fi call port 8080.
-# Midnight uses TZ from shop.json. The default is Asia/Jerusalem.
+# The report hour and TZ come from shop.json. TZ applies on the next start.
 services:
   server:
     image: cooling-down-server:0.1.0

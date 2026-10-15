@@ -6,15 +6,16 @@ import 'package:shelf_router/shelf_router.dart';
 
 import 'env_file.dart';
 import 'mailer.dart';
+import 'server_config.dart';
 import 'sync_store.dart';
 
 /// Login for the shop-computer page. The username and password come from
-/// ADMIN_USER and ADMIN_PASSWORD when the server process starts.
+/// ADMIN_USER and ADMIN_PASSWORD. The page can change them and write them back.
 class AdminGate {
   AdminGate({required this.user, required this.password});
 
-  final String user;
-  final String password;
+  String user;
+  String password;
   final Set<String> _sessions = {};
   final Random _random = Random.secure();
 
@@ -44,6 +45,11 @@ class AdminGate {
     return token;
   }
 
+  void replace({required String user, required String password}) {
+    this.user = user;
+    this.password = password;
+  }
+
   void close(Request request) {
     final header = request.headers['cookie'] ?? '';
     for (final part in header.split(';')) {
@@ -61,9 +67,15 @@ void mountAdmin(
   required AdminGate gate,
   required MailSettings mail,
   File? envFile,
+  File? shopFile,
+  ShopSchedule? schedule,
 }) {
+  final clock = schedule ?? ShopSchedule();
   router
-    ..get('/admin', (Request request) => _page(request, store, gate, mail))
+    ..get(
+      '/admin',
+      (Request request) => _page(request, store, gate, mail, clock),
+    )
     ..post('/admin/login', (Request request) => _login(request, gate))
     ..post('/admin/logout', (Request request) => _logout(request, gate))
     ..post(
@@ -72,7 +84,16 @@ void mountAdmin(
     )
     ..post(
       '/admin/mail',
-      (Request request) => _saveMail(request, store, gate, mail, envFile),
+      (Request request) =>
+          _saveMail(request, store, gate, mail, envFile, shopFile),
+    )
+    ..post(
+      '/admin/access',
+      (Request request) => _saveAccess(request, gate, envFile, shopFile),
+    )
+    ..post(
+      '/admin/clock',
+      (Request request) => _saveClock(request, gate, clock, envFile, shopFile),
     );
 }
 
@@ -81,12 +102,13 @@ Response _page(
   SyncStore store,
   AdminGate gate,
   MailSettings mail,
+  ShopSchedule schedule,
 ) {
   if (!gate.configured) {
     return _html(
       _shell(
         'לוח ניהול',
-        '<p>הגדירו ADMIN_USER ו-ADMIN_PASSWORD בקובץ .env.</p>',
+        '<p>הגדירו ADMIN_USER ו-ADMIN_PASSWORD בקובץ shop.json.</p>',
       ),
     );
   }
@@ -98,10 +120,15 @@ Response _page(
   final notice = switch (request.url.queryParameters['notice']) {
     'saved' => '<p>הגדרות הדואר נשמרו.</p>',
     'mail' => '<p class="error">בדקו את כתובות האימייל ואת פורט הדואר.</p>',
+    'access' => '<p>פרטי הכניסה נשמרו.</p>',
+    'clock' => '<p>השעון נשמר.</p>',
+    'clock-error' => '<p class="error">בדקו את אזור הזמן ואת שעת הדוח.</p>',
     _ => '',
   };
   final sections = StringBuffer()
     ..writeln(notice)
+    ..writeln(_accessForm(gate))
+    ..writeln(_clockForm(schedule))
     ..writeln(_mailForm(mail));
   final environments = store.environmentSummaries();
   if (environments.isEmpty) {
@@ -122,7 +149,7 @@ Response _page(
         final word = log.eventType == 'check_in' ? 'קליטה' : 'הוצאה';
         final temperature = log.temperature == null
             ? ''
-            : ' ${log.temperature!.toStringAsFixed(1)}°C';
+            : ' ${_ltr('${log.temperature!.toStringAsFixed(1)}°C')}';
         final worker = log.workerName.trim().isEmpty
             ? ''
             : ' · ${_escape(log.workerName.trim())}';
@@ -183,6 +210,7 @@ Future<Response> _saveMail(
   AdminGate gate,
   MailSettings mail,
   File? envFile,
+  File? shopFile,
 ) async {
   if (!gate.allows(request)) {
     return _redirect('/admin');
@@ -199,13 +227,67 @@ Future<Response> _saveMail(
   if (!_mailIsValid(next)) {
     return _redirect('/admin?notice=mail');
   }
-  if (envFile != null) {
-    writeEnvKeys(envFile, next.toEnv());
-  }
+  _writeBoth(envFile, shopFile, next.toEnv());
   mail.replaceWith(next);
   store.setDefaultOwnerEmail(next.ownerEmail);
   return _redirect('/admin?notice=saved');
 }
+
+Future<Response> _saveAccess(
+  Request request,
+  AdminGate gate,
+  File? envFile,
+  File? shopFile,
+) async {
+  if (!gate.allows(request)) {
+    return _redirect('/admin');
+  }
+  final form = await _form(request);
+  final user = (form['admin_user'] ?? '').trim();
+  final password = form['admin_password'] ?? '';
+  gate.replace(user: user, password: password);
+  _writeBoth(envFile, shopFile, {
+    'ADMIN_USER': user,
+    'ADMIN_PASSWORD': password,
+  });
+  return _redirect('/admin?notice=access');
+}
+
+Future<Response> _saveClock(
+  Request request,
+  AdminGate gate,
+  ShopSchedule schedule,
+  File? envFile,
+  File? shopFile,
+) async {
+  if (!gate.allows(request)) {
+    return _redirect('/admin');
+  }
+  final form = await _form(request);
+  final zone = (form['time_zone'] ?? '').trim();
+  final hour = int.tryParse((form['report_hour'] ?? '').trim());
+  if (!_zoneIsValid(zone) || hour == null || hour < 0 || hour > 23) {
+    return _redirect('/admin?notice=clock-error');
+  }
+  schedule.replace(timeZone: zone, reportHour: hour);
+  _writeBoth(envFile, shopFile, {'TZ': zone, 'REPORT_HOUR': '$hour'});
+  return _redirect('/admin?notice=clock');
+}
+
+bool _zoneIsValid(String zone) {
+  return RegExp(r'^[A-Za-z0-9_+/-]+$').hasMatch(zone);
+}
+
+void _writeBoth(File? envFile, File? shopFile, Map<String, String> updates) {
+  if (envFile != null) {
+    writeEnvKeys(envFile, updates);
+  }
+  if (shopFile != null) {
+    writeShopKeys(shopFile, updates);
+  }
+}
+
+String _ltr(String value) => '\u2066$value\u2069';
 
 bool _mailIsValid(MailSettings mail) {
   if (mail.ownerEmail.isNotEmpty && !mail.ownerEmail.contains('@')) {
@@ -220,11 +302,47 @@ bool _mailIsValid(MailSettings mail) {
   return mail.smtpFrom.contains('@');
 }
 
+String _accessForm(AdminGate gate) {
+  return '''
+<section>
+  <h2>כניסה</h2>
+  <p>אפשר לשנות גם מכאן וגם בקובץ shop.json. האסימון נשאר בקובץ.</p>
+  <form method="post" action="/admin/access">
+    <label>שם משתמש
+      <input name="admin_user" value="${_escape(gate.user)}" autocomplete="username">
+    </label>
+    <label>סיסמה
+      <input name="admin_password" type="password" value="${_escape(gate.password)}" autocomplete="new-password">
+    </label>
+    <button type="submit">שמירת הכניסה</button>
+  </form>
+</section>
+''';
+}
+
+String _clockForm(ShopSchedule schedule) {
+  return '''
+<section>
+  <h2>שעון</h2>
+  <p>שעת הדוח נבדקת כל דקה. אזור הזמן נכנס לתוקף בהפעלה הבאה.</p>
+  <form method="post" action="/admin/clock">
+    <label>אזור זמן
+      <input name="time_zone" value="${_escape(schedule.timeZone)}">
+    </label>
+    <label>שעת הדוח
+      <input name="report_hour" inputmode="numeric" value="${schedule.reportHour}">
+    </label>
+    <button type="submit">שמירת השעון</button>
+  </form>
+</section>
+''';
+}
+
 String _mailForm(MailSettings mail) {
   return '''
 <section>
   <h2>דואר</h2>
-  <p>האסימון וסיסמת הניהול נשארים בקובץ .env. שאר שדות הדואר נשמרים שם מכאן.</p>
+  <p>שדות הדואר נשמרים בקובץ.</p>
   <form method="post" action="/admin/mail">
     <label>אימייל הבעלים
       <input name="owner_email" type="email" value="${_escape(mail.ownerEmail)}">

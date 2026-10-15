@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cooling_down_server/env_file.dart';
 import 'package:cooling_down_server/handler.dart';
 import 'package:cooling_down_server/mailer.dart';
+import 'package:cooling_down_server/server_config.dart';
 import 'package:cooling_down_server/sync_store.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:test/test.dart';
@@ -260,7 +261,7 @@ void main() {
     expect(mailer.lastBody, contains('מסקנה:'));
     expect(
       mailer.lastBody,
-      contains('חלב | 4.0°C · דנה · מקרר מטבח | 15:00 | - | -'),
+      contains('חלב | \u20664.0°C\u2069 · דנה · מקרר מטבח | 15:00 | - | -'),
     );
     expect(mailer.lastHtml, contains('<table'));
     expect(mailer.lastHtml, contains('>חלב</td>'));
@@ -353,6 +354,150 @@ void main() {
       'pharmacy@shop.test',
     );
   });
+
+  test('the report waits until the chosen hour', () async {
+    final mailer = _RecordingMailer();
+    final store = SyncStore.memory(
+      mailer: mailer,
+      ownerEmail: 'owner@shop.test',
+    );
+    addTearDown(store.close);
+    store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      push: [
+        _push('refrigeration_log', {
+          ..._log(
+            id: 'log-hour',
+            movementId: 'move-hour',
+            eventType: 'check_in',
+          ),
+          'occurred_at': DateTime(2026, 10, 11, 15).toUtc().toIso8601String(),
+        }),
+      ],
+    );
+
+    final early = await store.sendClosedDay(
+      DateTime(2026, 10, 12, 5, 59),
+      reportHour: 6,
+    );
+    final due = await store.sendClosedDay(
+      DateTime(2026, 10, 12, 6),
+      reportHour: 6,
+    );
+    final again = await store.sendClosedDay(
+      DateTime(2026, 10, 12, 18),
+      reportHour: 6,
+    );
+
+    expect(early, isEmpty);
+    expect(due, ['sent']);
+    expect(again, isEmpty);
+    expect(mailer.sent, 1);
+  });
+
+  test(
+    'the panel writes the admin login and the clock back to the file',
+    () async {
+      final store = SyncStore.memory(ownerEmail: 'owner@shop.test');
+      addTearDown(store.close);
+      final dir = Directory.systemTemp.createTempSync('cooling-admin-panel-');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final envFile = File('${dir.path}/.env')
+        ..writeAsStringSync(
+          'SYNC_TOKEN=secret\nADMIN_USER=owner\nADMIN_PASSWORD=panel-secret\n',
+        );
+      final shopFile = File('${dir.path}/shop.json')
+        ..writeAsStringSync(
+          '{"_readme":"kept","SYNC_TOKEN":"secret","ADMIN_USER":"owner","ADMIN_PASSWORD":"panel-secret"}\n',
+        );
+      final schedule = ShopSchedule();
+      final mail = MailSettings(ownerEmail: 'owner@shop.test');
+      final server = await shelf_io.serve(
+        buildHandler(
+          store: store,
+          token: 'secret',
+          adminUser: 'owner',
+          adminPassword: 'panel-secret',
+          mail: mail,
+          envFile: envFile,
+          shopFile: shopFile,
+          schedule: schedule,
+        ),
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      addTearDown(server.close);
+      final client = HttpClient();
+      addTearDown(client.close);
+
+      final allowed = await _form(client, server.port, '/admin/login', {
+        'user': 'owner',
+        'password': 'panel-secret',
+      });
+      final page = await _get(
+        client,
+        server.port,
+        '/admin',
+        cookie: allowed.cookie,
+      );
+      expect(page.body, contains('שמירת הכניסה'));
+      expect(page.body, contains('שעת הדוח'));
+      expect(page.body, isNot(contains('name="sync_token"')));
+
+      final renamed = await _form(client, server.port, '/admin/access', {
+        'admin_user': 'shop',
+        'admin_password': 'new pass',
+      }, cookie: allowed.cookie);
+      expect(renamed.status, 302);
+      final stillIn = await _get(
+        client,
+        server.port,
+        '/admin',
+        cookie: allowed.cookie,
+      );
+      expect(stillIn.status, 200);
+      expect(stillIn.body, contains('value="shop"'));
+      final oldPassword = await _form(client, server.port, '/admin/login', {
+        'user': 'owner',
+        'password': 'panel-secret',
+      });
+      expect(oldPassword.cookie, isNull);
+      final newPassword = await _form(client, server.port, '/admin/login', {
+        'user': 'shop',
+        'password': 'new pass',
+      });
+      expect(newPassword.cookie, isNotNull);
+
+      final clock = await _form(client, server.port, '/admin/clock', {
+        'time_zone': 'UTC',
+        'report_hour': '6',
+      }, cookie: allowed.cookie);
+      expect(clock.status, 302);
+      expect(schedule.timeZone, 'UTC');
+      expect(schedule.reportHour, 6);
+      expect(loadEnvFile(envFile)['TZ'], 'UTC');
+      expect(loadEnvFile(envFile)['REPORT_HOUR'], '6');
+      expect(loadEnvFile(envFile)['ADMIN_PASSWORD'], 'new pass');
+      expect(loadEnvFile(envFile)['SYNC_TOKEN'], 'secret');
+
+      final rejected = await _form(client, server.port, '/admin/clock', {
+        'time_zone': 'Not a zone',
+        'report_hour': '6',
+      }, cookie: allowed.cookie);
+      expect(rejected.status, 302);
+      expect(schedule.timeZone, 'UTC');
+
+      final saved = jsonDecode(shopFile.readAsStringSync()) as Map;
+      expect(saved['SYNC_TOKEN'], 'secret');
+      expect(saved['_readme'], 'kept');
+      expect(saved['ADMIN_USER'], 'shop');
+      expect(saved['ADMIN_PASSWORD'], 'new pass');
+      expect(saved['TZ'], 'UTC');
+      expect(saved['REPORT_HOUR'], '6');
+    },
+  );
 }
 
 Map<String, dynamic> _log({

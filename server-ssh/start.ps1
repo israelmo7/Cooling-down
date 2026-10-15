@@ -35,8 +35,13 @@ $shop = Join-Path $here 'shop.json'
 if (-not (Test-Path $shop)) {
   throw 'shop.json is missing next to this script.'
 }
-New-Item -ItemType Directory -Force -Path (Join-Path $here 'data') | Out-Null
-Copy-Item -Force $shop (Join-Path $here 'data\shop.json')
+$dataDir = Join-Path $here 'data'
+New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+$dataShop = Join-Path $dataDir 'shop.json'
+if ((Test-Path $dataShop) -and ((Get-Item $dataShop).LastWriteTime -gt (Get-Item $shop).LastWriteTime)) {
+  Copy-Item -Force $dataShop $shop
+}
+Copy-Item -Force $shop $dataShop
 
 docker compose run -T --rm --no-deps server --apply-shop
 if ($LASTEXITCODE -ne 0) { throw 'Could not apply shop.json.' }

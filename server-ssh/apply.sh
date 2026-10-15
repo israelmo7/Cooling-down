@@ -4,6 +4,10 @@
 set -eu
 cd "$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 mkdir -p data
+# data/shop.json is newer after /admin saves. An edited shop.json here replaces it.
+if [ -f data/shop.json ] && [ data/shop.json -nt shop.json ]; then
+  cp data/shop.json shop.json
+fi
 cp shop.json data/shop.json
 docker compose run -T --rm --no-deps server --apply-shop
 cp data/shop.json shop.json

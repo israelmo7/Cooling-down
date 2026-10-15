@@ -11,10 +11,13 @@ iPhone
 Shop settings — server-ssh/shop.json
   Empty SYNC_TOKEN: first apply creates one and prints it. Put that token on every tablet.
   Empty ADMIN_USER or ADMIN_PASSWORD: http://<shop-pc>:8080/admin stays off.
+  Change those on /admin or in this file. The token stays in this file.
   Empty SMTP_HOST: no mail. The report is still stored. SMTP_PORT defaults to 587.
-  TZ defaults to Asia/Jerusalem. Midnight follows it.
+  TZ defaults to Asia/Jerusalem and applies the next time the program starts.
+  REPORT_HOUR defaults to 0. The report waits until that hour, then covers yesterday.
+  /admin can change mail, the clock, the report hour, and the admin login. It writes them back here.
   Tablet address: http://<shop-pc>:8080
-  The program reads .env. apply writes .env from shop.json. /admin can change mail until the next apply.
+  The program reads .env. apply writes .env from shop.json.
 
 Windows shop PC
   The server is a Linux image. Docker Desktop runs it.
@@ -38,13 +41,14 @@ Linux shop PC
   SSH stays open 30 minutes, then closes, including after a reboot.
 
 On site
-  Fixed Wi-Fi address for the PC. One environment name per fridge area, the same on each tablet there.
+  Fixed Wi-Fi address for the PC. One environment name per tablet, from שם הסביבה. The same name shares one archive.
+  The Android app stays awake and pinned. Release is inside settings, after the password.
   Products and workers are typed on each tablet. Confirm stays off until a worker is signed in.
 
 When it fails
   לא מסונכרן: the PC address changed, the token does not match, or Wi-Fi blocks device-to-device traffic.
   Deleting data/.env creates a new token. Tablets need the new one.
   Two environment names split the archive.
-  Wrong SMTP stores the report and does not send it. Wrong TZ moves midnight.
+  Wrong SMTP stores the report and does not send it. Wrong TZ or report hour moves the mail.
   Linux USB packages must match that Ubuntu version.
   The Windows stick must match the PC: arm64 or amd64.
