@@ -1,0 +1,10 @@
+סביבה: {{environment}}
+תאריך: {{date}}
+
+מוצר | איך נקלט | מתי נקלט | איך הוצא | מתי הוצא
+{{rows}}
+{{product}} | {{check_in}} | {{check_in_time}} | {{check_out}} | {{check_out_time}}
+{{/rows}}
+
+{{notes}}
+{{conclusion}}

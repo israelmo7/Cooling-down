@@ -1,0 +1,57 @@
+Cooling down 0.2
+
+Android tablet
+  cd tablets && flutter build apk --release
+  Copy only tablets/build/app/outputs/flutter-apk/app-release.apk
+  Keep the same signing key for the next update. A new key means uninstall first.
+
+iPhone
+  A USB stick cannot install it. On a Mac, with an Apple developer account: flutter build ipa.
+
+Shop settings — server-ssh/shop.json
+  Empty SYNC_TOKEN: first apply creates one and prints it. Put that token on every tablet.
+  Empty ADMIN_USER or ADMIN_PASSWORD: http://<shop-pc>:8080/admin stays off.
+  Change those on /admin or in this file. The token stays in this file.
+  Empty SMTP_HOST: no mail. The report is still stored. SMTP_PORT defaults to 587.
+  The sending mailbox stays in this file. /admin only keeps the owner address.
+  TZ defaults to Asia/Jerusalem and applies the next time the program starts.
+  REPORT_TIME defaults to 00:00. The report waits until that minute, then covers yesterday.
+  REPORT_FORMAT builtin is the fixed table. custom uses data/report.txt.
+  Copy server-ssh/report.example.txt to data/report.txt, then choose it on /admin.
+  /admin can change the owner email, the clock, the report choice, and the admin login.
+  Tablet address: http://<shop-pc>:8080
+  The program reads .env. apply writes .env from shop.json.
+
+Windows shop PC
+  The server is a Linux image. Docker Desktop runs it.
+  On a computer with internet and Docker: sh server-usb/windows/fetch.sh arm64
+  Use amd64 for a 64-bit Intel or AMD PC. Copy server-usb/windows to a USB stick.
+  On Windows, in an Administrator PowerShell, from that folder:
+    powershell -ExecutionPolicy Bypass -File .\install.ps1
+  Restart, start Docker Desktop, and run that command again. It prints the token.
+  Tablet address: http://<this-pc>:8080
+  If Windows asks, allow Docker on the private shop network.
+  ssh-window.sh is Linux only. Tablets do not use SSH.
+
+Linux shop PC
+  Already possible. Nothing else has to be written.
+  If Docker, Compose, or SSH is missing: on Ubuntu of the same version, sudo sh server-usb/fetch-packages.sh
+  Copy server-usb to a USB stick. On the PC: sudo sh install.sh
+  Log out and back in. Then, from a computer with the same chip: server-ssh/deploy.sh user@shop-pc
+  The first deploy copies shop.json. Later deploys keep the copy on the PC.
+  Edit ~/cooling-down/shop.json, then: sh ~/cooling-down/apply.sh
+  Next visit, at the PC: sudo sh ~/cooling-down/ssh-window.sh 30
+  SSH stays open 30 minutes, then closes, including after a reboot.
+
+On site
+  Fixed Wi-Fi address for the PC. One environment name per tablet, from שם הסביבה. The same name shares one archive.
+  The Android app stays awake and pinned. Release is inside settings, after the password.
+  Products and workers are typed on each tablet. Confirm stays off until a worker is signed in.
+
+When it fails
+  לא מסונכרן: the PC address changed, the token does not match, or Wi-Fi blocks device-to-device traffic.
+  Deleting data/.env creates a new token. Tablets need the new one.
+  Two environment names split the archive.
+  Wrong SMTP stores the report and does not send it. Wrong TZ or report time moves the mail.
+  Linux USB packages must match that Ubuntu version.
+  The Windows stick must match the PC: arm64 or amd64.

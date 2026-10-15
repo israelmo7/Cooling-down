@@ -1,0 +1,142 @@
+import '../workers/worker_refresh.dart';
+
+/// Seconds without a tap before the next tap asks who is working.
+const defaultWorkerIdleSeconds = 600;
+
+/// A typed timeout becomes a positive number of seconds, at most one day.
+int normalizeWorkerIdleSeconds(String raw) {
+  final parsed = int.tryParse(raw.trim());
+  if (parsed == null || parsed < 1) {
+    return defaultWorkerIdleSeconds;
+  }
+  if (parsed > 86400) {
+    return 86400;
+  }
+  return parsed;
+}
+
+/// Environment names shown on the tablet stay within 20 characters.
+String clipEnvironmentName(String value) {
+  final trimmed = value.trim();
+  final name = trimmed.isEmpty ? 'מטבח' : trimmed;
+  if (name.length <= 20) {
+    return name;
+  }
+  return name.substring(0, 20);
+}
+
+/// Tablet-local preferences. They are not uploaded with the audit log.
+class DeviceSettings {
+  const DeviceSettings({
+    required this.deviceId,
+    required this.deviceName,
+    required this.environmentName,
+    required this.serverUrl,
+    required this.serverToken,
+    required this.ownerEmail,
+    required this.dailyReportEnabled,
+    required this.reportHour,
+    required this.reportMinute,
+    required this.syncCursor,
+    this.lastSyncAt,
+    this.lastSyncError,
+    this.confirmAction = false,
+    this.workerIdleSeconds = defaultWorkerIdleSeconds,
+    this.workerRefreshMode = WorkerRefreshMode.idle,
+    this.workerPromptStyle = WorkerPromptStyle.wait,
+    this.workerRefreshStartMinute = 8 * 60,
+    this.workerRefreshIntervalHours = 8,
+    this.workerRefreshEndMinute = 20 * 60,
+    this.settingsPassword = '',
+  });
+
+  final String deviceId;
+  final String deviceName;
+  final String environmentName;
+  final String serverUrl;
+  final String serverToken;
+  final String ownerEmail;
+  final bool dailyReportEnabled;
+  final int reportHour;
+  final int reportMinute;
+  final int syncCursor;
+  final DateTime? lastSyncAt;
+  final String? lastSyncError;
+  final bool confirmAction;
+  final int workerIdleSeconds;
+  final WorkerRefreshMode workerRefreshMode;
+  final WorkerPromptStyle workerPromptStyle;
+  final int workerRefreshStartMinute;
+  final int workerRefreshIntervalHours;
+  final int workerRefreshEndMinute;
+  final String settingsPassword;
+
+  bool get hasServer => serverUrl.trim().isNotEmpty;
+
+  Duration get workerIdleLimit => Duration(
+    seconds: workerIdleSeconds < 1
+        ? defaultWorkerIdleSeconds
+        : workerIdleSeconds,
+  );
+
+  WorkerRefresh get workerRefresh => WorkerRefresh(
+    mode: workerRefreshMode,
+    style: workerPromptStyle,
+    idleSeconds: workerIdleSeconds,
+    startMinute: workerRefreshStartMinute,
+    intervalHours: workerRefreshIntervalHours,
+    endMinute: workerRefreshEndMinute,
+  );
+
+  DeviceSettings copyWith({
+    String? deviceName,
+    String? environmentName,
+    String? serverUrl,
+    String? serverToken,
+    String? ownerEmail,
+    bool? dailyReportEnabled,
+    int? reportHour,
+    int? reportMinute,
+    int? syncCursor,
+    DateTime? lastSyncAt,
+    String? lastSyncError,
+    bool? confirmAction,
+    int? workerIdleSeconds,
+    WorkerRefreshMode? workerRefreshMode,
+    WorkerPromptStyle? workerPromptStyle,
+    int? workerRefreshStartMinute,
+    int? workerRefreshIntervalHours,
+    int? workerRefreshEndMinute,
+    String? settingsPassword,
+    bool clearLastSyncAt = false,
+    bool clearLastSyncError = false,
+  }) {
+    return DeviceSettings(
+      deviceId: deviceId,
+      deviceName: deviceName ?? this.deviceName,
+      environmentName: environmentName ?? this.environmentName,
+      serverUrl: serverUrl ?? this.serverUrl,
+      serverToken: serverToken ?? this.serverToken,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
+      dailyReportEnabled: dailyReportEnabled ?? this.dailyReportEnabled,
+      reportHour: reportHour ?? this.reportHour,
+      reportMinute: reportMinute ?? this.reportMinute,
+      syncCursor: syncCursor ?? this.syncCursor,
+      lastSyncAt: clearLastSyncAt ? null : lastSyncAt ?? this.lastSyncAt,
+      lastSyncError: clearLastSyncError
+          ? null
+          : lastSyncError ?? this.lastSyncError,
+      confirmAction: confirmAction ?? this.confirmAction,
+      workerIdleSeconds: workerIdleSeconds ?? this.workerIdleSeconds,
+      workerRefreshMode: workerRefreshMode ?? this.workerRefreshMode,
+      workerPromptStyle: workerPromptStyle ?? this.workerPromptStyle,
+      workerRefreshStartMinute:
+          workerRefreshStartMinute ?? this.workerRefreshStartMinute,
+      workerRefreshIntervalHours:
+          workerRefreshIntervalHours ?? this.workerRefreshIntervalHours,
+      workerRefreshEndMinute:
+          workerRefreshEndMinute ?? this.workerRefreshEndMinute,
+      settingsPassword: settingsPassword ?? this.settingsPassword,
+    );
+  }
+}

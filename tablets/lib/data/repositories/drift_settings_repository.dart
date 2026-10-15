@@ -1,0 +1,147 @@
+import 'package:drift/drift.dart';
+
+import '../../domain/repositories/settings_repository.dart';
+import '../../domain/settings/device_settings.dart';
+import '../../domain/workers/worker_refresh.dart';
+import '../db/app_database.dart';
+import '../db/ensure_settings.dart';
+import '../db/seed_ids.dart';
+import '../sync/server_url.dart';
+
+class DriftSettingsRepository implements SettingsRepository {
+  DriftSettingsRepository(this._db);
+
+  final AppDatabase _db;
+
+  @override
+  Stream<DeviceSettings?> watch() {
+    final query = _db.select(_db.localSettings)
+      ..where((table) => table.id.equals(localSettingsId));
+    return query.watch().map((rows) {
+      if (rows.isEmpty) {
+        return null;
+      }
+      return _map(rows.single);
+    });
+  }
+
+  @override
+  Future<DeviceSettings> ensure() async {
+    return _map(await ensureLocalSettingsRow(_db));
+  }
+
+  @override
+  Future<void> save(DeviceSettings settings) async {
+    final previous = await ensure();
+    final environment = settings.environmentName.trim();
+    final deviceName = settings.deviceName.trim();
+    final serverUrl = normalizeServerUrl(settings.serverUrl);
+    await (_db.update(
+      _db.localSettings,
+    )..where((table) => table.id.equals(localSettingsId))).write(
+      LocalSettingsCompanion(
+        deviceName: Value(deviceName.isEmpty ? 'This tablet' : deviceName),
+        environmentName: Value(clipEnvironmentName(environment)),
+        serverUrl: Value(serverUrl),
+        serverToken: Value(settings.serverToken.trim()),
+        ownerEmail: Value(settings.ownerEmail.trim()),
+        dailyReportEnabled: Value(settings.dailyReportEnabled),
+        reportHour: Value(settings.reportHour.clamp(0, 23).toInt()),
+        reportMinute: Value(settings.reportMinute.clamp(0, 59).toInt()),
+        syncCursor: serverUrl == previous.serverUrl
+            ? const Value.absent()
+            : const Value(0),
+        confirmAction: Value(settings.confirmAction),
+        workerIdleSeconds: Value(
+          settings.workerIdleSeconds < 1
+              ? defaultWorkerIdleSeconds
+              : settings.workerIdleSeconds,
+        ),
+        workerRefreshMode: Value(settings.workerRefreshMode.name),
+        workerPromptStyle: Value(settings.workerPromptStyle.name),
+        workerRefreshStartMinute: Value(
+          settings.workerRefreshStartMinute.clamp(0, 23 * 60 + 59).toInt(),
+        ),
+        workerRefreshIntervalHours: Value(
+          settings.workerRefreshIntervalHours.clamp(1, 24).toInt(),
+        ),
+        workerRefreshEndMinute: Value(
+          settings.workerRefreshEndMinute.clamp(0, 23 * 60 + 59).toInt(),
+        ),
+        settingsPassword: Value(settings.settingsPassword.trim()),
+      ),
+    );
+    await _nameEnvironmentFridge(clipEnvironmentName(environment));
+  }
+
+  Future<void> _nameEnvironmentFridge(String name) async {
+    final existing =
+        await (_db.select(_db.fridges)
+              ..where((table) => table.id.equals(SeedIds.kitchenFridge)))
+            .getSingleOrNull();
+    if (existing == null) {
+      await _db
+          .into(_db.fridges)
+          .insert(
+            FridgesCompanion.insert(
+              id: SeedIds.kitchenFridge,
+              name: name,
+              minCelsius: 0,
+              maxCelsius: 5,
+            ),
+          );
+      return;
+    }
+    await (_db.update(_db.fridges)
+          ..where((table) => table.id.equals(SeedIds.kitchenFridge)))
+        .write(FridgesCompanion(name: Value(name)));
+  }
+
+  @override
+  Future<void> recordSync({
+    int? cursor,
+    DateTime? at,
+    String? error,
+    bool clearError = false,
+  }) async {
+    await ensure();
+    await (_db.update(
+      _db.localSettings,
+    )..where((table) => table.id.equals(localSettingsId))).write(
+      LocalSettingsCompanion(
+        syncCursor: cursor == null ? const Value.absent() : Value(cursor),
+        lastSyncAt: at == null ? const Value.absent() : Value(at),
+        lastSyncError: clearError
+            ? const Value(null)
+            : error == null
+            ? const Value.absent()
+            : Value(error),
+      ),
+    );
+  }
+
+  DeviceSettings _map(LocalSettingsRow row) {
+    return DeviceSettings(
+      deviceId: row.deviceId,
+      deviceName: row.deviceName,
+      environmentName: row.environmentName,
+      serverUrl: row.serverUrl,
+      serverToken: row.serverToken,
+      ownerEmail: row.ownerEmail,
+      dailyReportEnabled: row.dailyReportEnabled,
+      reportHour: row.reportHour,
+      reportMinute: row.reportMinute,
+      syncCursor: row.syncCursor,
+      lastSyncAt: row.lastSyncAt,
+      lastSyncError: row.lastSyncError,
+      confirmAction: row.confirmAction,
+      workerIdleSeconds: row.workerIdleSeconds,
+      workerRefreshMode: WorkerRefreshMode.parse(row.workerRefreshMode),
+      workerPromptStyle: WorkerPromptStyle.parse(row.workerPromptStyle),
+      workerRefreshStartMinute: row.workerRefreshStartMinute,
+      workerRefreshIntervalHours: row.workerRefreshIntervalHours,
+      workerRefreshEndMinute: row.workerRefreshEndMinute,
+      settingsPassword: row.settingsPassword,
+    );
+  }
+}
