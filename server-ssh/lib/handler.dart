@@ -17,7 +17,9 @@ Handler buildHandler({
   MailSettings? mail,
   File? envFile,
   File? shopFile,
+  File? reportFile,
   ShopSchedule? schedule,
+  void Function()? onScheduleChanged,
 }) {
   final gate = AdminGate(user: adminUser, password: adminPassword);
   final router = Router()
@@ -30,7 +32,9 @@ Handler buildHandler({
     mail: mail ?? MailSettings(),
     envFile: envFile,
     shopFile: shopFile,
+    reportFile: reportFile,
     schedule: schedule ?? ShopSchedule(),
+    onScheduleChanged: onScheduleChanged,
   );
 
   return (Request request) {

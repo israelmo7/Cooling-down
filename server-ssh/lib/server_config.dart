@@ -1,16 +1,29 @@
 import 'mailer.dart';
+import 'report_time.dart';
 
-/// Clock values the admin page can change. The report hour is read on the
-/// next check. The time zone applies the next time the program starts.
+/// Clock and report choice the admin page can change. The report time is used
+/// the next time the alarm is set. The time zone applies on the next start.
 class ShopSchedule {
-  ShopSchedule({this.timeZone = 'Asia/Jerusalem', this.reportHour = 0});
+  ShopSchedule({
+    this.timeZone = 'Asia/Jerusalem',
+    this.reportTime = ReportTime.midnight,
+    this.reportFormat = 'builtin',
+  });
 
   String timeZone;
-  int reportHour;
+  ReportTime reportTime;
+  String reportFormat;
 
-  void replace({required String timeZone, required int reportHour}) {
+  void replaceClock({
+    required String timeZone,
+    required ReportTime reportTime,
+  }) {
     this.timeZone = timeZone;
-    this.reportHour = reportHour;
+    this.reportTime = reportTime;
+  }
+
+  void replaceFormat(String format) {
+    reportFormat = normalizeReportFormat(format);
   }
 }
 

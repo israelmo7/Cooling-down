@@ -156,4 +156,50 @@ void main() {
     expect(report.html, contains('אין תנועות.'));
     expect(report.body, contains('מסקנה:'));
   });
+
+  test('a custom file repeats one line per movement', () {
+    final report = buildCustomReport(
+      template: '''
+סביבה: {{environment}}
+תאריך: {{date}}
+{{rows}}
+{{product}} | {{check_in}} | {{check_in_time}} | {{check_out}} | {{check_out_time}}
+{{/rows}}
+{{notes}}
+{{conclusion}}
+''',
+      environmentName: 'מטבח',
+      day: DateTime(2026, 10, 11),
+      logs: [
+        StoredLogLine(
+          movementId: 'milk',
+          eventType: 'check_in',
+          occurredAt: DateTime(2026, 10, 11, 15),
+          productName: 'חלב',
+          temperature: 4,
+          fridgeName: 'מטבח',
+          workerName: 'דנה',
+        ),
+        StoredLogLine(
+          movementId: 'open',
+          eventType: 'check_in',
+          occurredAt: DateTime(2026, 10, 11, 9),
+          productName: 'גבינה',
+          temperature: 3,
+          fridgeName: 'מטבח',
+          workerName: 'יוסי',
+        ),
+      ],
+      notices: const [],
+    );
+
+    expect(report.body, contains('סביבה: מטבח'));
+    expect(report.body, contains('תאריך: 2026-10-11'));
+    expect(report.body, contains('חלב |'));
+    expect(report.body, contains('גבינה |'));
+    expect(report.body, contains('| - | -'));
+    expect(report.body, contains('מסקנה:'));
+    expect(report.html, contains('<pre'));
+    expect(report.html, isNot(contains('<table')));
+  });
 }

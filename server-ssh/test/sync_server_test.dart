@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cooling_down_server/env_file.dart';
 import 'package:cooling_down_server/handler.dart';
 import 'package:cooling_down_server/mailer.dart';
+import 'package:cooling_down_server/report_time.dart';
 import 'package:cooling_down_server/server_config.dart';
 import 'package:cooling_down_server/sync_store.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -281,12 +282,15 @@ void main() {
         envFile.deleteSync();
       }
     });
-    envFile.writeAsStringSync('SYNC_TOKEN=secret\nADMIN_USER=owner\n');
+    envFile.writeAsStringSync(
+      'SYNC_TOKEN=secret\nADMIN_USER=owner\nSMTP_PASSWORD=keep-me\n',
+    );
     final mail = MailSettings(
       ownerEmail: 'owner@shop.test',
       smtpHost: 'smtp.shop.test',
       smtpPort: 587,
       smtpFrom: 'reports@shop.test',
+      smtpPassword: 'keep-me',
     );
     final server = await shelf_io.serve(
       buildHandler(
@@ -315,15 +319,12 @@ void main() {
       cookie: allowed.cookie,
     );
     expect(page.body, contains('owner@shop.test'));
-    expect(page.body, contains('smtp.shop.test'));
+    expect(page.body, contains('הדואר פעיל.'));
+    expect(page.body, isNot(contains('name="smtp_password"')));
+    expect(page.body, isNot(contains('smtp.shop.test')));
 
     final rejected = await _form(client, server.port, '/admin/mail', {
       'owner_email': 'not-an-email',
-      'smtp_host': 'smtp.shop.test',
-      'smtp_port': '587',
-      'smtp_user': '',
-      'smtp_password': '',
-      'smtp_from': 'reports@shop.test',
     }, cookie: allowed.cookie);
     expect(rejected.status, 302);
     expect(store.ownerEmail, 'owner@shop.test');
@@ -331,18 +332,13 @@ void main() {
 
     final saved = await _form(client, server.port, '/admin/mail', {
       'owner_email': 'new-owner@shop.test',
-      'smtp_host': 'smtp.shop.test',
-      'smtp_port': '2525',
-      'smtp_user': 'mailer',
-      'smtp_password': 'secret pass',
-      'smtp_from': 'reports@shop.test',
     }, cookie: allowed.cookie);
     expect(saved.status, 302);
     expect(mail.ownerEmail, 'new-owner@shop.test');
-    expect(mail.smtpPort, 2525);
-    expect(mail.smtpPassword, 'secret pass');
+    expect(mail.smtpPort, 587);
+    expect(mail.smtpPassword, 'keep-me');
     expect(loadEnvFile(envFile)['OWNER_EMAIL'], 'new-owner@shop.test');
-    expect(loadEnvFile(envFile)['SMTP_PASSWORD'], 'secret pass');
+    expect(loadEnvFile(envFile)['SMTP_PASSWORD'], 'keep-me');
     expect(loadEnvFile(envFile)['SYNC_TOKEN'], 'secret');
     final rows = store.environmentSummaries();
     expect(
@@ -379,16 +375,16 @@ void main() {
     );
 
     final early = await store.sendClosedDay(
-      DateTime(2026, 10, 12, 5, 59),
-      reportHour: 6,
+      DateTime(2026, 10, 12, 18, 29),
+      reportTime: const ReportTime(18, 30),
     );
     final due = await store.sendClosedDay(
-      DateTime(2026, 10, 12, 6),
-      reportHour: 6,
+      DateTime(2026, 10, 12, 18, 30),
+      reportTime: const ReportTime(18, 30),
     );
     final again = await store.sendClosedDay(
-      DateTime(2026, 10, 12, 18),
-      reportHour: 6,
+      DateTime(2026, 10, 12, 19),
+      reportTime: const ReportTime(18, 30),
     );
 
     expect(early, isEmpty);
@@ -414,6 +410,7 @@ void main() {
         );
       final schedule = ShopSchedule();
       final mail = MailSettings(ownerEmail: 'owner@shop.test');
+      final reportFile = File('${dir.path}/report.txt');
       final server = await shelf_io.serve(
         buildHandler(
           store: store,
@@ -423,6 +420,7 @@ void main() {
           mail: mail,
           envFile: envFile,
           shopFile: shopFile,
+          reportFile: reportFile,
           schedule: schedule,
         ),
         InternetAddress.loopbackIPv4,
@@ -472,19 +470,19 @@ void main() {
 
       final clock = await _form(client, server.port, '/admin/clock', {
         'time_zone': 'UTC',
-        'report_hour': '6',
+        'report_time': '18:30',
       }, cookie: allowed.cookie);
       expect(clock.status, 302);
       expect(schedule.timeZone, 'UTC');
-      expect(schedule.reportHour, 6);
+      expect(schedule.reportTime.text, '18:30');
       expect(loadEnvFile(envFile)['TZ'], 'UTC');
-      expect(loadEnvFile(envFile)['REPORT_HOUR'], '6');
+      expect(loadEnvFile(envFile)['REPORT_TIME'], '18:30');
       expect(loadEnvFile(envFile)['ADMIN_PASSWORD'], 'new pass');
       expect(loadEnvFile(envFile)['SYNC_TOKEN'], 'secret');
 
       final rejected = await _form(client, server.port, '/admin/clock', {
         'time_zone': 'Not a zone',
-        'report_hour': '6',
+        'report_time': '18:30',
       }, cookie: allowed.cookie);
       expect(rejected.status, 302);
       expect(schedule.timeZone, 'UTC');
@@ -495,7 +493,24 @@ void main() {
       expect(saved['ADMIN_USER'], 'shop');
       expect(saved['ADMIN_PASSWORD'], 'new pass');
       expect(saved['TZ'], 'UTC');
-      expect(saved['REPORT_HOUR'], '6');
+      expect(saved['REPORT_TIME'], '18:30');
+
+      reportFile.writeAsStringSync('סביבה: {{environment}}\n');
+      final chosen = await _form(client, server.port, '/admin/report', {
+        'report_format': 'custom',
+      }, cookie: allowed.cookie);
+      expect(chosen.status, 302);
+      expect(schedule.reportFormat, 'custom');
+      expect(loadEnvFile(envFile)['REPORT_FORMAT'], 'custom');
+      final shown = await _get(
+        client,
+        server.port,
+        '/admin',
+        cookie: allowed.cookie,
+      );
+      expect(shown.body, contains('הדוח הקבוע'));
+      expect(shown.body, contains('סביבה: {{environment}}'));
+      expect(shown.body, isNot(contains('name="smtp_password"')));
     },
   );
 }

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:uuid/uuid.dart';
 
+import 'report_time.dart';
+
 final _key = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
 final _assignment = RegExp(
   r'^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$',
@@ -107,7 +109,8 @@ const shopSettingKeys = <String>[
   'SMTP_PASSWORD',
   'SMTP_FROM',
   'TZ',
-  'REPORT_HOUR',
+  'REPORT_TIME',
+  'REPORT_FORMAT',
 ];
 
 /// Copies [shopFile] into [envFile].
@@ -144,8 +147,11 @@ void applyShopJson({required File shopFile, required File envFile}) {
     if (key == 'TZ' && value.trim().isEmpty) {
       value = 'Asia/Jerusalem';
     }
-    if (key == 'REPORT_HOUR') {
-      value = '${normalizeReportHour(value)}';
+    if (key == 'REPORT_TIME') {
+      value = normalizeReportTime(value).text;
+    }
+    if (key == 'REPORT_FORMAT') {
+      value = normalizeReportFormat(value);
     }
     if (key == 'SYNC_TOKEN' && value.trim().isEmpty) {
       final kept = existing['SYNC_TOKEN']?.trim() ?? '';
@@ -159,6 +165,15 @@ void applyShopJson({required File shopFile, required File envFile}) {
     }
     updates[key] = value;
   }
+  if (!decoded.containsKey('REPORT_TIME') &&
+      decoded.containsKey('REPORT_HOUR')) {
+    final raw = decoded['REPORT_HOUR'];
+    if (raw != null && raw is! String && raw is! num) {
+      throw const FormatException('REPORT_HOUR in shop.json must be text.');
+    }
+    updates['REPORT_TIME'] = normalizeReportTime(raw == null ? '' : '$raw')
+        .text;
+  }
 
   if (!envFile.existsSync()) {
     envFile.parent.createSync(recursive: true);
@@ -168,15 +183,6 @@ void applyShopJson({required File shopFile, required File envFile}) {
   if (tokenToRemember != null) {
     rememberShopToken(shopFile, tokenToRemember);
   }
-}
-
-/// Hours 0–23. Anything else, including an empty value, is midnight.
-int normalizeReportHour(String raw) {
-  final hour = int.tryParse(raw.trim());
-  if (hour == null || hour < 0 || hour > 23) {
-    return 0;
-  }
-  return hour;
 }
 
 /// Writes [updates] into [shopFile] and leaves every other key, including the

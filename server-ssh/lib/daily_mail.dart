@@ -75,6 +75,9 @@ class _ReportRow {
 
 const _columns = ['מוצר', 'איך נקלט', 'מתי נקלט', 'איך הוצא', 'מתי הוצא'];
 
+/// The built-in table heading, shown read-only on the admin page.
+String get builtInReportHeading => _columns.join(' | ');
+
 ClosedDayReport buildClosedDayReport({
   required String environmentName,
   required DateTime day,
@@ -86,23 +89,7 @@ ClosedDayReport buildClosedDayReport({
   final dayNotices = notices
       .where((row) => _sameDay(row.createdAt, day))
       .toList();
-  final checkIns = rows
-      .where(
-        (row) => row.checkIn != null && _sameDay(row.checkIn!.occurredAt, day),
-      )
-      .length;
-  final checkOuts = rows
-      .where(
-        (row) =>
-            row.checkOut != null && _sameDay(row.checkOut!.occurredAt, day),
-      )
-      .length;
-  final counts = '($checkIns קליטות, $checkOuts הוצאות)';
-  final conclusion = dayNotices.isEmpty
-      ? 'מסקנה: היום נסגר לפי מה שכבר הגיע למחשב $counts.'
-      : dayNotices.length == 1
-      ? 'מסקנה: יש הערה אחת שדורשת בדיקה $counts.'
-      : 'מסקנה: יש ${dayNotices.length} הערות שדורשות בדיקה $counts.';
+  final conclusion = _conclusion(rows, day, dayNotices);
   return ClosedDayReport(
     subject: 'דוח קירור · $environmentName · $date',
     body: _plain(
@@ -122,6 +109,110 @@ ClosedDayReport buildClosedDayReport({
       conclusion: conclusion,
     ),
   );
+}
+
+/// Fills [template] from the same rows as the built-in table.
+/// `{{rows}}` ... `{{/rows}}` repeats once per movement.
+ClosedDayReport buildCustomReport({
+  required String template,
+  required String environmentName,
+  required DateTime day,
+  required List<StoredLogLine> logs,
+  required List<StoredNotice> notices,
+}) {
+  final date = _dateKey(day);
+  final rows = _rowsForDay(logs, day);
+  final dayNotices = notices
+      .where((row) => _sameDay(row.createdAt, day))
+      .toList();
+  final conclusion = _conclusion(rows, day, dayNotices);
+  final notes = dayNotices.isEmpty
+      ? 'אין אזהרות.'
+      : dayNotices.map((notice) => notice.message).join('\n');
+  final body = _fillTemplate(
+    template: template,
+    environmentName: environmentName,
+    date: date,
+    day: day,
+    rows: rows,
+    notes: notes,
+    conclusion: conclusion,
+  );
+  return ClosedDayReport(
+    subject: 'דוח קירור · $environmentName · $date',
+    body: body,
+    html:
+        '<pre dir="rtl" style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">${_escape(body)}</pre>',
+  );
+}
+
+String _fillTemplate({
+  required String template,
+  required String environmentName,
+  required String date,
+  required DateTime day,
+  required List<_ReportRow> rows,
+  required String notes,
+  required String conclusion,
+}) {
+  final block = RegExp(r'\{\{rows\}\}([\s\S]*?)\{\{/rows\}\}');
+  final match = block.firstMatch(template);
+  var text = template;
+  if (match != null) {
+    final pattern = match.group(1)!;
+    final rendered = rows.map((row) {
+      return pattern
+          .replaceAll('{{product}}', row.productName)
+          .replaceAll('{{check_in}}', _how(row.checkIn))
+          .replaceAll('{{check_in_time}}', _when(row.checkIn, day))
+          .replaceAll('{{check_out}}', _how(row.checkOut))
+          .replaceAll('{{check_out_time}}', _when(row.checkOut, day));
+    }).join();
+    text = template.replaceRange(match.start, match.end, rendered);
+  }
+  text = text
+      .replaceAll('{{environment}}', environmentName)
+      .replaceAll('{{date}}', date)
+      .replaceAll('{{notes}}', notes)
+      .replaceAll('{{conclusion}}', conclusion);
+  for (final token in [
+    'product',
+    'check_in',
+    'check_in_time',
+    'check_out',
+    'check_out_time',
+    'rows',
+    '/rows',
+  ]) {
+    text = text.replaceAll('{{$token}}', '');
+  }
+  return text;
+}
+
+String _conclusion(
+  List<_ReportRow> rows,
+  DateTime day,
+  List<StoredNotice> dayNotices,
+) {
+  final checkIns = rows
+      .where(
+        (row) => row.checkIn != null && _sameDay(row.checkIn!.occurredAt, day),
+      )
+      .length;
+  final checkOuts = rows
+      .where(
+        (row) =>
+            row.checkOut != null && _sameDay(row.checkOut!.occurredAt, day),
+      )
+      .length;
+  final counts = '($checkIns קליטות, $checkOuts הוצאות)';
+  if (dayNotices.isEmpty) {
+    return 'מסקנה: היום נסגר לפי מה שכבר הגיע למחשב $counts.';
+  }
+  if (dayNotices.length == 1) {
+    return 'מסקנה: יש הערה אחת שדורשת בדיקה $counts.';
+  }
+  return 'מסקנה: יש ${dayNotices.length} הערות שדורשות בדיקה $counts.';
 }
 
 /// One row per movement that was checked in or checked out on [day].

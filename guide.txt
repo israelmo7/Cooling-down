@@ -13,9 +13,12 @@ Shop settings — server-ssh/shop.json
   Empty ADMIN_USER or ADMIN_PASSWORD: http://<shop-pc>:8080/admin stays off.
   Change those on /admin or in this file. The token stays in this file.
   Empty SMTP_HOST: no mail. The report is still stored. SMTP_PORT defaults to 587.
+  The sending mailbox stays in this file. /admin only keeps the owner address.
   TZ defaults to Asia/Jerusalem and applies the next time the program starts.
-  REPORT_HOUR defaults to 0. The report waits until that hour, then covers yesterday.
-  /admin can change mail, the clock, the report hour, and the admin login. It writes them back here.
+  REPORT_TIME defaults to 00:00. The report waits until that minute, then covers yesterday.
+  REPORT_FORMAT builtin is the fixed table. custom uses data/report.txt.
+  Copy server-ssh/report.example.txt to data/report.txt, then choose it on /admin.
+  /admin can change the owner email, the clock, the report choice, and the admin login.
   Tablet address: http://<shop-pc>:8080
   The program reads .env. apply writes .env from shop.json.
 
@@ -49,6 +52,6 @@ When it fails
   לא מסונכרן: the PC address changed, the token does not match, or Wi-Fi blocks device-to-device traffic.
   Deleting data/.env creates a new token. Tablets need the new one.
   Two environment names split the archive.
-  Wrong SMTP stores the report and does not send it. Wrong TZ or report hour moves the mail.
+  Wrong SMTP stores the report and does not send it. Wrong TZ or report time moves the mail.
   Linux USB packages must match that Ubuntu version.
   The Windows stick must match the PC: arm64 or amd64.

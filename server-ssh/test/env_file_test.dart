@@ -157,24 +157,28 @@ SMTP_PASSWORD="p a s s"
     );
   });
 
-  test('an empty report hour is midnight', () {
+  test('an empty report time is midnight and an old hour still applies', () {
     final dir = Directory.systemTemp.createTempSync('cooling-shop-hour-');
     addTearDown(() => dir.deleteSync(recursive: true));
     final shop = File('${dir.path}/shop.json')
-      ..writeAsStringSync('{"REPORT_HOUR":"","TZ":"UTC"}');
+      ..writeAsStringSync('{"REPORT_TIME":"","TZ":"UTC"}');
     final env = File('${dir.path}/.env');
 
     applyShopJson(shopFile: shop, envFile: env);
-    expect(loadEnvFile(env)['REPORT_HOUR'], '0');
+    expect(loadEnvFile(env)['REPORT_TIME'], '00:00');
     expect(loadEnvFile(env)['TZ'], 'UTC');
+
+    shop.writeAsStringSync('{"REPORT_TIME":"18:30"}');
+    applyShopJson(shopFile: shop, envFile: env);
+    expect(loadEnvFile(env)['REPORT_TIME'], '18:30');
+
+    shop.writeAsStringSync('{"REPORT_TIME":"99"}');
+    applyShopJson(shopFile: shop, envFile: env);
+    expect(loadEnvFile(env)['REPORT_TIME'], '00:00');
 
     shop.writeAsStringSync('{"REPORT_HOUR":"7"}');
     applyShopJson(shopFile: shop, envFile: env);
-    expect(loadEnvFile(env)['REPORT_HOUR'], '7');
-
-    shop.writeAsStringSync('{"REPORT_HOUR":"99"}');
-    applyShopJson(shopFile: shop, envFile: env);
-    expect(loadEnvFile(env)['REPORT_HOUR'], '0');
+    expect(loadEnvFile(env)['REPORT_TIME'], '07:00');
   });
 
   test('a panel edit stays in shop.json for the next apply', () {
@@ -190,13 +194,13 @@ SMTP_PASSWORD="p a s s"
 
     writeShopKeys(shop, {
       'OWNER_EMAIL': 'panel@shop.test',
-      'REPORT_HOUR': '6',
+      'REPORT_TIME': '18:30',
       'ADMIN_PASSWORD': 'new pass',
       'SYNC_TOKEN': 'should-not-replace',
     });
     writeEnvKeys(env, {
       'OWNER_EMAIL': 'panel@shop.test',
-      'REPORT_HOUR': '6',
+      'REPORT_TIME': '18:30',
       'ADMIN_PASSWORD': 'new pass',
     });
 
@@ -208,7 +212,7 @@ SMTP_PASSWORD="p a s s"
     applyShopJson(shopFile: shop, envFile: env);
     expect(loadEnvFile(env)['SYNC_TOKEN'], token);
     expect(loadEnvFile(env)['OWNER_EMAIL'], 'panel@shop.test');
-    expect(loadEnvFile(env)['REPORT_HOUR'], '6');
+    expect(loadEnvFile(env)['REPORT_TIME'], '18:30');
     expect(loadEnvFile(env)['ADMIN_PASSWORD'], 'new pass');
   });
 

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'conflict.dart';
 import 'daily_mail.dart';
 import 'mailer.dart';
+import 'report_time.dart';
 
 class SyncStore {
   SyncStore(this._db, {ReportMailer? mailer, this.ownerEmail = ''})
@@ -223,17 +224,22 @@ WHERE environment = ? AND report_date = ?
     }
   }
 
-  /// Emails yesterday's report once the local clock has reached [reportHour].
+  /// Emails yesterday's report once the local clock has reached [reportTime].
   /// Tablets that were offline keep their rows and sync them when the computer
   /// is reachable again. A report already marked sent is not mailed twice.
+  /// A custom [template] is used only when [reportFormat] is `custom` and the
+  /// text is non-empty. Otherwise the built-in table is sent.
   Future<List<String>> sendClosedDay(
     DateTime nowLocal, {
-    int reportHour = 0,
+    ReportTime reportTime = ReportTime.midnight,
+    String reportFormat = 'builtin',
+    String? template,
   }) async {
-    final hour = reportHour < 0 ? 0 : (reportHour > 23 ? 23 : reportHour);
-    if (nowLocal.hour < hour) {
+    if (!reportTime.reached(nowLocal)) {
       return const [];
     }
+    final custom = normalizeReportFormat(reportFormat) == 'custom';
+    final wording = template?.trim() ?? '';
     final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
     final day = startOfToday.subtract(const Duration(days: 1));
     final date = _reportDate(day);
@@ -257,12 +263,22 @@ WHERE environment = ? AND report_date = ?
       if (status == 'sent') {
         continue;
       }
-      final content = buildClosedDayReport(
-        environmentName: environment,
-        day: day,
-        logs: _logs(environment),
-        notices: _notices(environment),
-      );
+      final logs = _logs(environment);
+      final notices = _notices(environment);
+      final content = custom && wording.isNotEmpty
+          ? buildCustomReport(
+              template: wording,
+              environmentName: environment,
+              day: day,
+              logs: logs,
+              notices: notices,
+            )
+          : buildClosedDayReport(
+              environmentName: environment,
+              day: day,
+              logs: logs,
+              notices: notices,
+            );
       final result = await submitReport(
         id: _uuid.v4(),
         environment: environment,

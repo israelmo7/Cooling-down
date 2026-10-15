@@ -4,8 +4,10 @@ import 'dart:math';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import 'daily_mail.dart';
 import 'env_file.dart';
 import 'mailer.dart';
+import 'report_time.dart';
 import 'server_config.dart';
 import 'sync_store.dart';
 
@@ -68,13 +70,15 @@ void mountAdmin(
   required MailSettings mail,
   File? envFile,
   File? shopFile,
+  File? reportFile,
   ShopSchedule? schedule,
+  void Function()? onScheduleChanged,
 }) {
   final clock = schedule ?? ShopSchedule();
   router
     ..get(
       '/admin',
-      (Request request) => _page(request, store, gate, mail, clock),
+      (Request request) => _page(request, store, gate, mail, clock, reportFile),
     )
     ..post('/admin/login', (Request request) => _login(request, gate))
     ..post('/admin/logout', (Request request) => _logout(request, gate))
@@ -93,7 +97,25 @@ void mountAdmin(
     )
     ..post(
       '/admin/clock',
-      (Request request) => _saveClock(request, gate, clock, envFile, shopFile),
+      (Request request) => _saveClock(
+        request,
+        gate,
+        clock,
+        envFile,
+        shopFile,
+        onScheduleChanged,
+      ),
+    )
+    ..post(
+      '/admin/report',
+      (Request request) => _saveReport(
+        request,
+        gate,
+        clock,
+        envFile,
+        shopFile,
+        onScheduleChanged,
+      ),
     );
 }
 
@@ -103,6 +125,7 @@ Response _page(
   AdminGate gate,
   MailSettings mail,
   ShopSchedule schedule,
+  File? reportFile,
 ) {
   if (!gate.configured) {
     return _html(
@@ -119,16 +142,18 @@ Response _page(
   }
   final notice = switch (request.url.queryParameters['notice']) {
     'saved' => '<p>הגדרות הדואר נשמרו.</p>',
-    'mail' => '<p class="error">בדקו את כתובות האימייל ואת פורט הדואר.</p>',
+    'mail' => '<p class="error">בדקו את כתובת האימייל.</p>',
     'access' => '<p>פרטי הכניסה נשמרו.</p>',
     'clock' => '<p>השעון נשמר.</p>',
     'clock-error' => '<p class="error">בדקו את אזור הזמן ואת שעת הדוח.</p>',
+    'report' => '<p>בחירת הדוח נשמרה.</p>',
     _ => '',
   };
   final sections = StringBuffer()
     ..writeln(notice)
     ..writeln(_accessForm(gate))
     ..writeln(_clockForm(schedule))
+    ..writeln(_reportForm(schedule, reportFile))
     ..writeln(_mailForm(mail));
   final environments = store.environmentSummaries();
   if (environments.isEmpty) {
@@ -216,20 +241,13 @@ Future<Response> _saveMail(
     return _redirect('/admin');
   }
   final form = await _form(request);
-  final next = MailSettings(
-    ownerEmail: (form['owner_email'] ?? '').trim(),
-    smtpHost: (form['smtp_host'] ?? '').trim(),
-    smtpPort: int.tryParse((form['smtp_port'] ?? '').trim()) ?? 587,
-    smtpUser: form['smtp_user'] ?? '',
-    smtpPassword: form['smtp_password'] ?? '',
-    smtpFrom: (form['smtp_from'] ?? '').trim(),
-  );
-  if (!_mailIsValid(next)) {
+  final ownerEmail = (form['owner_email'] ?? '').trim();
+  if (ownerEmail.isNotEmpty && !ownerEmail.contains('@')) {
     return _redirect('/admin?notice=mail');
   }
-  _writeBoth(envFile, shopFile, next.toEnv());
-  mail.replaceWith(next);
-  store.setDefaultOwnerEmail(next.ownerEmail);
+  mail.ownerEmail = ownerEmail;
+  _writeBoth(envFile, shopFile, {'OWNER_EMAIL': ownerEmail});
+  store.setDefaultOwnerEmail(ownerEmail);
   return _redirect('/admin?notice=saved');
 }
 
@@ -259,19 +277,41 @@ Future<Response> _saveClock(
   ShopSchedule schedule,
   File? envFile,
   File? shopFile,
+  void Function()? onScheduleChanged,
 ) async {
   if (!gate.allows(request)) {
     return _redirect('/admin');
   }
   final form = await _form(request);
   final zone = (form['time_zone'] ?? '').trim();
-  final hour = int.tryParse((form['report_hour'] ?? '').trim());
-  if (!_zoneIsValid(zone) || hour == null || hour < 0 || hour > 23) {
+  final rawTime = form['report_time'] ?? '';
+  final time = tryParseReportTime(rawTime);
+  if (!_zoneIsValid(zone) || time == null || !rawTime.contains(':')) {
     return _redirect('/admin?notice=clock-error');
   }
-  schedule.replace(timeZone: zone, reportHour: hour);
-  _writeBoth(envFile, shopFile, {'TZ': zone, 'REPORT_HOUR': '$hour'});
+  schedule.replaceClock(timeZone: zone, reportTime: time);
+  _writeBoth(envFile, shopFile, {'TZ': zone, 'REPORT_TIME': time.text});
+  onScheduleChanged?.call();
   return _redirect('/admin?notice=clock');
+}
+
+Future<Response> _saveReport(
+  Request request,
+  AdminGate gate,
+  ShopSchedule schedule,
+  File? envFile,
+  File? shopFile,
+  void Function()? onScheduleChanged,
+) async {
+  if (!gate.allows(request)) {
+    return _redirect('/admin');
+  }
+  final form = await _form(request);
+  final format = normalizeReportFormat(form['report_format'] ?? '');
+  schedule.replaceFormat(format);
+  _writeBoth(envFile, shopFile, {'REPORT_FORMAT': format});
+  onScheduleChanged?.call();
+  return _redirect('/admin?notice=report');
 }
 
 bool _zoneIsValid(String zone) {
@@ -288,19 +328,6 @@ void _writeBoth(File? envFile, File? shopFile, Map<String, String> updates) {
 }
 
 String _ltr(String value) => '\u2066$value\u2069';
-
-bool _mailIsValid(MailSettings mail) {
-  if (mail.ownerEmail.isNotEmpty && !mail.ownerEmail.contains('@')) {
-    return false;
-  }
-  if (!mail.emailEnabled) {
-    return true;
-  }
-  if (mail.smtpPort < 1 || mail.smtpPort > 65535) {
-    return false;
-  }
-  return mail.smtpFrom.contains('@');
-}
 
 String _accessForm(AdminGate gate) {
   return '''
@@ -324,13 +351,13 @@ String _clockForm(ShopSchedule schedule) {
   return '''
 <section>
   <h2>שעון</h2>
-  <p>שעת הדוח נבדקת כל דקה. אזור הזמן נכנס לתוקף בהפעלה הבאה.</p>
+  <p>הדוח יוצא פעם אחת בשעה הזו. אזור הזמן נכנס לתוקף בהפעלה הבאה.</p>
   <form method="post" action="/admin/clock">
     <label>אזור זמן
       <input name="time_zone" value="${_escape(schedule.timeZone)}">
     </label>
     <label>שעת הדוח
-      <input name="report_hour" inputmode="numeric" value="${schedule.reportHour}">
+      <input name="report_time" type="time" value="${schedule.reportTime.text}" required>
     </label>
     <button type="submit">שמירת השעון</button>
   </form>
@@ -338,29 +365,44 @@ String _clockForm(ShopSchedule schedule) {
 ''';
 }
 
+String _reportForm(ShopSchedule schedule, File? reportFile) {
+  final builtin = schedule.reportFormat == 'builtin' ? ' checked' : '';
+  final custom = schedule.reportFormat == 'custom' ? ' checked' : '';
+  final text = _reportText(reportFile);
+  final file = text.isEmpty
+      ? '<p>אין קובץ report.txt. בלי הקובץ נשלח הדוח הקבוע.</p>'
+      : '<pre>${_escape(text)}</pre>';
+  return '''
+<section>
+  <h2>דוח</h2>
+  <form method="post" action="/admin/report">
+    <label><input type="radio" name="report_format" value="builtin"$builtin> הדוח הקבוע</label>
+    <pre>$builtInReportHeading</pre>
+    <label><input type="radio" name="report_format" value="custom"$custom> הקובץ report.txt</label>
+    $file
+    <p>{{environment}} {{date}} {{rows}} … {{/rows}} {{product}} {{check_in}} {{check_in_time}} {{check_out}} {{check_out_time}} {{notes}} {{conclusion}}</p>
+    <button type="submit">שמירת הדוח</button>
+  </form>
+</section>
+''';
+}
+
+String _reportText(File? reportFile) {
+  if (reportFile == null || !reportFile.existsSync()) {
+    return '';
+  }
+  return reportFile.readAsStringSync();
+}
+
 String _mailForm(MailSettings mail) {
+  final state = mail.emailEnabled ? 'הדואר פעיל.' : 'הדואר כבוי.';
   return '''
 <section>
   <h2>דואר</h2>
-  <p>שדות הדואר נשמרים בקובץ.</p>
+  <p>$state תיבת השליחה נשארת בקובץ shop.json.</p>
   <form method="post" action="/admin/mail">
     <label>אימייל הבעלים
       <input name="owner_email" type="email" value="${_escape(mail.ownerEmail)}">
-    </label>
-    <label>שרת דואר
-      <input name="smtp_host" value="${_escape(mail.smtpHost)}">
-    </label>
-    <label>פורט
-      <input name="smtp_port" inputmode="numeric" value="${mail.smtpPort}">
-    </label>
-    <label>משתמש
-      <input name="smtp_user" value="${_escape(mail.smtpUser)}">
-    </label>
-    <label>סיסמה
-      <input name="smtp_password" type="password" value="${_escape(mail.smtpPassword)}">
-    </label>
-    <label>נשלח מאת
-      <input name="smtp_from" type="email" value="${_escape(mail.smtpFrom)}">
     </label>
     <button type="submit">שמירת הדואר</button>
   </form>

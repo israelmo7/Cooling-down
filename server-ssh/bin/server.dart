@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'package:cooling_down_server/env_file.dart';
 import 'package:cooling_down_server/handler.dart';
 import 'package:cooling_down_server/mailer.dart';
+import 'package:cooling_down_server/report_time.dart';
 import 'package:cooling_down_server/server_config.dart';
 import 'package:cooling_down_server/sync_store.dart';
 
@@ -26,7 +27,13 @@ Future<void> main(List<String> args) async {
     timeZone: fileValues['TZ']?.trim().isNotEmpty == true
         ? fileValues['TZ']!.trim()
         : 'Asia/Jerusalem',
-    reportHour: normalizeReportHour(fileValues['REPORT_HOUR'] ?? ''),
+    reportTime: normalizeReportTime(
+      fileValues['REPORT_TIME'] ?? fileValues['REPORT_HOUR'] ?? '',
+    ),
+    reportFormat: normalizeReportFormat(fileValues['REPORT_FORMAT'] ?? ''),
+  );
+  final reportFile = File(
+    '${envFile.parent.path}${Platform.pathSeparator}report.txt',
   );
   final token = await _loadToken(config.syncToken, envFile);
   final database = sqlite3.open(config.dataPath);
@@ -46,7 +53,12 @@ Future<void> main(List<String> args) async {
       shopFile: File(
         '${envFile.parent.path}${Platform.pathSeparator}shop.json',
       ),
+      reportFile: reportFile,
       schedule: schedule,
+      onScheduleChanged: () {
+        unawaited(_sendDue(store, schedule, reportFile));
+        _armReport(store, schedule, reportFile);
+      },
     ),
     InternetAddress.anyIPv4,
     config.port,
@@ -57,9 +69,7 @@ Future<void> main(List<String> args) async {
   stdout.writeln('Settings file: ${envFile.path}');
   stdout.writeln('Clock zone: ${Platform.environment['TZ'] ?? 'system'}');
   if (!config.mail.emailEnabled) {
-    stdout.writeln(
-      'Email is off. Set the mail fields in shop.json or on /admin.',
-    );
+    stdout.writeln('Email is off. Set SMTP_HOST in shop.json.');
   } else {
     stdout.writeln('Email is on via ${config.mail.smtpHost}.');
   }
@@ -75,18 +85,39 @@ Future<void> main(List<String> args) async {
   } else {
     stdout.writeln('Admin page is /admin for ${config.adminUser}.');
   }
-  final hour = schedule.reportHour.toString().padLeft(2, '0');
   stdout.writeln(
-    'A daily report is emailed at $hour:00 for the day that just ended.',
+    'A daily report is emailed at ${schedule.reportTime.text} for the day that just ended.',
   );
-  unawaited(
-    store.sendClosedDay(DateTime.now(), reportHour: schedule.reportHour),
-  );
-  Timer.periodic(const Duration(minutes: 1), (_) {
+  unawaited(_sendDue(store, schedule, reportFile));
+  _armReport(store, schedule, reportFile);
+}
+
+Timer? _reportTimer;
+
+void _armReport(SyncStore store, ShopSchedule schedule, File reportFile) {
+  _reportTimer?.cancel();
+  final next = schedule.reportTime.nextAfter(DateTime.now());
+  _reportTimer = Timer(next.difference(DateTime.now()), () {
     unawaited(
-      store.sendClosedDay(DateTime.now(), reportHour: schedule.reportHour),
+      _sendDue(
+        store,
+        schedule,
+        reportFile,
+      ).whenComplete(() => _armReport(store, schedule, reportFile)),
     );
   });
+}
+
+Future<void> _sendDue(SyncStore store, ShopSchedule schedule, File reportFile) {
+  final template = reportFile.existsSync()
+      ? reportFile.readAsStringSync()
+      : null;
+  return store.sendClosedDay(
+    DateTime.now(),
+    reportTime: schedule.reportTime,
+    reportFormat: schedule.reportFormat,
+    template: template,
+  );
 }
 
 Future<String> _loadToken(String configured, File envFile) async {
