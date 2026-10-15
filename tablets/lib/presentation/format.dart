@@ -1,3 +1,5 @@
+import '../core/temperature.dart';
+
 String formatClock(DateTime utc) {
   final local = utc.toLocal();
   final hour = local.hour.toString().padLeft(2, '0');
@@ -17,5 +19,4 @@ String formatInside(DateTime checkedInAt, DateTime now) {
   return '${elapsed.inHours} שע׳ $minutes דק׳ במקרר';
 }
 
-String formatCelsius(double temperature) =>
-    '${temperature.toStringAsFixed(1)} °C';
+String formatCelsius(double temperature) => ltrCelsiusSpaced(temperature);

@@ -4,6 +4,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 import '../../domain/entities/alert.dart';
 import '../../domain/entities/refrigeration_log.dart';
+import '../../domain/settings/device_settings.dart';
 import 'converters.dart';
 import 'seed_ids.dart';
 import 'tables.dart';
@@ -28,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -100,6 +101,9 @@ SET daily_report_enabled = 1, report_hour = 0, report_minute = 0
       if (from < 10) {
         await migrator.addColumn(localSettings, localSettings.settingsPassword);
       }
+      if (from < 12) {
+        await _keepOneEnvironmentFridge();
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -140,9 +144,6 @@ ON sync_outbox (status, created_at)
 
   Future<void> _useHebrewCatalogNames() async {
     const names = <String, String>{
-      SeedIds.kitchenFridge: 'מקרר מטבח',
-      SeedIds.pharmacyFridge: 'מקרר בית מרקחת',
-      SeedIds.freezer: 'מקפיא',
       SeedIds.wholeMilk: 'חלב',
       SeedIds.chickenBreast: 'חזה עוף',
       SeedIds.insulin: 'אינסולין',
@@ -150,14 +151,51 @@ ON sync_outbox (status, created_at)
     };
     for (final entry in names.entries) {
       await customStatement(
-        'UPDATE fridges SET name = ? WHERE id = ? AND name != ?',
-        [entry.value, entry.key, entry.value],
-      );
-      await customStatement(
         'UPDATE products SET name = ? WHERE id = ? AND name != ?',
         [entry.value, entry.key, entry.value],
       );
     }
+  }
+
+  /// One fridge, named like the environment. Extra seeded fridges stay only
+  /// when a log already points at them.
+  Future<void> _keepOneEnvironmentFridge() async {
+    final rows = await customSelect(
+      'SELECT environment_name FROM local_settings WHERE id = ? LIMIT 1',
+      variables: [Variable.withString('local')],
+    ).get();
+    final stored = rows.isEmpty
+        ? ''
+        : rows.first.read<String>('environment_name');
+    final name = clipEnvironmentName(stored);
+    final kitchen = await customSelect(
+      'SELECT id FROM fridges WHERE id = ?',
+      variables: [Variable.withString(SeedIds.kitchenFridge)],
+    ).get();
+    if (kitchen.isEmpty) {
+      await customStatement(
+        '''
+INSERT INTO fridges (id, name, min_celsius, max_celsius)
+VALUES (?, ?, 0, 5)
+''',
+        [SeedIds.kitchenFridge, name],
+      );
+    } else {
+      await customStatement('UPDATE fridges SET name = ? WHERE id = ?', [
+        name,
+        SeedIds.kitchenFridge,
+      ]);
+    }
+    await customStatement(
+      '''
+DELETE FROM fridges
+WHERE id IN (?, ?)
+  AND NOT EXISTS (
+    SELECT 1 FROM refrigeration_logs WHERE fridge_id = fridges.id
+  )
+''',
+      [SeedIds.pharmacyFridge, SeedIds.freezer],
+    );
   }
 
   Future<void> _seed() async {
@@ -166,21 +204,9 @@ ON sync_outbox (status, created_at)
       batch.insertAll(fridges, [
         FridgesCompanion.insert(
           id: SeedIds.kitchenFridge,
-          name: 'מקרר מטבח',
+          name: 'מטבח',
           minCelsius: 0,
           maxCelsius: 5,
-        ),
-        FridgesCompanion.insert(
-          id: SeedIds.pharmacyFridge,
-          name: 'מקרר בית מרקחת',
-          minCelsius: 2,
-          maxCelsius: 8,
-        ),
-        FridgesCompanion.insert(
-          id: SeedIds.freezer,
-          name: 'מקפיא',
-          minCelsius: -25,
-          maxCelsius: -18,
         ),
       ]);
       batch.insertAll(products, [

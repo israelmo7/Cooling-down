@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/clock.dart';
+import '../../core/temperature.dart';
 import '../../domain/entities/alert.dart';
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/open_holding.dart';
@@ -242,7 +243,7 @@ class DriftLogRepository implements LogRepository {
       productId: log.productId,
       logId: log.id,
       message:
-          '${log.productNameSnapshot} $eventLabel ב-${log.temperatureCelsius.toStringAsFixed(1)}°C, מחוץ לטווח של ${fridge.name} (${fridge.minCelsius.toStringAsFixed(1)}–${fridge.maxCelsius.toStringAsFixed(1)}°C).',
+          '${log.productNameSnapshot} $eventLabel ב-${ltrCelsius(log.temperatureCelsius)}, מחוץ לטווח של ${fridge.name} (${ltrCelsiusRange(fridge.minCelsius, fridge.maxCelsius)}).',
       createdAt: capturedAt,
       originDeviceId: log.originDeviceId,
     );

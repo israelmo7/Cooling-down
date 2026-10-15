@@ -7,6 +7,7 @@ import '../../data/sync/server_url.dart';
 import '../../domain/reports/daily_report.dart';
 import '../../domain/settings/device_settings.dart';
 import '../../domain/workers/worker_refresh.dart';
+import '../../platform/kiosk.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
 import '../widgets/station_widgets.dart';
@@ -270,6 +271,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             LengthLimitingTextInputFormatter(12),
           ],
         ),
+        if (Kiosk.supported) _releaseKioskButton(),
       ] else
         _confirmActionControl(),
     ];
@@ -307,6 +309,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         'מזהה: ${_environment.text}',
         style: Theme.of(context).textTheme.bodySmall,
       ),
+      const SizedBox(height: 8),
+      _computerNote(settings),
     ];
 
     return Scaffold(
@@ -507,16 +511,54 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   bool get _canEdit => _unlocked && !_busy;
 
+  Widget _releaseKioskButton() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          key: const Key('release-kiosk'),
+          onPressed: _busy ? null : () => Kiosk.unpin(),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(64, 56),
+            foregroundColor: const Color(0xFF122428),
+          ),
+          child: const Text('שחרור המסך'),
+        ),
+      ),
+    );
+  }
+
+  Widget _computerNote(DeviceSettings? settings) {
+    if (settings == null) {
+      return const SizedBox.shrink();
+    }
+    final missing =
+        settings.serverUrl.trim().isEmpty ||
+        settings.serverToken.trim().isEmpty;
+    if (missing) {
+      return Text(
+        'חסרים פרטי המחשב.',
+        key: const Key('computer-details-missing'),
+        style: Theme.of(context).textTheme.bodyMedium,
+      );
+    }
+    final failed = settings.lastSyncError?.trim().isNotEmpty ?? false;
+    if (!failed) {
+      return const SizedBox.shrink();
+    }
+    return const Text(
+      'אין חיבור למחשב',
+      key: Key('computer-unreachable'),
+      style: TextStyle(color: Color(0xFFB91C1C), fontSize: 14),
+    );
+  }
+
   String _lastSync(DeviceSettings? settings) {
     if (settings == null || settings.lastSyncAt == null) {
-      return settings?.lastSyncError ?? 'עדיין לא סונכרן';
+      return 'עדיין לא סונכרן';
     }
-    final clock = formatReportClock(settings.lastSyncAt!);
-    final error = settings.lastSyncError;
-    if (error != null && error.isNotEmpty) {
-      return '$clock · $error';
-    }
-    return clock;
+    return formatReportClock(settings.lastSyncAt!);
   }
 
   String _lastReport(StoredDailyReport? report) {

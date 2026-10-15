@@ -124,6 +124,7 @@ class TemperatureStepper extends StatelessWidget {
         Expanded(
           child: Text(
             formatCelsius(temperature),
+            textDirection: TextDirection.ltr,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 48,

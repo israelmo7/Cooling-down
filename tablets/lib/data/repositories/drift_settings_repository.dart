@@ -5,6 +5,7 @@ import '../../domain/settings/device_settings.dart';
 import '../../domain/workers/worker_refresh.dart';
 import '../db/app_database.dart';
 import '../db/ensure_settings.dart';
+import '../db/seed_ids.dart';
 import '../sync/server_url.dart';
 
 class DriftSettingsRepository implements SettingsRepository {
@@ -70,6 +71,30 @@ class DriftSettingsRepository implements SettingsRepository {
         settingsPassword: Value(settings.settingsPassword.trim()),
       ),
     );
+    await _nameEnvironmentFridge(clipEnvironmentName(environment));
+  }
+
+  Future<void> _nameEnvironmentFridge(String name) async {
+    final existing =
+        await (_db.select(_db.fridges)
+              ..where((table) => table.id.equals(SeedIds.kitchenFridge)))
+            .getSingleOrNull();
+    if (existing == null) {
+      await _db
+          .into(_db.fridges)
+          .insert(
+            FridgesCompanion.insert(
+              id: SeedIds.kitchenFridge,
+              name: name,
+              minCelsius: 0,
+              maxCelsius: 5,
+            ),
+          );
+      return;
+    }
+    await (_db.update(_db.fridges)
+          ..where((table) => table.id.equals(SeedIds.kitchenFridge)))
+        .write(FridgesCompanion(name: Value(name)));
   }
 
   @override

@@ -1,3 +1,5 @@
+import '../../core/temperature.dart';
+
 /// Status stored for one environment on one local calendar day.
 abstract final class ReportStatus {
   static const waiting = 'waiting';
@@ -150,7 +152,7 @@ DailyReportContent buildDailyReport({
     title: 'תנועות',
     lines: [
       for (final row in movements)
-        '${formatReportClock(row.occurredAt)} ${row.productName} ${_eventWord(row.eventLabel)} ב-${row.temperatureCelsius.toStringAsFixed(1)}°C (${row.fridgeName})${_workerSuffix(row.workerName)}',
+        '${formatReportClock(row.occurredAt)} ${row.productName} ${_eventWord(row.eventLabel)} ב-${ltrCelsius(row.temperatureCelsius)} (${row.fridgeName})${_workerSuffix(row.workerName)}',
     ],
   );
   _writeList(

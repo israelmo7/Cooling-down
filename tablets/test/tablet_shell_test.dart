@@ -6,6 +6,7 @@ import 'package:cooling_down/data/repositories/drift_worker_repository.dart';
 import 'package:cooling_down/domain/settings/device_settings.dart';
 import 'package:cooling_down/domain/workers/worker_refresh.dart';
 import 'package:cooling_down/presentation/check_out/check_out_panel.dart';
+import 'package:cooling_down/presentation/format.dart';
 import 'package:cooling_down/presentation/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -352,7 +353,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
-    expect(find.text('קליטה: חזה עוף ב-4.0 °C · דנה'), findsOneWidget);
+    expect(
+      find.text('קליטה: חזה עוף ב-${formatCelsius(4.0)} · דנה'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('ביטול'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -361,7 +365,7 @@ void main() {
       tester.widget<Text>(find.byKey(const Key('sync-status'))).style?.color,
       const Color(0xFFB91C1C),
     );
-    expect(find.text('4.0 °C'), findsOneWidget);
+    expect(find.text(formatCelsius(4.0)), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
@@ -390,7 +394,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
-    expect(find.text('הוצאה: חזה עוף ב-4.0 °C · דנה'), findsOneWidget);
+    expect(
+      find.text('הוצאה: חזה עוף ב-${formatCelsius(4.0)} · דנה'),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const Key('confirm-recorded-action')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));

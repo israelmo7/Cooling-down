@@ -51,7 +51,7 @@ void main() {
   test('updating a refrigeration log is rejected', () async {
     final checkIn = await repository.insertCheckIn(
       productId: SeedIds.insulin,
-      fridgeId: SeedIds.pharmacyFridge,
+      fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 5,
       workerName: 'דנה',
     );
@@ -117,7 +117,7 @@ void main() {
   test('an in-range check-in enqueues one outbox row', () async {
     await repository.insertCheckIn(
       productId: SeedIds.vaccine,
-      fridgeId: SeedIds.pharmacyFridge,
+      fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 4,
       workerName: 'דנה',
     );
