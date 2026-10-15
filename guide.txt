@@ -1,4 +1,4 @@
-Cooling down 0.1
+Cooling down 0.2
 
 Android tablet
   cd tablets && flutter build apk --release
