@@ -83,10 +83,6 @@ void mountAdmin(
     ..post('/admin/login', (Request request) => _login(request, gate))
     ..post('/admin/logout', (Request request) => _logout(request, gate))
     ..post(
-      '/admin/email',
-      (Request request) => _saveEmail(request, store, gate),
-    )
-    ..post(
       '/admin/mail',
       (Request request) =>
           _saveMail(request, store, gate, mail, envFile, shopFile),
@@ -163,7 +159,6 @@ Response _page(
   }
   for (final environment in environments) {
     final name = environment['name'] as String;
-    final email = environment['owner_email'] as String? ?? '';
     final logs = store.logsFor(name);
     final rows = StringBuffer();
     if (logs.isEmpty) {
@@ -188,13 +183,6 @@ Response _page(
 <section>
   <h2>${_escape(name)}</h2>
   <p>${environment['logs']} תנועות שמורות במחשב. סביבה אחרת לא מוצגת כאן.</p>
-  <form method="post" action="/admin/email">
-    <input type="hidden" name="environment" value="${_escape(name)}">
-    <label>אימייל הבעלים
-      <input name="owner_email" type="email" value="${_escape(email)}" required>
-    </label>
-    <button type="submit">שמירת אימייל</button>
-  </form>
   $rows
 </section>
 ''');
@@ -357,7 +345,7 @@ String _clockForm(ShopSchedule schedule) {
       <input name="time_zone" value="${_escape(schedule.timeZone)}">
     </label>
     <label>שעת הדוח
-      <input name="report_time" type="time" value="${schedule.reportTime.text}" required>
+      <input name="report_time" type="text" inputmode="numeric" dir="ltr" value="${schedule.reportTime.text}" placeholder="18:30" pattern="[0-9]{1,2}:[0-9]{2}" required>
     </label>
     <button type="submit">שמירת השעון</button>
   </form>
@@ -399,7 +387,7 @@ String _mailForm(MailSettings mail) {
   return '''
 <section>
   <h2>דואר</h2>
-  <p>$state תיבת השליחה נשארת בקובץ shop.json.</p>
+  <p>$state תיבת השליחה נשארת בקובץ shop.json. הדוח נשלח לכתובת הזו.</p>
   <form method="post" action="/admin/mail">
     <label>אימייל הבעלים
       <input name="owner_email" type="email" value="${_escape(mail.ownerEmail)}">
@@ -408,19 +396,6 @@ String _mailForm(MailSettings mail) {
   </form>
 </section>
 ''';
-}
-
-Future<Response> _saveEmail(
-  Request request,
-  SyncStore store,
-  AdminGate gate,
-) async {
-  if (!gate.allows(request)) {
-    return _redirect('/admin');
-  }
-  final form = await _form(request);
-  store.setOwnerEmail(form['environment'] ?? '', form['owner_email'] ?? '');
-  return _redirect('/admin');
 }
 
 String _loginForm({required bool failed}) {

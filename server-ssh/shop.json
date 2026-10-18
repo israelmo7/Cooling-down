@@ -1,5 +1,5 @@
 {
-  "_readme": "Empty SYNC_TOKEN is filled on first apply and printed. Empty ADMIN_USER or ADMIN_PASSWORD turns /admin off. Both can also be changed on /admin. Empty SMTP_HOST turns mail off; the report is still stored. The sending mailbox stays in this file. TZ applies on the next start. REPORT_TIME is HH:mm. REPORT_FORMAT is builtin or custom. custom reads report.txt next to this file.",
+  "_readme": "Empty SYNC_TOKEN is filled on first apply and printed. Empty ADMIN_USER or ADMIN_PASSWORD turns /admin off. Both can also be changed on /admin. Empty SMTP_HOST turns mail off; the report is still stored. The sending mailbox stays in this file. OWNER_EMAIL is the one address that receives every report. TZ applies on the next start. REPORT_TIME is HH:mm, typed on /admin. REPORT_FORMAT is builtin or custom. custom reads report.txt next to this file.",
   "SYNC_TOKEN": "",
   "ADMIN_USER": "",
   "ADMIN_PASSWORD": "",

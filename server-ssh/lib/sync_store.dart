@@ -243,13 +243,13 @@ WHERE environment = ? AND report_date = ?
     final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
     final day = startOfToday.subtract(const Duration(days: 1));
     final date = _reportDate(day);
-    final targets = _db.select(
-      "SELECT name, owner_email FROM environments WHERE owner_email LIKE '%@%'",
-    );
+    final email = ownerEmail.trim();
+    if (!email.contains('@')) {
+      return const [];
+    }
     final statuses = <String>[];
-    for (final target in targets) {
-      final environment = target['name'] as String;
-      final email = target['owner_email'] as String;
+    for (final row in environmentSummaries()) {
+      final environment = row['name'] as String;
       final existing = _db.select(
         '''
 SELECT status FROM daily_reports
@@ -302,22 +302,15 @@ WHERE environment = ? AND report_date = ?
     _writeOwner(name, address);
   }
 
-  /// The address new environments inherit. Places still using the previous
-  /// default, or with no address yet, follow the new one.
+  /// The one address that receives every environment's report.
   void setDefaultOwnerEmail(String email) {
     final next = email.trim();
-    final previous = ownerEmail.trim();
     ownerEmail = next;
     if (!next.contains('@')) {
       return;
     }
     for (final row in environmentSummaries()) {
-      final current = (row['owner_email'] as String?)?.trim() ?? '';
-      final followsDefault =
-          current.isEmpty || !current.contains('@') || current == previous;
-      if (followsDefault) {
-        _writeOwner(row['name'] as String, next);
-      }
+      _writeOwner(row['name'] as String, next);
     }
   }
 

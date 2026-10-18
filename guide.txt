@@ -18,7 +18,8 @@ Shop settings — server-ssh/shop.json
   REPORT_TIME defaults to 00:00. The report waits until that minute, then covers yesterday.
   REPORT_FORMAT builtin is the fixed table. custom uses data/report.txt.
   Copy server-ssh/report.example.txt to data/report.txt, then choose it on /admin.
-  /admin can change the owner email, the clock, the report choice, and the admin login.
+  /admin can change the one owner address, the clock, the report choice, and the admin login.
+  Every report goes to that one address. Type the clock as HH:mm, for example 18:30.
   Tablet address: http://<shop-pc>:8080
   The program reads .env. apply writes .env from shop.json.
 

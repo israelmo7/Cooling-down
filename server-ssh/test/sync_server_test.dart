@@ -176,7 +176,7 @@ void main() {
     expect(store.logsFor('בית מרקחת'), isEmpty);
   });
 
-  test('admin login edits one environment email only', () async {
+  test('admin login shows one owner address', () async {
     final store = SyncStore.memory();
     addTearDown(store.close);
     store.setOwnerEmail('מטבח', 'kitchen@shop.test');
@@ -209,20 +209,19 @@ void main() {
     expect(allowed.status, 302);
     expect(allowed.cookie, isNotNull);
 
-    final saved = await _form(client, server.port, '/admin/email', {
-      'environment': 'מטבח',
-      'owner_email': 'new-kitchen@shop.test',
-    }, cookie: allowed.cookie);
-    expect(saved.status, 302);
-    final rows = store.environmentSummaries();
-    expect(
-      rows.firstWhere((row) => row['name'] == 'מטבח')['owner_email'],
-      'new-kitchen@shop.test',
+    final page = await _get(
+      client,
+      server.port,
+      '/admin',
+      cookie: allowed.cookie,
     );
-    expect(
-      rows.firstWhere((row) => row['name'] == 'בית מרקחת')['owner_email'],
-      'pharmacy@shop.test',
-    );
+    expect(page.body, contains('מטבח'));
+    expect(page.body, contains('בית מרקחת'));
+    expect('name="owner_email"'.allMatches(page.body), hasLength(1));
+    expect(page.body, isNot(contains('שמירת אימייל')));
+    expect(page.body, isNot(contains('type="time"')));
+    expect(page.body, contains('dir="ltr"'));
+    expect(page.body, contains('placeholder="18:30"'));
   });
 
   test('midnight emails yesterday once from the stored logs', () async {
@@ -347,8 +346,25 @@ void main() {
     );
     expect(
       rows.firstWhere((row) => row['name'] == 'בית מרקחת')['owner_email'],
-      'pharmacy@shop.test',
+      'new-owner@shop.test',
     );
+  });
+
+  test('every environment report goes to the one shop address', () async {
+    final mailer = _RecordingMailer();
+    final store = SyncStore.memory(
+      mailer: mailer,
+      ownerEmail: 'owner@shop.test',
+    );
+    addTearDown(store.close);
+    store.setOwnerEmail('מטבח', 'kitchen@shop.test');
+    store.setOwnerEmail('בית מרקחת', 'pharmacy@shop.test');
+
+    final statuses = await store.sendClosedDay(DateTime(2026, 10, 12, 0, 1));
+
+    expect(statuses, ['sent', 'sent']);
+    expect(mailer.sent, 2);
+    expect(mailer.tos, ['owner@shop.test', 'owner@shop.test']);
   });
 
   test('the report waits until the chosen hour', () async {
@@ -540,6 +556,7 @@ Map<String, dynamic> _push(String type, Map<String, dynamic> payload) {
 
 class _RecordingMailer implements ReportMailer {
   int sent = 0;
+  final tos = <String>[];
   String? lastTo;
   String? lastSubject;
   String? lastBody;
@@ -553,6 +570,7 @@ class _RecordingMailer implements ReportMailer {
     String? html,
   }) async {
     sent += 1;
+    tos.add(to);
     lastTo = to;
     lastSubject = subject;
     lastBody = body;
