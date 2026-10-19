@@ -1,0 +1,8 @@
+.dart_tool/
+build/
+test/
+.env
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
