@@ -83,35 +83,22 @@ void mountAdmin(
     ..post('/admin/login', (Request request) => _login(request, gate))
     ..post('/admin/logout', (Request request) => _logout(request, gate))
     ..post(
-      '/admin/mail',
+      '/admin/save',
+      (Request request) => _save(
+        request,
+        store,
+        gate,
+        mail,
+        clock,
+        envFile,
+        shopFile,
+        onScheduleChanged,
+      ),
+    )
+    ..post(
+      '/admin/test-report',
       (Request request) =>
-          _saveMail(request, store, gate, mail, envFile, shopFile),
-    )
-    ..post(
-      '/admin/access',
-      (Request request) => _saveAccess(request, gate, envFile, shopFile),
-    )
-    ..post(
-      '/admin/clock',
-      (Request request) => _saveClock(
-        request,
-        gate,
-        clock,
-        envFile,
-        shopFile,
-        onScheduleChanged,
-      ),
-    )
-    ..post(
-      '/admin/report',
-      (Request request) => _saveReport(
-        request,
-        gate,
-        clock,
-        envFile,
-        shopFile,
-        onScheduleChanged,
-      ),
+          _sendTest(request, store, gate, mail, clock, reportFile),
     );
 }
 
@@ -136,63 +123,57 @@ Response _page(
       _loginForm(failed: request.url.queryParameters['error'] == '1'),
     );
   }
-  final notice = switch (request.url.queryParameters['notice']) {
-    'saved' => '<p>הגדרות הדואר נשמרו.</p>',
-    'mail' => '<p class="error">בדקו את כתובת האימייל.</p>',
-    'access' => '<p>פרטי הכניסה נשמרו.</p>',
-    'clock' => '<p>השעון נשמר.</p>',
-    'clock-error' => '<p class="error">בדקו את אזור הזמן ואת שעת הדוח.</p>',
-    'report' => '<p>בחירת הדוח נשמרה.</p>',
-    _ => '',
-  };
-  final sections = StringBuffer()
-    ..writeln(notice)
-    ..writeln(_accessForm(gate))
-    ..writeln(_clockForm(schedule))
-    ..writeln(_reportForm(schedule, reportFile))
-    ..writeln(_mailForm(mail));
-  final environments = store.environmentSummaries();
-  if (environments.isEmpty) {
-    sections.writeln(
-      '<p>עדיין אין סביבות. טאבלט מעלה נתונים אחרי הסנכרון הראשון.</p>',
-    );
-  }
-  for (final environment in environments) {
-    final name = environment['name'] as String;
-    final logs = store.logsFor(name);
-    final rows = StringBuffer();
-    if (logs.isEmpty) {
-      rows.writeln('<p>אין תנועות בסביבה הזו.</p>');
-    } else {
-      rows.writeln('<ul>');
-      for (final log in logs.reversed.take(20)) {
-        final word = log.eventType == 'check_in' ? 'קליטה' : 'הוצאה';
-        final temperature = log.temperature == null
-            ? ''
-            : ' ${_ltr('${log.temperature!.toStringAsFixed(1)}°C')}';
-        final worker = log.workerName.trim().isEmpty
-            ? ''
-            : ' · ${_escape(log.workerName.trim())}';
-        rows.writeln(
-          '<li>${_escape(_clock(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker</li>',
-        );
-      }
-      rows.writeln('</ul>');
-    }
-    sections.writeln('''
-<section>
-  <h2>${_escape(name)}</h2>
-  <p>${environment['logs']} תנועות שמורות במחשב. סביבה אחרת לא מוצגת כאן.</p>
-  $rows
-</section>
-''');
-  }
+  final places = request.url.queryParameters['tab'] == 'places';
+  final notice = _notice(request.url.queryParameters['notice']);
+  final body = places
+      ? _places(store)
+      : _settings(gate, mail, schedule, reportFile);
   return _html(
-    _shell('לוח ניהול', '''
-<form method="post" action="/admin/logout"><button type="submit">יציאה</button></form>
-$sections
+    _shell('', '''
+${_bar(places: places)}
+$notice
+$body
 '''),
   );
+}
+
+String _notice(String? code) {
+  final text = switch (code) {
+    'saved' => 'ההגדרות נשמרו.',
+    'mail' => 'בדקו את כתובת האימייל.',
+    'access' => 'מלאו שם משתמש וסיסמה.',
+    'time' => 'שעת הדוח צריכה להיות בשעה כמו 18:30.',
+    'zone' => 'אזור הזמן לא תקין.',
+    'test-ok' => 'נשלח דוח הבדיקה של היום.',
+    'test-stored' => 'דוח הבדיקה נשמר. הדואר כבוי, אז הוא לא יצא.',
+    'test-mail' => 'הגדירו אימייל בעלים לפני שליחת הדוח.',
+    'test-empty' => 'אין סביבה לשלוח לה דוח.',
+    'test-already' => 'דוח הבדיקה של היום כבר נשלח.',
+    'test-failed' => 'שליחת הדוח נכשלה.',
+    _ => '',
+  };
+  if (text.isEmpty) {
+    return '';
+  }
+  final kind = code == 'saved' || code == 'test-ok' || code == 'test-stored'
+      ? 'ok'
+      : 'error';
+  return '<p class="notice $kind">$text</p>';
+}
+
+String _bar({required bool places}) {
+  final settingsClass = places ? '' : ' class="on"';
+  final placesClass = places ? ' class="on"' : '';
+  return '''
+<header class="bar">
+  <strong>לוח ניהול</strong>
+  <nav>
+    <a href="/admin"$settingsClass>הגדרות</a>
+    <a href="/admin?tab=places"$placesClass>סביבות</a>
+  </nav>
+  <form method="post" action="/admin/logout"><button type="submit">יציאה</button></form>
+</header>
+''';
 }
 
 Future<Response> _login(Request request, AdminGate gate) async {
@@ -217,33 +198,15 @@ Response _logout(Request request, AdminGate gate) {
   );
 }
 
-Future<Response> _saveMail(
+Future<Response> _save(
   Request request,
   SyncStore store,
   AdminGate gate,
   MailSettings mail,
+  ShopSchedule schedule,
   File? envFile,
   File? shopFile,
-) async {
-  if (!gate.allows(request)) {
-    return _redirect('/admin');
-  }
-  final form = await _form(request);
-  final ownerEmail = (form['owner_email'] ?? '').trim();
-  if (ownerEmail.isNotEmpty && !ownerEmail.contains('@')) {
-    return _redirect('/admin?notice=mail');
-  }
-  mail.ownerEmail = ownerEmail;
-  _writeBoth(envFile, shopFile, {'OWNER_EMAIL': ownerEmail});
-  store.setDefaultOwnerEmail(ownerEmail);
-  return _redirect('/admin?notice=saved');
-}
-
-Future<Response> _saveAccess(
-  Request request,
-  AdminGate gate,
-  File? envFile,
-  File? shopFile,
+  void Function()? onScheduleChanged,
 ) async {
   if (!gate.allows(request)) {
     return _redirect('/admin');
@@ -251,55 +214,86 @@ Future<Response> _saveAccess(
   final form = await _form(request);
   final user = (form['admin_user'] ?? '').trim();
   final password = form['admin_password'] ?? '';
+  final zone = (form['time_zone'] ?? '').trim();
+  final rawTime = (form['report_time'] ?? '').trim();
+  final ownerEmail = (form['owner_email'] ?? '').trim();
+  final time = _clockField(rawTime);
+  if (user.isEmpty || password.isEmpty) {
+    return _redirect('/admin?notice=access');
+  }
+  if (!_zoneIsValid(zone)) {
+    return _redirect('/admin?notice=zone');
+  }
+  if (time == null) {
+    return _redirect('/admin?notice=time');
+  }
+  if (ownerEmail.isNotEmpty && !ownerEmail.contains('@')) {
+    return _redirect('/admin?notice=mail');
+  }
+  final format = normalizeReportFormat(form['report_format'] ?? '');
   gate.replace(user: user, password: password);
+  mail.ownerEmail = ownerEmail;
+  schedule.replaceClock(timeZone: zone, reportTime: time);
+  schedule.replaceFormat(format);
   _writeBoth(envFile, shopFile, {
     'ADMIN_USER': user,
     'ADMIN_PASSWORD': password,
+    'TZ': zone,
+    'REPORT_TIME': time.text,
+    'REPORT_FORMAT': format,
+    'OWNER_EMAIL': ownerEmail,
   });
-  return _redirect('/admin?notice=access');
+  store.setDefaultOwnerEmail(ownerEmail);
+  onScheduleChanged?.call();
+  return _redirect('/admin?notice=saved');
 }
 
-Future<Response> _saveClock(
+Future<Response> _sendTest(
   Request request,
+  SyncStore store,
   AdminGate gate,
+  MailSettings mail,
   ShopSchedule schedule,
-  File? envFile,
-  File? shopFile,
-  void Function()? onScheduleChanged,
+  File? reportFile,
 ) async {
   if (!gate.allows(request)) {
     return _redirect('/admin');
   }
-  final form = await _form(request);
-  final zone = (form['time_zone'] ?? '').trim();
-  final rawTime = form['report_time'] ?? '';
-  final time = tryParseReportTime(rawTime);
-  if (!_zoneIsValid(zone) || time == null || !rawTime.contains(':')) {
-    return _redirect('/admin?notice=clock-error');
+  if (!mail.ownerEmail.contains('@')) {
+    return _redirect('/admin?notice=test-mail');
   }
-  schedule.replaceClock(timeZone: zone, reportTime: time);
-  _writeBoth(envFile, shopFile, {'TZ': zone, 'REPORT_TIME': time.text});
-  onScheduleChanged?.call();
-  return _redirect('/admin?notice=clock');
+  if (store.environmentSummaries().isEmpty) {
+    return _redirect('/admin?notice=test-empty');
+  }
+  final template = _reportText(reportFile);
+  final statuses = await store.sendDay(
+    DateTime.now(),
+    reportFormat: schedule.reportFormat,
+    template: template,
+  );
+  final notice = _testNotice(statuses);
+  return _redirect('/admin?notice=$notice');
 }
 
-Future<Response> _saveReport(
-  Request request,
-  AdminGate gate,
-  ShopSchedule schedule,
-  File? envFile,
-  File? shopFile,
-  void Function()? onScheduleChanged,
-) async {
-  if (!gate.allows(request)) {
-    return _redirect('/admin');
+String _testNotice(List<String> statuses) {
+  if (statuses.isEmpty) {
+    return 'test-already';
   }
-  final form = await _form(request);
-  final format = normalizeReportFormat(form['report_format'] ?? '');
-  schedule.replaceFormat(format);
-  _writeBoth(envFile, shopFile, {'REPORT_FORMAT': format});
-  onScheduleChanged?.call();
-  return _redirect('/admin?notice=report');
+  if (statuses.any((status) => status == 'failed')) {
+    return 'test-failed';
+  }
+  if (statuses.any((status) => status == 'sent')) {
+    return 'test-ok';
+  }
+  return 'test-stored';
+}
+
+/// A clock typed as `18:30`. Hour-only and out-of-range values are rejected.
+ReportTime? _clockField(String raw) {
+  if (!RegExp(r'^\d{1,2}:\d{2}$').hasMatch(raw)) {
+    return null;
+  }
+  return tryParseReportTime(raw);
 }
 
 bool _zoneIsValid(String zone) {
@@ -317,62 +311,103 @@ void _writeBoth(File? envFile, File? shopFile, Map<String, String> updates) {
 
 String _ltr(String value) => '\u2066$value\u2069';
 
-String _accessForm(AdminGate gate) {
-  return '''
-<section>
-  <h2>כניסה</h2>
-  <p>אפשר לשנות גם מכאן וגם בקובץ shop.json. האסימון נשאר בקובץ.</p>
-  <form method="post" action="/admin/access">
-    <label>שם משתמש
-      <input name="admin_user" value="${_escape(gate.user)}" autocomplete="username">
-    </label>
-    <label>סיסמה
-      <input name="admin_password" type="password" value="${_escape(gate.password)}" autocomplete="new-password">
-    </label>
-    <button type="submit">שמירת הכניסה</button>
-  </form>
-</section>
-''';
-}
-
-String _clockForm(ShopSchedule schedule) {
-  return '''
-<section>
-  <h2>שעון</h2>
-  <p>הדוח יוצא פעם אחת בשעה הזו. אזור הזמן נכנס לתוקף בהפעלה הבאה.</p>
-  <form method="post" action="/admin/clock">
-    <label>אזור זמן
-      <input name="time_zone" value="${_escape(schedule.timeZone)}">
-    </label>
-    <label>שעת הדוח
-      <input name="report_time" type="text" inputmode="numeric" dir="ltr" value="${schedule.reportTime.text}" placeholder="18:30" pattern="[0-9]{1,2}:[0-9]{2}" required>
-    </label>
-    <button type="submit">שמירת השעון</button>
-  </form>
-</section>
-''';
-}
-
-String _reportForm(ShopSchedule schedule, File? reportFile) {
+String _settings(
+  AdminGate gate,
+  MailSettings mail,
+  ShopSchedule schedule,
+  File? reportFile,
+) {
+  final state = mail.emailEnabled ? 'הדואר פעיל.' : 'הדואר כבוי.';
   final builtin = schedule.reportFormat == 'builtin' ? ' checked' : '';
   final custom = schedule.reportFormat == 'custom' ? ' checked' : '';
   final text = _reportText(reportFile);
   final file = text.isEmpty
-      ? '<p>אין קובץ report.txt. בלי הקובץ נשלח הדוח הקבוע.</p>'
+      ? '<p class="hint">אין קובץ report.txt. בלי הקובץ נשלח הדוח הקבוע.</p>'
       : '<pre>${_escape(text)}</pre>';
   return '''
-<section>
-  <h2>דוח</h2>
-  <form method="post" action="/admin/report">
-    <label><input type="radio" name="report_format" value="builtin"$builtin> הדוח הקבוע</label>
+<form method="post" action="/admin/save" class="card">
+  <section>
+    <h2>כניסה</h2>
+    <p class="hint">אפשר לשנות גם מכאן וגם בקובץ shop.json. האסימון נשאר בקובץ.</p>
+    <label>שם משתמש
+      <input name="admin_user" value="${_escape(gate.user)}" autocomplete="username" required>
+    </label>
+    <label>סיסמה
+      <input name="admin_password" type="password" value="${_escape(gate.password)}" autocomplete="new-password" required>
+    </label>
+  </section>
+  <section>
+    <h2>שעון</h2>
+    <p class="hint">הדוח יוצא פעם אחת בשעה הזו. אזור הזמן נכנס לתוקף בהפעלה הבאה.</p>
+    <label>אזור זמן
+      <input name="time_zone" value="${_escape(schedule.timeZone)}" dir="ltr" required>
+    </label>
+    <label>שעת הדוח
+      <input name="report_time" type="text" inputmode="numeric" dir="ltr" value="${schedule.reportTime.text}" placeholder="18:30" pattern="[0-9]{1,2}:[0-9]{2}" required>
+    </label>
+  </section>
+  <section>
+    <h2>דוח</h2>
+    <label class="choice"><input type="radio" name="report_format" value="builtin"$builtin> הדוח הקבוע</label>
     <pre>$builtInReportHeading</pre>
-    <label><input type="radio" name="report_format" value="custom"$custom> הקובץ report.txt</label>
+    <label class="choice"><input type="radio" name="report_format" value="custom"$custom> הקובץ report.txt</label>
     $file
-    <p>{{environment}} {{date}} {{rows}} … {{/rows}} {{product}} {{check_in}} {{check_in_time}} {{check_out}} {{check_out_time}} {{notes}} {{conclusion}}</p>
-    <button type="submit">שמירת הדוח</button>
-  </form>
-</section>
+    <p class="hint">{{environment}} {{date}} {{rows}} … {{/rows}} {{product}} {{check_in}} {{check_in_time}} {{check_out}} {{check_out_time}} {{notes}} {{conclusion}}</p>
+  </section>
+  <section>
+    <h2>דואר</h2>
+    <p class="hint">$state תיבת השליחה נשארת בקובץ shop.json. הדוח נשלח לכתובת הזו.</p>
+    <label>אימייל הבעלים
+      <input name="owner_email" type="email" dir="ltr" value="${_escape(mail.ownerEmail)}">
+    </label>
+  </section>
+  <button type="submit" class="primary">שמירה</button>
+</form>
+<form method="post" action="/admin/test-report" class="card test">
+  <h2>בדיקת הדוח</h2>
+  <p class="hint">שולח את תנועות היום לאימייל הבעלים. הדוח הקבוע של אתמול נשאר בשעה שנשמרה.</p>
+  <button type="submit">שליחת דוח לבדיקה</button>
+</form>
 ''';
+}
+
+String _places(SyncStore store) {
+  final environments = store.environmentSummaries();
+  if (environments.isEmpty) {
+    return '<section class="card"><p>עדיין אין סביבות. טאבלט מעלה נתונים אחרי הסנכרון הראשון.</p></section>';
+  }
+  final sections = StringBuffer();
+  for (final environment in environments) {
+    final name = environment['name'] as String;
+    final logs = store.logsFor(name);
+    final rows = StringBuffer();
+    if (logs.isEmpty) {
+      rows.writeln('<p class="hint">אין תנועות בסביבה הזו.</p>');
+    } else {
+      rows.writeln('<ul>');
+      for (final log in logs.reversed.take(20)) {
+        final word = log.eventType == 'check_in' ? 'קליטה' : 'הוצאה';
+        final temperature = log.temperature == null
+            ? ''
+            : ' ${_ltr('${log.temperature!.toStringAsFixed(1)}°C')}';
+        final worker = log.workerName.trim().isEmpty
+            ? ''
+            : ' · ${_escape(log.workerName.trim())}';
+        rows.writeln(
+          '<li>${_escape(_clock(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker</li>',
+        );
+      }
+      rows.writeln('</ul>');
+    }
+    sections.writeln('''
+<section class="card">
+  <h2>${_escape(name)}</h2>
+  <p class="hint">${environment['logs']} תנועות שמורות במחשב.</p>
+  $rows
+</section>
+''');
+  }
+  return sections.toString();
 }
 
 String _reportText(File? reportFile) {
@@ -382,33 +417,19 @@ String _reportText(File? reportFile) {
   return reportFile.readAsStringSync();
 }
 
-String _mailForm(MailSettings mail) {
-  final state = mail.emailEnabled ? 'הדואר פעיל.' : 'הדואר כבוי.';
-  return '''
-<section>
-  <h2>דואר</h2>
-  <p>$state תיבת השליחה נשארת בקובץ shop.json. הדוח נשלח לכתובת הזו.</p>
-  <form method="post" action="/admin/mail">
-    <label>אימייל הבעלים
-      <input name="owner_email" type="email" value="${_escape(mail.ownerEmail)}">
-    </label>
-    <button type="submit">שמירת הדואר</button>
-  </form>
-</section>
-''';
-}
-
 String _loginForm({required bool failed}) {
   final error = failed
       ? '<p class="error">שם המשתמש או הסיסמה שגויים.</p>'
       : '';
   return _shell('כניסה ללוח הניהול', '''
+<section class="card">
 $error
 <form method="post" action="/admin/login">
   <label>שם משתמש <input name="user" autocomplete="username" required></label>
   <label>סיסמה <input name="password" type="password" autocomplete="current-password" required></label>
-  <button type="submit">כניסה</button>
+  <button type="submit" class="primary">כניסה</button>
 </form>
+</section>
 ''');
 }
 
@@ -421,16 +442,36 @@ String _shell(String title, String body) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${_escape(title)}</title>
   <style>
-    body { font-family: sans-serif; margin: 32px auto; max-width: 760px; line-height: 1.5; }
-    section { border-top: 1px solid #ccc; margin-top: 24px; padding-top: 16px; }
+    body { font-family: sans-serif; margin: 0 auto 48px; max-width: 820px; line-height: 1.5; color: #16343a; background: #f3f6f6; }
+    h1 { margin: 28px 20px 8px; }
+    .bar { display: flex; align-items: center; gap: 16px; padding: 14px 20px; background: #16343a; color: white; }
+    .bar strong { font-size: 20px; }
+    .bar nav { display: flex; gap: 8px; margin-inline-start: auto; }
+    .bar a { color: white; text-decoration: none; padding: 8px 12px; border-radius: 8px; }
+    .bar a.on { background: white; color: #16343a; }
+    .bar button { background: transparent; color: white; border: 1px solid rgba(255,255,255,.4); }
+    .card { background: white; margin: 16px 20px; padding: 8px 20px 20px; border-radius: 12px; }
+    section { border-top: 1px solid #e2e8e8; margin-top: 8px; padding-top: 8px; }
+    section:first-child { border-top: 0; }
     label { display: block; margin: 12px 0; }
-    input { font-size: 18px; padding: 8px; width: 100%; max-width: 420px; }
-    button { font-size: 18px; padding: 8px 16px; }
-    .error { color: #8a1f1f; }
+    label.choice { margin: 8px 0; }
+    input { font-size: 18px; padding: 8px 10px; width: 100%; max-width: 420px; box-sizing: border-box; }
+    input[dir="ltr"] { text-align: left; }
+    button { font-size: 18px; padding: 10px 16px; border-radius: 8px; border: 1px solid #c5d0d0; background: white; }
+    button.primary { background: #16343a; color: white; border-color: #16343a; min-width: 160px; }
+    .test { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+    .test h2, .test p { margin: 0; }
+    .hint { color: #4d6468; }
+    .notice { margin: 16px 20px; padding: 12px 16px; border-radius: 10px; }
+    .notice.ok { background: #e7f6ec; color: #166534; }
+    .notice.error, .error { background: #fde8e8; color: #8a1f1f; }
+    .error { padding: 12px 16px; border-radius: 10px; }
+    pre { white-space: pre-wrap; background: #f7fafa; padding: 12px; border-radius: 8px; }
+    ul { padding-inline-start: 20px; }
   </style>
 </head>
 <body>
-  <h1>${_escape(title)}</h1>
+  ${title.isEmpty ? '' : '<h1>${_escape(title)}</h1>'}
   $body
 </body>
 </html>

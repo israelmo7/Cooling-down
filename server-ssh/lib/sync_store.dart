@@ -238,10 +238,23 @@ WHERE environment = ? AND report_date = ?
     if (!reportTime.reached(nowLocal)) {
       return const [];
     }
+    final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    return sendDay(
+      startOfToday.subtract(const Duration(days: 1)),
+      reportFormat: reportFormat,
+      template: template,
+    );
+  }
+
+  /// Sends the report for [day] to the one shop address.
+  /// A day already marked sent is skipped.
+  Future<List<String>> sendDay(
+    DateTime day, {
+    String reportFormat = 'builtin',
+    String? template,
+  }) async {
     final custom = normalizeReportFormat(reportFormat) == 'custom';
     final wording = template?.trim() ?? '';
-    final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
-    final day = startOfToday.subtract(const Duration(days: 1));
     final date = _reportDate(day);
     final email = ownerEmail.trim();
     if (!email.contains('@')) {

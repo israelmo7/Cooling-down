@@ -209,19 +209,28 @@ void main() {
     expect(allowed.status, 302);
     expect(allowed.cookie, isNotNull);
 
-    final page = await _get(
+    final settings = await _get(
       client,
       server.port,
       '/admin',
       cookie: allowed.cookie,
     );
-    expect(page.body, contains('מטבח'));
-    expect(page.body, contains('בית מרקחת'));
-    expect('name="owner_email"'.allMatches(page.body), hasLength(1));
-    expect(page.body, isNot(contains('שמירת אימייל')));
-    expect(page.body, isNot(contains('type="time"')));
-    expect(page.body, contains('dir="ltr"'));
-    expect(page.body, contains('placeholder="18:30"'));
+    expect('name="owner_email"'.allMatches(settings.body), hasLength(1));
+    expect(settings.body, contains('שמירה'));
+    expect(settings.body, contains('שליחת דוח לבדיקה'));
+    expect(settings.body, isNot(contains('מטבח')));
+    expect(settings.body, isNot(contains('type="time"')));
+    expect(settings.body, contains('dir="ltr"'));
+    expect(settings.body, contains('placeholder="18:30"'));
+    final places = await _get(
+      client,
+      server.port,
+      '/admin?tab=places',
+      cookie: allowed.cookie,
+    );
+    expect(places.body, contains('מטבח'));
+    expect(places.body, contains('בית מרקחת'));
+    expect(places.body, isNot(contains('name="owner_email"')));
   });
 
   test('midnight emails yesterday once from the stored logs', () async {
@@ -322,14 +331,24 @@ void main() {
     expect(page.body, isNot(contains('name="smtp_password"')));
     expect(page.body, isNot(contains('smtp.shop.test')));
 
-    final rejected = await _form(client, server.port, '/admin/mail', {
+    final rejected = await _form(client, server.port, '/admin/save', {
+      'admin_user': 'owner',
+      'admin_password': 'panel-secret',
+      'time_zone': 'Asia/Jerusalem',
+      'report_time': '00:00',
+      'report_format': 'builtin',
       'owner_email': 'not-an-email',
     }, cookie: allowed.cookie);
     expect(rejected.status, 302);
     expect(store.ownerEmail, 'owner@shop.test');
     expect(loadEnvFile(envFile)['OWNER_EMAIL'], isNull);
 
-    final saved = await _form(client, server.port, '/admin/mail', {
+    final saved = await _form(client, server.port, '/admin/save', {
+      'admin_user': 'owner',
+      'admin_password': 'panel-secret',
+      'time_zone': 'Asia/Jerusalem',
+      'report_time': '00:00',
+      'report_format': 'builtin',
       'owner_email': 'new-owner@shop.test',
     }, cookie: allowed.cookie);
     expect(saved.status, 302);
@@ -365,6 +384,79 @@ void main() {
     expect(statuses, ['sent', 'sent']);
     expect(mailer.sent, 2);
     expect(mailer.tos, ['owner@shop.test', 'owner@shop.test']);
+  });
+
+  test('the test button sends today to the shop address', () async {
+    final mailer = _RecordingMailer();
+    final store = SyncStore.memory(
+      mailer: mailer,
+      ownerEmail: 'owner@shop.test',
+    );
+    addTearDown(store.close);
+    final now = DateTime.now();
+    store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      push: [
+        _push('refrigeration_log', {
+          ..._log(id: 'today', movementId: 'move-today', eventType: 'check_in'),
+          'product_name_snapshot': 'חלב',
+          'occurred_at': now.toUtc().toIso8601String(),
+        }),
+      ],
+    );
+    final server = await shelf_io.serve(
+      buildHandler(
+        store: store,
+        token: 'secret',
+        adminUser: 'owner',
+        adminPassword: 'panel-secret',
+        mail: MailSettings(
+          ownerEmail: 'owner@shop.test',
+          smtpHost: 'smtp.shop.test',
+          smtpFrom: 'from@shop.test',
+        ),
+      ),
+      InternetAddress.loopbackIPv4,
+      0,
+    );
+    addTearDown(server.close);
+    final client = HttpClient();
+    addTearDown(client.close);
+    final allowed = await _form(client, server.port, '/admin/login', {
+      'user': 'owner',
+      'password': 'panel-secret',
+    });
+
+    final sent = await _form(
+      client,
+      server.port,
+      '/admin/test-report',
+      {},
+      cookie: allowed.cookie,
+    );
+    expect(sent.status, 302);
+    final page = await _get(
+      client,
+      server.port,
+      '/admin?notice=test-ok',
+      cookie: allowed.cookie,
+    );
+    expect(page.body, contains('נשלח דוח הבדיקה של היום.'));
+    expect(mailer.sent, 1);
+    expect(mailer.lastTo, 'owner@shop.test');
+    expect(mailer.lastBody, contains('חלב'));
+
+    final again = await _form(
+      client,
+      server.port,
+      '/admin/test-report',
+      {},
+      cookie: allowed.cookie,
+    );
+    expect(again.status, 302);
+    expect(mailer.sent, 1);
   });
 
   test('the report waits until the chosen hour', () async {
@@ -456,13 +548,18 @@ void main() {
         '/admin',
         cookie: allowed.cookie,
       );
-      expect(page.body, contains('שמירת הכניסה'));
+      expect(page.body, contains('שמירה'));
       expect(page.body, contains('שעת הדוח'));
+      expect(page.body, contains('שליחת דוח לבדיקה'));
       expect(page.body, isNot(contains('name="sync_token"')));
 
-      final renamed = await _form(client, server.port, '/admin/access', {
+      final renamed = await _form(client, server.port, '/admin/save', {
         'admin_user': 'shop',
         'admin_password': 'new pass',
+        'time_zone': 'UTC',
+        'report_time': '18:30',
+        'report_format': 'builtin',
+        'owner_email': 'owner@shop.test',
       }, cookie: allowed.cookie);
       expect(renamed.status, 302);
       final stillIn = await _get(
@@ -484,11 +581,6 @@ void main() {
       });
       expect(newPassword.cookie, isNotNull);
 
-      final clock = await _form(client, server.port, '/admin/clock', {
-        'time_zone': 'UTC',
-        'report_time': '18:30',
-      }, cookie: allowed.cookie);
-      expect(clock.status, 302);
       expect(schedule.timeZone, 'UTC');
       expect(schedule.reportTime.text, '18:30');
       expect(loadEnvFile(envFile)['TZ'], 'UTC');
@@ -496,9 +588,39 @@ void main() {
       expect(loadEnvFile(envFile)['ADMIN_PASSWORD'], 'new pass');
       expect(loadEnvFile(envFile)['SYNC_TOKEN'], 'secret');
 
-      final rejected = await _form(client, server.port, '/admin/clock', {
+      final badTime = await _form(client, server.port, '/admin/save', {
+        'admin_user': 'shop',
+        'admin_password': 'nope',
+        'time_zone': 'UTC',
+        'report_time': '18:99',
+        'report_format': 'builtin',
+        'owner_email': 'owner@shop.test',
+      }, cookie: allowed.cookie);
+      expect(badTime.status, 302);
+      final badTimePage = await _get(
+        client,
+        server.port,
+        '/admin?notice=time',
+        cookie: allowed.cookie,
+      );
+      expect(
+        badTimePage.body,
+        contains('שעת הדוח צריכה להיות בשעה כמו 18:30.'),
+      );
+      expect(schedule.reportTime.text, '18:30');
+      final keptPassword = await _form(client, server.port, '/admin/login', {
+        'user': 'shop',
+        'password': 'new pass',
+      });
+      expect(keptPassword.cookie, isNotNull);
+
+      final rejected = await _form(client, server.port, '/admin/save', {
+        'admin_user': 'shop',
+        'admin_password': 'new pass',
         'time_zone': 'Not a zone',
         'report_time': '18:30',
+        'report_format': 'builtin',
+        'owner_email': 'owner@shop.test',
       }, cookie: allowed.cookie);
       expect(rejected.status, 302);
       expect(schedule.timeZone, 'UTC');
@@ -512,8 +634,13 @@ void main() {
       expect(saved['REPORT_TIME'], '18:30');
 
       reportFile.writeAsStringSync('סביבה: {{environment}}\n');
-      final chosen = await _form(client, server.port, '/admin/report', {
+      final chosen = await _form(client, server.port, '/admin/save', {
+        'admin_user': 'shop',
+        'admin_password': 'new pass',
+        'time_zone': 'UTC',
+        'report_time': '18:30',
         'report_format': 'custom',
+        'owner_email': 'owner@shop.test',
       }, cookie: allowed.cookie);
       expect(chosen.status, 302);
       expect(schedule.reportFormat, 'custom');
