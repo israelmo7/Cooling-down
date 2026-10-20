@@ -73,6 +73,32 @@ void main() {
     expect(parseClockMinutes('20:00'), 20 * 60);
   });
 
+  test('08:00 until 08:00 stays open through the evening', () {
+    const refresh = WorkerRefresh(
+      mode: WorkerRefreshMode.periodic,
+      startMinute: 8 * 60,
+      intervalHours: 24,
+      endMinute: 8 * 60,
+    );
+    final day = DateTime(2026, 10, 12);
+    final atEight = day.add(const Duration(hours: 8));
+    final evening = day.add(const Duration(hours: 19));
+    final signedInBefore = WorkerSession(
+      workerId: 'worker-1',
+      workerName: 'דנה',
+      activeAt: day.add(const Duration(hours: 7)),
+    );
+    final signedInAfter = WorkerSession(
+      workerId: 'worker-1',
+      workerName: 'דנה',
+      activeAt: day.add(const Duration(hours: 10)),
+    );
+
+    expect(refresh.latestSlot(evening), atEight);
+    expect(refresh.isDue(evening, signedInBefore), isTrue);
+    expect(refresh.isDue(evening, signedInAfter), isFalse);
+  });
+
   test('check-in stores the worker name that was active', () async {
     final database = AppDatabase.memory();
     addTearDown(database.close);

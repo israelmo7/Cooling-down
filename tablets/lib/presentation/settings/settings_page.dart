@@ -85,11 +85,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final idleSeconds = normalizeWorkerIdleSeconds(_idleSeconds.text);
     final intervalHours = normalizeIntervalHours(_refreshHours.text);
     final startMinute = parseClockMinutes(_refreshStart.text) ?? 8 * 60;
-    var endMinute = parseClockMinutes(_refreshEnd.text) ?? 20 * 60;
-    if (endMinute <= startMinute) {
-      final later = startMinute + 60;
-      endMinute = later > 23 * 60 + 59 ? 23 * 60 + 59 : later;
-    }
+    final endMinute = parseClockMinutes(_refreshEnd.text) ?? 20 * 60;
     _idleSeconds.text = '$idleSeconds';
     _refreshHours.text = '$intervalHours';
     _refreshStart.text = formatClockMinutes(startMinute);
@@ -463,7 +459,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ],
           ),
         if (_refreshMode == WorkerRefreshMode.periodic) ...[
-          _field(controller: _refreshStart, label: 'משעה'),
+          _field(
+            controller: _refreshStart,
+            label: 'משעה',
+            helper: '08:00 עד 08:00 הוא יום שלם. השאלה חוזרת בכל מספר השעות, מהשעה הראשונה.',
+          ),
           _field(
             controller: _refreshHours,
             label: 'שעות',
