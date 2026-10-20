@@ -3,13 +3,14 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
-import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../db/app_database.dart';
 import '../mappers.dart';
 
-/// How many products check-in shows before a search narrows the catalog.
-const frequentProductLimit = 12;
+/// A used product that was removed from the catalog. The row stays because a
+/// log points at it. Check-in hides this mark. A one-off keeps a null sku, so
+/// it stays on the check-in list without joining the settings list.
+const removedFromCheckIn = 'hidden';
 
 class DriftProductRepository implements ProductRepository {
   DriftProductRepository(this._db, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
@@ -20,61 +21,19 @@ class DriftProductRepository implements ProductRepository {
   @override
   Stream<List<Product>> watchSearch(String query) {
     final trimmed = query.trim().replaceAll('%', '').replaceAll('_', '');
-    if (trimmed.isEmpty) {
-      return _watchCheckInChoices();
-    }
-    return _watchListed(like: '%$trimmed%');
-  }
-
-  /// Products checked in most often. Before any check-in, the listed catalog
-  /// is shown so a new tablet still has something to tap.
-  Stream<List<Product>> _watchCheckInChoices() {
-    final uses = _db.refrigerationLogs.id.count();
-    final frequent =
-        _db.select(_db.products).join([
-            innerJoin(
-              _db.refrigerationLogs,
-              _db.refrigerationLogs.productId.equalsExp(_db.products.id) &
-                  _db.refrigerationLogs.eventType.equalsValue(
-                    LogEventType.checkIn,
-                  ),
-            ),
-          ])
-          ..where(_db.products.listed.equals(true))
-          ..addColumns([uses])
-          ..groupBy([_db.products.id])
-          ..orderBy([
-            OrderingTerm(expression: uses, mode: OrderingMode.desc),
-            OrderingTerm(expression: _db.products.name),
-          ])
-          ..limit(frequentProductLimit);
-
-    return frequent.watch().asyncMap((rows) async {
-      if (rows.isNotEmpty) {
-        return rows
-            .map((row) => mapProduct(row.readTable(_db.products)))
-            .toList();
-      }
-      return _listedProducts();
-    });
-  }
-
-  Stream<List<Product>> _watchListed({required String like}) {
     final statement = _db.select(_db.products)
-      ..where((table) => table.listed.equals(true) & table.name.like(like))
-      ..orderBy([(table) => OrderingTerm(expression: table.name)])
-      ..limit(200);
+      ..where((product) {
+        // The settings list, plus a name added on this screen. A removed
+        // product is listed=false and marked [removedFromCheckIn].
+        final onCheckIn = product.listed.equals(true) | product.sku.isNull();
+        if (trimmed.isEmpty) {
+          return onCheckIn;
+        }
+        return onCheckIn & product.name.like('%$trimmed%');
+      })
+      ..orderBy([(product) => OrderingTerm(expression: product.name)])
+      ..limit(300);
     return statement.watch().map((rows) => rows.map(mapProduct).toList());
-  }
-
-  Future<List<Product>> _listedProducts() async {
-    final rows =
-        await (_db.select(_db.products)
-              ..where((table) => table.listed.equals(true))
-              ..orderBy([(table) => OrderingTerm(expression: table.name)])
-              ..limit(200))
-            .get();
-    return rows.map(mapProduct).toList();
   }
 
   @override
@@ -93,10 +52,16 @@ class DriftProductRepository implements ProductRepository {
     }
     final existing = await _productNamed(trimmed);
     if (existing != null) {
-      if (!existing.listed) {
-        await (_db.update(_db.products)
-              ..where((table) => table.id.equals(existing.id)))
-            .write(const ProductsCompanion(listed: Value(true)));
+      final clearRemoved = existing.sku == removedFromCheckIn;
+      if (!existing.listed || clearRemoved) {
+        await (_db.update(
+          _db.products,
+        )..where((table) => table.id.equals(existing.id))).write(
+          ProductsCompanion(
+            listed: const Value(true),
+            sku: clearRemoved ? const Value(null) : const Value.absent(),
+          ),
+        );
       }
       return mapProduct(existing);
     }
@@ -111,6 +76,11 @@ class DriftProductRepository implements ProductRepository {
     }
     final existing = await _productNamed(trimmed);
     if (existing != null) {
+      if (existing.sku == removedFromCheckIn) {
+        await (_db.update(_db.products)
+              ..where((table) => table.id.equals(existing.id)))
+            .write(const ProductsCompanion(sku: Value(null)));
+      }
       return mapProduct(existing);
     }
     return _insertProduct(trimmed, listed: false);
@@ -158,8 +128,14 @@ class DriftProductRepository implements ProductRepository {
       if (!error.toString().contains('FOREIGN KEY')) {
         rethrow;
       }
-      await (_db.update(_db.products)..where((table) => table.id.equals(id)))
-          .write(const ProductsCompanion(listed: Value(false)));
+      await (_db.update(
+        _db.products,
+      )..where((table) => table.id.equals(id))).write(
+        const ProductsCompanion(
+          listed: Value(false),
+          sku: Value(removedFromCheckIn),
+        ),
+      );
     }
   }
 

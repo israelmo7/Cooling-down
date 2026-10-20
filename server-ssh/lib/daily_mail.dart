@@ -75,6 +75,9 @@ class _ReportRow {
 
 const _columns = ['מוצר', 'איך נקלט', 'מתי נקלט', 'איך הוצא', 'מתי הוצא'];
 
+/// How many stored actions the admin page and a quiet-day mail will list.
+const recentActionLimit = 30;
+
 /// The built-in table heading, shown read-only on the admin page.
 String get builtInReportHeading => _columns.join(' | ');
 
@@ -90,6 +93,7 @@ ClosedDayReport buildClosedDayReport({
       .where((row) => _sameDay(row.createdAt, day))
       .toList();
   final conclusion = _conclusion(rows, day, dayNotices);
+  final stored = rows.isEmpty ? logs : const <StoredLogLine>[];
   return ClosedDayReport(
     subject: 'דוח קירור · $environmentName · $date',
     body: _plain(
@@ -99,6 +103,7 @@ ClosedDayReport buildClosedDayReport({
       rows: rows,
       notices: dayNotices,
       conclusion: conclusion,
+      stored: stored,
     ),
     html: _html(
       environmentName: environmentName,
@@ -107,6 +112,7 @@ ClosedDayReport buildClosedDayReport({
       rows: rows,
       notices: dayNotices,
       conclusion: conclusion,
+      stored: stored,
     ),
   );
 }
@@ -129,6 +135,7 @@ ClosedDayReport buildCustomReport({
   final notes = dayNotices.isEmpty
       ? 'אין אזהרות.'
       : dayNotices.map((notice) => notice.message).join('\n');
+  final stored = rows.isEmpty ? logs : const <StoredLogLine>[];
   final body = _fillTemplate(
     template: template,
     environmentName: environmentName,
@@ -138,11 +145,13 @@ ClosedDayReport buildCustomReport({
     notes: notes,
     conclusion: conclusion,
   );
+  final storedText = _storedText(stored);
+  final fullBody = storedText.isEmpty ? body : '$body\n\n$storedText';
   return ClosedDayReport(
     subject: 'דוח קירור · $environmentName · $date',
-    body: body,
+    body: fullBody,
     html:
-        '<pre dir="rtl" style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">${_escape(body)}</pre>',
+        '<pre dir="rtl" style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">${_escape(fullBody)}</pre>',
   );
 }
 
@@ -289,6 +298,7 @@ String _plain({
   required List<_ReportRow> rows,
   required List<StoredNotice> notices,
   required String conclusion,
+  required List<StoredLogLine> stored,
 }) {
   final buffer = StringBuffer()
     ..writeln('סביבה: $environmentName')
@@ -297,6 +307,12 @@ String _plain({
     ..writeln(_columns.join(' | '));
   if (rows.isEmpty) {
     buffer.writeln('אין תנועות.');
+    final remembered = _storedText(stored);
+    if (remembered.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln(remembered);
+    }
   } else {
     for (final row in rows) {
       buffer.writeln(
@@ -333,6 +349,7 @@ String _html({
   required List<_ReportRow> rows,
   required List<StoredNotice> notices,
   required String conclusion,
+  required List<StoredLogLine> stored,
 }) {
   final head = _columns
       .map(
@@ -366,9 +383,77 @@ String _html({
   </table>
   <h2 style="font-size:16px;margin:20px 0 8px;">הערות</h2>
   $notes
+  ${_storedHtml(stored)}
   <p style="margin:16px 0 0;">${_escape(conclusion)}</p>
 </div>
 ''';
+}
+
+List<StoredLogLine> _recent(List<StoredLogLine> logs) {
+  final recent = [...logs]
+    ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  if (recent.length <= recentActionLimit) {
+    return recent;
+  }
+  return recent.sublist(0, recentActionLimit);
+}
+
+String _storedText(List<StoredLogLine> logs) {
+  if (logs.isEmpty) {
+    return '';
+  }
+  final recent = _recent(logs);
+  final buffer = StringBuffer('תנועות אחרונות שנשמרו');
+  for (final line in recent) {
+    buffer.writeln();
+    buffer.write(
+      '${_stamp(line.occurredAt)} ${line.productName} ${_eventWord(line.eventType)}',
+    );
+  }
+  if (logs.length > recent.length) {
+    buffer.writeln();
+    buffer.write(
+      'מוצגות ${recent.length} התנועות האחרונות מתוך ${logs.length}.',
+    );
+  }
+  return buffer.toString();
+}
+
+String _storedHtml(List<StoredLogLine> logs) {
+  if (logs.isEmpty) {
+    return '';
+  }
+  final recent = _recent(logs);
+  final items = recent
+      .map(
+        (line) =>
+            '<li>${_escape(_stamp(line.occurredAt))} ${_escape(line.productName)} ${_escape(_eventWord(line.eventType))}</li>',
+      )
+      .join();
+  final more = logs.length > recent.length
+      ? '<p style="margin:8px 0 0;">מוצגות ${recent.length} התנועות האחרונות מתוך ${logs.length}.</p>'
+      : '';
+  return '''
+  <h2 style="font-size:16px;margin:20px 0 8px;">תנועות אחרונות שנשמרו</h2>
+  <ul style="margin:0;padding-right:20px;">$items</ul>
+  $more''';
+}
+
+String _eventWord(String eventType) {
+  if (eventType == 'check_in') {
+    return 'קליטה';
+  }
+  if (eventType == 'check_out') {
+    return 'הוצאה';
+  }
+  return eventType;
+}
+
+String _stamp(DateTime instant) {
+  final local = instant.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  return '$day/$month ${_clock(instant)}';
 }
 
 String _cell(String value, {bool ltr = false}) {

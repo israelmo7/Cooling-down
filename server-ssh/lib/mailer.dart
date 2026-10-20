@@ -98,15 +98,13 @@ class EnvReportMailer implements ReportMailer {
       password: password.isEmpty ? null : password,
       ssl: port == 465,
     );
+    // Text only. Adding [html] makes a multipart message whose boundary Gmail
+    // sometimes fails to read, and the mail then arrives with no body.
     final message = mail.Message()
       ..from = mail.Address(from)
       ..recipients.add(to)
       ..subject = subject
       ..text = body;
-    final markup = html?.trim() ?? '';
-    if (markup.isNotEmpty) {
-      message.html = markup;
-    }
     await mail.send(message, smtp);
     return true;
   }
