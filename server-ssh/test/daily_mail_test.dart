@@ -199,8 +199,11 @@ void main() {
     expect(report.body, contains('גבינה |'));
     expect(report.body, contains('| - | -'));
     expect(report.body, contains('מסקנה:'));
-    expect(report.html, contains('<pre'));
-    expect(report.html, isNot(contains('<table')));
+    expect(report.html, contains('<table'));
+    expect(report.html, contains('>חלב</td>'));
+    expect(report.html, contains('>גבינה</td>'));
+    expect(report.html, contains('>איך נקלט</th>'));
+    expect(report.html, isNot(contains('<pre')));
   });
 
   test('a quiet day still names the actions already stored', () {

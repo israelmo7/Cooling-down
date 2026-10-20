@@ -147,11 +147,24 @@ ClosedDayReport buildCustomReport({
   );
   final storedText = _storedText(stored);
   final fullBody = storedText.isEmpty ? body : '$body\n\n$storedText';
+  final columns = _columnsIn(template);
   return ClosedDayReport(
     subject: 'דוח קירור · $environmentName · $date',
     body: fullBody,
-    html:
-        '<pre dir="rtl" style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">${_escape(fullBody)}</pre>',
+    html: columns.isEmpty
+        ? '<pre dir="rtl" style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">${_escape(fullBody)}</pre>'
+        : _html(
+            environmentName: environmentName,
+            date: date,
+            day: day,
+            rows: rows,
+            notices: dayNotices,
+            conclusion: conclusion,
+            stored: stored,
+            columns: columns,
+            showNotes: template.contains('{{notes}}'),
+            showConclusion: template.contains('{{conclusion}}'),
+          ),
   );
 }
 
@@ -342,6 +355,66 @@ String _plain({
   return buffer.toString();
 }
 
+enum _ReportColumn { product, checkIn, checkInTime, checkOut, checkOutTime }
+
+const _allColumns = [
+  _ReportColumn.product,
+  _ReportColumn.checkIn,
+  _ReportColumn.checkInTime,
+  _ReportColumn.checkOut,
+  _ReportColumn.checkOutTime,
+];
+
+List<_ReportColumn> _columnsIn(String template) {
+  final match = RegExp(r'\{\{rows\}\}([\s\S]*?)\{\{/rows\}\}')
+      .firstMatch(template);
+  if (match == null) {
+    return const [];
+  }
+  final found = <_ReportColumn>[];
+  for (final token in RegExp(
+    r'\{\{([a-z_]+)\}\}',
+  ).allMatches(match.group(1)!)) {
+    final column = switch (token.group(1)) {
+      'product' => _ReportColumn.product,
+      'check_in' => _ReportColumn.checkIn,
+      'check_in_time' => _ReportColumn.checkInTime,
+      'check_out' => _ReportColumn.checkOut,
+      'check_out_time' => _ReportColumn.checkOutTime,
+      _ => null,
+    };
+    if (column != null && !found.contains(column)) {
+      found.add(column);
+    }
+  }
+  return found;
+}
+
+String _columnTitle(_ReportColumn column) {
+  return switch (column) {
+    _ReportColumn.product => 'מוצר',
+    _ReportColumn.checkIn => 'איך נקלט',
+    _ReportColumn.checkInTime => 'מתי נקלט',
+    _ReportColumn.checkOut => 'איך הוצא',
+    _ReportColumn.checkOutTime => 'מתי הוצא',
+  };
+}
+
+String _columnValue(_ReportColumn column, _ReportRow row, DateTime day) {
+  return switch (column) {
+    _ReportColumn.product => row.productName,
+    _ReportColumn.checkIn => _how(row.checkIn),
+    _ReportColumn.checkInTime => _when(row.checkIn, day),
+    _ReportColumn.checkOut => _how(row.checkOut),
+    _ReportColumn.checkOutTime => _when(row.checkOut, day),
+  };
+}
+
+bool _columnLtr(_ReportColumn column) {
+  return column == _ReportColumn.checkInTime ||
+      column == _ReportColumn.checkOutTime;
+}
+
 String _html({
   required String environmentName,
   required String date,
@@ -350,28 +423,36 @@ String _html({
   required List<StoredNotice> notices,
   required String conclusion,
   required List<StoredLogLine> stored,
+  List<_ReportColumn> columns = _allColumns,
+  bool showNotes = true,
+  bool showConclusion = true,
 }) {
-  final head = _columns
+  final head = columns
       .map(
         (column) =>
-            '<th style="text-align:right;padding:10px 12px;border:1px solid #d7e0e4;background:#eef3f5;">${_escape(column)}</th>',
+            '<th style="text-align:right;padding:10px 12px;border:1px solid #d7e0e4;background:#eef3f5;">${_escape(_columnTitle(column))}</th>',
       )
       .join();
   final body = rows.isEmpty
-      ? '<tr><td colspan="5" style="padding:12px;border:1px solid #d7e0e4;">אין תנועות.</td></tr>'
+      ? '<tr><td colspan="${columns.length}" style="padding:12px;border:1px solid #d7e0e4;">אין תנועות.</td></tr>'
       : rows.map((row) {
           final cells = [
-            _cell(row.productName),
-            _cell(_how(row.checkIn)),
-            _cell(_when(row.checkIn, day), ltr: true),
-            _cell(_how(row.checkOut)),
-            _cell(_when(row.checkOut, day), ltr: true),
+            for (final column in columns)
+              _cell(_columnValue(column, row, day), ltr: _columnLtr(column)),
           ];
           return '<tr>${cells.join()}</tr>';
         }).join();
   final notes = notices.isEmpty
       ? '<p style="margin:0;">אין אזהרות.</p>'
       : '<ul style="margin:0;padding-right:20px;">${notices.map((notice) => '<li>${_escape(notice.message)}</li>').join()}</ul>';
+  final notesBlock = showNotes
+      ? '''
+  <h2 style="font-size:16px;margin:20px 0 8px;">הערות</h2>
+  $notes'''
+      : '';
+  final conclusionBlock = showConclusion
+      ? '<p style="margin:16px 0 0;">${_escape(conclusion)}</p>'
+      : '';
   return '''
 <div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;color:#122428;background:#f4f7f8;padding:24px;">
   <h1 style="font-size:22px;margin:0 0 12px;">דוח קירור</h1>
@@ -381,10 +462,9 @@ String _html({
     <thead><tr>$head</tr></thead>
     <tbody>$body</tbody>
   </table>
-  <h2 style="font-size:16px;margin:20px 0 8px;">הערות</h2>
-  $notes
+  $notesBlock
   ${_storedHtml(stored)}
-  <p style="margin:16px 0 0;">${_escape(conclusion)}</p>
+  $conclusionBlock
 </div>
 ''';
 }

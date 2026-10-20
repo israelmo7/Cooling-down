@@ -321,6 +321,8 @@ void main() {
     expect(mailer.lastTo, 'owner@shop.test');
     expect(mailer.lastSubject, contains('2026-10-11'));
     expect(mailer.lastBody, contains('חלב'));
+    expect(mailer.lastHtml, contains('<table'));
+    expect(mailer.lastHtml, contains('>חלב</td>'));
     expect(mailer.lastBody, contains('דנה'));
     expect(mailer.lastBody, contains('מסקנה:'));
     expect(
@@ -502,6 +504,8 @@ void main() {
     expect(mailer.sent, 1);
     expect(mailer.lastTo, 'owner@shop.test');
     expect(mailer.lastBody, contains('חלב'));
+    expect(mailer.lastHtml, contains('<table'));
+    expect(mailer.lastHtml, contains('>חלב</td>'));
 
     final again = await _form(
       client,
