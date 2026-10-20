@@ -376,7 +376,7 @@ void main() {
     await tester.pump();
     expect(find.text('לא מסונכרן'), findsOneWidget);
     expect(find.textContaining('נקלט'), findsOneWidget);
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 7));
     await tester.pump();
     expect(find.textContaining('נקלט'), findsNothing);
 
@@ -508,7 +508,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('מחוץ לטווח'), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(seconds: 7));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('מחוץ לטווח'), findsNothing);
@@ -600,7 +600,15 @@ void main() {
     final stored = await database.select(database.refrigerationLogs).get();
     expect(stored.single.workerNameSnapshot, 'דנה');
 
-    await tester.pump(const Duration(seconds: 3));
+    tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final cancelled = await database.select(database.refrigerationLogs).get();
+    expect(cancelled, hasLength(2));
+    expect(cancelled.last.workerNameSnapshot, 'דנה · ביטול');
+    expect(find.textContaining('הקליטה בוטלה'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 7));
     await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -672,7 +680,7 @@ void main() {
     final stored = await database.select(database.refrigerationLogs).get();
     expect(stored.single.workerNameSnapshot, 'יוסי');
 
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 7));
     await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/db/seed_ids.dart';
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
+import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/failures.dart';
 import '../../domain/workers/worker_refresh.dart';
 import '../format.dart';
@@ -97,6 +98,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
       showTransientNotice(
         context,
         'נקלט ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
+        onUndo: () => unawaited(_undoCheckIn(log, workerName)),
       );
       unawaited(_syncSoon());
     } on CatalogEntryNotFound catch (error) {
@@ -132,6 +134,28 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
       _query = '';
       _searchController.clear();
     });
+  }
+
+  Future<void> _undoCheckIn(RefrigerationLog log, String workerName) async {
+    try {
+      await ref
+          .read(logRepositoryProvider)
+          .insertCheckOut(
+            movementId: log.movementId,
+            temperatureCelsius: log.temperatureCelsius,
+            workerName: '$workerName · ביטול',
+          );
+      if (!mounted) {
+        return;
+      }
+      showTransientNotice(context, 'הקליטה בוטלה ונשמרה כביטול.');
+      unawaited(_syncSoon());
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      showTransientNotice(context, 'לא ניתן לבטל את הקליטה.');
+    }
   }
 
   Future<void> _syncSoon() async {
