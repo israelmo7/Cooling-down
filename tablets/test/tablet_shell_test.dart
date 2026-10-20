@@ -376,7 +376,7 @@ void main() {
     await tester.pump();
     expect(find.text('לא מסונכרן'), findsOneWidget);
     expect(find.textContaining('נקלט'), findsOneWidget);
-    await tester.pump(const Duration(seconds: 7));
+    await tester.pump(const Duration(seconds: 11));
     await tester.pump();
     expect(find.textContaining('נקלט'), findsNothing);
 
@@ -508,7 +508,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('מחוץ לטווח'), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 7));
+    await tester.pump(const Duration(seconds: 11));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('מחוץ לטווח'), findsNothing);
@@ -680,7 +680,7 @@ void main() {
     final stored = await database.select(database.refrigerationLogs).get();
     expect(stored.single.workerNameSnapshot, 'יוסי');
 
-    await tester.pump(const Duration(seconds: 7));
+    await tester.pump(const Duration(seconds: 11));
     await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

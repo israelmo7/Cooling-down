@@ -15,7 +15,7 @@ void showTransientNotice(
   messenger.clearSnackBars();
   final duration = onUndo == null
       ? const Duration(seconds: 2)
-      : const Duration(seconds: 6);
+      : const Duration(seconds: 10);
   messenger.showSnackBar(
     SnackBar(
       content: Text(message),
