@@ -15,4 +15,7 @@ class Fridge {
   bool contains(double temperatureCelsius) {
     return temperatureCelsius >= minCelsius && temperatureCelsius <= maxCelsius;
   }
+
+  /// The dial starts here. The band is only a warning, not a block.
+  double get midpoint => (minCelsius + maxCelsius) / 2;
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/entities/fridge.dart';
 import '../../domain/entities/open_holding.dart';
 import '../../domain/failures.dart';
 import '../../domain/workers/worker_refresh.dart';
@@ -22,8 +23,20 @@ class CheckOutPanel extends ConsumerStatefulWidget {
 class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
   String _query = '';
   String? _selectedMovementId;
-  double _temperature = 4;
+  double? _chosenTemperature;
   bool _saving = false;
+
+  double _reading() {
+    final chosen = _chosenTemperature;
+    if (chosen != null) {
+      return chosen;
+    }
+    final fridges = ref.read(fridgesProvider).asData?.value ?? const <Fridge>[];
+    if (fridges.isEmpty) {
+      return 2.5;
+    }
+    return fridges.first.midpoint;
+  }
 
   Future<void> _confirm() async {
     final movementId = _selectedMovementId;
@@ -56,7 +69,7 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
       context,
       enabled: ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
       action:
-          'הוצאה: ${holding.productName} ב-${formatCelsius(_temperature)}$who',
+          'הוצאה: ${holding.productName} ב-${formatCelsius(_reading())}$who',
     );
     if (!accepted || !mounted) {
       return;
@@ -67,13 +80,16 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
           .read(logRepositoryProvider)
           .insertCheckOut(
             movementId: movementId,
-            temperatureCelsius: _temperature,
+            temperatureCelsius: _reading(),
             workerName: workerName,
           );
       if (!mounted) {
         return;
       }
-      setState(() => _selectedMovementId = null);
+      setState(() {
+        _selectedMovementId = null;
+        _chosenTemperature = null;
+      });
       showTransientNotice(
         context,
         'הוצא ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
@@ -136,11 +152,11 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
                     setState(() => _selectedMovementId = holding.movementId),
               );
               final controls = _CheckOutControls(
-                temperature: _temperature,
+                temperature: _reading(),
                 saving: _saving,
                 canConfirm: canConfirm,
                 onTemperatureChanged: (value) =>
-                    setState(() => _temperature = value),
+                    setState(() => _chosenTemperature = value),
                 onConfirm: _confirm,
               );
               if (!wide) {

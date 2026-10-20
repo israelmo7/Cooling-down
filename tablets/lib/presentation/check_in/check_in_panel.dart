@@ -26,13 +26,17 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
   final _searchController = TextEditingController();
   String _query = '';
   Product? _selectedProduct;
-  double _temperature = 4;
+  double? _chosenTemperature;
   bool _saving = false;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  double _reading(Fridge? fridge) {
+    return _chosenTemperature ?? fridge?.midpoint ?? 2.5;
   }
 
   Fridge? _environmentFridge(List<Fridge> items) {
@@ -71,7 +75,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final accepted = await confirmRecordedAction(
       context,
       enabled: ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
-      action: 'קליטה: ${product.name} ב-${formatCelsius(_temperature)}$who',
+      action: 'קליטה: ${product.name} ב-${formatCelsius(_reading(fridge))}$who',
     );
     if (!accepted || !mounted) {
       return;
@@ -83,7 +87,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
           .insertCheckIn(
             productId: product.id,
             fridgeId: fridge.id,
-            temperatureCelsius: _temperature,
+            temperatureCelsius: _reading(fridge),
             workerName: workerName,
           );
       if (!mounted) {
@@ -93,7 +97,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
         _selectedProduct = null;
         _query = '';
         _searchController.clear();
-        _temperature = (fridge.minCelsius + fridge.maxCelsius) / 2;
+        _chosenTemperature = null;
       });
       showTransientNotice(
         context,
@@ -207,11 +211,11 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
           final controls = _CheckInControls(
             fridges: fridges,
             selectedName: selectedName,
-            temperature: _temperature,
+            temperature: _reading(fridge),
             canConfirm: canConfirm,
             saving: _saving,
             onTemperatureChanged: (value) =>
-                setState(() => _temperature = value),
+                setState(() => _chosenTemperature = value),
             onConfirm: _confirm,
           );
           if (!wide) {

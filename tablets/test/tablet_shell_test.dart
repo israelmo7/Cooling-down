@@ -354,7 +354,7 @@ void main() {
 
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
     expect(
-      find.text('קליטה: חזה עוף ב-${formatCelsius(4.0)} · דנה'),
+      find.text('קליטה: חזה עוף ב-${formatCelsius(2.5)} · דנה'),
       findsOneWidget,
     );
     await tester.tap(find.text('ביטול'));
@@ -365,7 +365,7 @@ void main() {
       tester.widget<Text>(find.byKey(const Key('sync-status'))).style?.color,
       const Color(0xFFB91C1C),
     );
-    expect(find.text(formatCelsius(4.0)), findsOneWidget);
+    expect(find.text(formatCelsius(2.5)), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
@@ -395,7 +395,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
     expect(
-      find.text('הוצאה: חזה עוף ב-${formatCelsius(4.0)} · דנה'),
+      find.text('הוצאה: חזה עוף ב-${formatCelsius(2.5)} · דנה'),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const Key('confirm-recorded-action')));
@@ -499,7 +499,7 @@ void main() {
 
     await tester.tap(find.text('חזה עוף'));
     await tester.pump();
-    for (var step = 0; step < 4; step++) {
+    for (var step = 0; step < 6; step++) {
       await tester.tap(find.byTooltip('העלאת טמפרטורה'));
       await tester.pump();
     }
