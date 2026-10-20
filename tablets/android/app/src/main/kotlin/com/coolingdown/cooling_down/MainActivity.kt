@@ -41,6 +41,12 @@ class MainActivity : FlutterActivity() {
                         unpin()
                         result.success(true)
                     }
+                    "openOutside" -> {
+                        holdScreen = true
+                        unpin()
+                        holdScreen = true
+                        result.success(true)
+                    }
                     else -> result.notImplemented()
                 }
             }
