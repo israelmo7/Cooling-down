@@ -438,9 +438,11 @@ void main() {
 
     final statuses = await store.sendClosedDay(DateTime(2026, 10, 12, 0, 1));
 
-    expect(statuses, ['sent', 'sent']);
-    expect(mailer.sent, 2);
-    expect(mailer.tos, ['owner@shop.test', 'owner@shop.test']);
+    expect(statuses, ['sent']);
+    expect(mailer.sent, 1);
+    expect(mailer.tos, ['owner@shop.test']);
+    expect(mailer.lastHtml, contains('מטבח'));
+    expect(mailer.lastHtml, contains('בית מרקחת'));
   });
 
   test('the test button sends today to the shop address', () async {
@@ -558,6 +560,13 @@ void main() {
     expect(due, ['sent']);
     expect(again, isEmpty);
     expect(mailer.sent, 1);
+
+    final moved = await store.sendClosedDay(
+      DateTime(2026, 10, 12, 21),
+      reportTime: const ReportTime(21, 0),
+    );
+    expect(moved, ['sent']);
+    expect(mailer.sent, 2);
   });
 
   test(

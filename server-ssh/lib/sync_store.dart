@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS environments (
   owner_email TEXT NOT NULL
 )
 ''');
+    _addColumn('daily_reports', 'sent_time', 'TEXT');
     _addColumn('refrigeration_logs', 'temperature', 'REAL');
     _addColumn('refrigeration_logs', 'fridge_name', 'TEXT');
     _addColumn('refrigeration_logs', 'worker_name', 'TEXT');
@@ -225,10 +226,9 @@ WHERE environment = ? AND report_date = ?
   }
 
   /// Emails yesterday's report once the local clock has reached [reportTime].
-  /// Tablets that were offline keep their rows and sync them when the computer
-  /// is reachable again. A report already marked sent is not mailed twice.
-  /// A custom [template] is used only when [reportFormat] is `custom` and the
-  /// text is non-empty. Otherwise the built-in table is sent.
+  /// The same clock time is not mailed again. A later clock time the same day
+  /// sends one more mail. A custom [template] is used only when [reportFormat]
+  /// is `custom` and the text is non-empty.
   Future<List<String>> sendClosedDay(
     DateTime nowLocal, {
     ReportTime reportTime = ReportTime.midnight,
@@ -243,16 +243,18 @@ WHERE environment = ? AND report_date = ?
       startOfToday.subtract(const Duration(days: 1)),
       reportFormat: reportFormat,
       template: template,
+      reportTime: reportTime,
     );
   }
 
-  /// Sends the report for [day] to the one shop address.
-  /// A day already marked sent is skipped, unless [force] is set for a test.
+  /// Sends one mail for [day], with one table per environment.
+  /// A day already sent for [reportTime] is skipped, unless [force] is set.
   Future<List<String>> sendDay(
     DateTime day, {
     String reportFormat = 'builtin',
     String? template,
     bool force = false,
+    ReportTime? reportTime,
   }) async {
     final custom = normalizeReportFormat(reportFormat) == 'custom';
     final wording = template?.trim() ?? '';
@@ -261,22 +263,18 @@ WHERE environment = ? AND report_date = ?
     if (!email.contains('@')) {
       return const [];
     }
-    final statuses = <String>[];
-    for (final row in environmentSummaries()) {
-      final environment = row['name'] as String;
-      final existing = _db.select(
-        '''
-SELECT status FROM daily_reports
-WHERE environment = ? AND report_date = ?
-''',
-        [environment, date],
-      );
-      final status = existing.isEmpty
-          ? null
-          : existing.first['status']?.toString();
-      if (!force && status == 'sent') {
-        continue;
-      }
+    final names = [
+      for (final row in environmentSummaries()) row['name'] as String,
+    ];
+    final due =
+        force ||
+        names.any((environment) => !_blocksSend(environment, date, reportTime));
+    if (!due) {
+      _adoptSentTime(date, reportTime);
+      return const [];
+    }
+    final sections = <({String environment, ClosedDayReport content})>[];
+    for (final environment in names) {
       final logs = _logs(environment);
       final notices = _notices(environment);
       final content = custom && wording.isNotEmpty
@@ -293,19 +291,142 @@ WHERE environment = ? AND report_date = ?
               logs: logs,
               notices: notices,
             );
-      final result = await submitReport(
-        id: _uuid.v4(),
-        environment: environment,
-        reportDate: date,
-        ownerEmail: email,
-        subject: content.subject,
-        body: content.body,
-        html: content.html,
-        force: force,
-      );
-      statuses.add(result['status']?.toString() ?? 'failed');
+      sections.add((environment: environment, content: content));
     }
-    return statuses;
+    if (sections.isEmpty) {
+      return const [];
+    }
+    final subject = sections.length == 1
+        ? sections.single.content.subject
+        : 'דוח קירור · $date';
+    final body = sections.map((item) => item.content.body).join('\n\n');
+    final html = sections.map((item) => item.content.html).join('\n');
+    try {
+      final emailed = await _mailer.send(
+        to: email,
+        subject: subject,
+        body: body,
+        html: html,
+      );
+      final status = emailed ? 'sent' : 'stored';
+      for (final item in sections) {
+        _writeReport(
+          environment: item.environment,
+          reportDate: date,
+          ownerEmail: email,
+          subject: subject,
+          body: item.content.body,
+          status: status,
+          sentTime: reportTime?.text,
+        );
+      }
+      return [status];
+    } on Object catch (error) {
+      for (final item in sections) {
+        _writeReport(
+          environment: item.environment,
+          reportDate: date,
+          ownerEmail: email,
+          subject: subject,
+          body: item.content.body,
+          status: 'failed',
+          error: error.toString(),
+        );
+      }
+      return ['failed'];
+    }
+  }
+
+  /// A sent row blocks another mail for the same clock time.
+  /// A row stored before clock times were kept still blocks, until a new time.
+  bool _blocksSend(String environment, String date, ReportTime? reportTime) {
+    final existing = _db.select(
+      '''
+SELECT status, sent_time FROM daily_reports
+WHERE environment = ? AND report_date = ?
+''',
+      [environment, date],
+    );
+    if (existing.isEmpty || existing.first['status']?.toString() != 'sent') {
+      return false;
+    }
+    if (reportTime == null) {
+      return true;
+    }
+    final saved = existing.first['sent_time']?.toString() ?? '';
+    return saved.isEmpty || saved == reportTime.text;
+  }
+
+  void _adoptSentTime(String date, ReportTime? reportTime) {
+    final stamp = reportTime?.text;
+    if (stamp == null || stamp.isEmpty) {
+      return;
+    }
+    _db.execute(
+      '''
+UPDATE daily_reports
+SET sent_time = ?
+WHERE report_date = ? AND status = 'sent' AND (sent_time IS NULL OR sent_time = '')
+''',
+      [stamp, date],
+    );
+  }
+
+  void _writeReport({
+    required String environment,
+    required String reportDate,
+    required String ownerEmail,
+    required String subject,
+    required String body,
+    required String status,
+    String? sentTime,
+    String? error,
+  }) {
+    final existing = _db.select(
+      '''
+SELECT id FROM daily_reports
+WHERE environment = ? AND report_date = ?
+''',
+      [environment, reportDate],
+    );
+    if (existing.isEmpty) {
+      _db.execute(
+        '''
+INSERT INTO daily_reports (
+  id, environment, report_date, owner_email, subject, body, status, sent_time, last_error
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+''',
+        [
+          _uuid.v4(),
+          environment,
+          reportDate,
+          ownerEmail,
+          subject,
+          body,
+          status,
+          sentTime,
+          error,
+        ],
+      );
+      return;
+    }
+    _db.execute(
+      '''
+UPDATE daily_reports
+SET owner_email = ?, subject = ?, body = ?, status = ?, sent_time = ?, last_error = ?
+WHERE environment = ? AND report_date = ?
+''',
+      [
+        ownerEmail,
+        subject,
+        body,
+        status,
+        sentTime,
+        error,
+        environment,
+        reportDate,
+      ],
+    );
   }
 
   void setOwnerEmail(String environment, String email) {
