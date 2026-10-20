@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
+import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../db/app_database.dart';
 import '../mappers.dart';
@@ -21,16 +22,38 @@ class DriftProductRepository implements ProductRepository {
   @override
   Stream<List<Product>> watchSearch(String query) {
     final trimmed = query.trim().replaceAll('%', '').replaceAll('_', '');
+    // The settings list, plus a name added on this screen. A removed product
+    // is listed=false and marked [removedFromCheckIn].
+    final onCheckIn =
+        _db.products.listed.equals(true) | _db.products.sku.isNull();
+    if (trimmed.isEmpty) {
+      final uses = _db.refrigerationLogs.id.count();
+      final ranked =
+          _db.select(_db.products).join([
+              leftOuterJoin(
+                _db.refrigerationLogs,
+                _db.refrigerationLogs.productId.equalsExp(_db.products.id) &
+                    _db.refrigerationLogs.eventType.equalsValue(
+                      LogEventType.checkIn,
+                    ),
+              ),
+            ])
+            ..where(onCheckIn)
+            ..addColumns([uses])
+            ..groupBy([_db.products.id])
+            ..orderBy([
+              OrderingTerm(expression: uses, mode: OrderingMode.desc),
+              OrderingTerm(expression: _db.products.name),
+            ])
+            ..limit(300);
+      return ranked.watch().map((rows) {
+        return [
+          for (final row in rows) mapProduct(row.readTable(_db.products)),
+        ];
+      });
+    }
     final statement = _db.select(_db.products)
-      ..where((product) {
-        // The settings list, plus a name added on this screen. A removed
-        // product is listed=false and marked [removedFromCheckIn].
-        final onCheckIn = product.listed.equals(true) | product.sku.isNull();
-        if (trimmed.isEmpty) {
-          return onCheckIn;
-        }
-        return onCheckIn & product.name.like('%$trimmed%');
-      })
+      ..where((product) => onCheckIn & product.name.like('%$trimmed%'))
       ..orderBy([(product) => OrderingTerm(expression: product.name)])
       ..limit(300);
     return statement.watch().map((rows) => rows.map(mapProduct).toList());

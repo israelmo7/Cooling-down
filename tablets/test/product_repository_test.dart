@@ -51,10 +51,13 @@ void main() {
     );
 
     final shown = await products.watchSearch('').first;
-    expect(
-      shown.map((product) => product.name),
-      containsAll(['חלב', 'חזה עוף', 'אינסולין', 'חיסון', 'גבינה צהובה']),
-    );
+    expect(shown.map((product) => product.name).toList(), [
+      'חלב',
+      'גבינה צהובה',
+      'חזה עוף',
+      'אינסולין',
+      'חיסון',
+    ]);
 
     final searched = await products.watchSearch('חיסון').first;
     expect(searched.single.name, 'חיסון');
