@@ -155,6 +155,7 @@ LIMIT 500
     required String subject,
     required String body,
     String? html,
+    bool force = false,
   }) async {
     final existing = _db.select(
       '''
@@ -167,9 +168,8 @@ WHERE environment = ? AND report_date = ?
     final existingStatus = existing.isEmpty
         ? null
         : existing.first['status']?.toString();
-    if (existingStatus == 'sent' ||
-        existingStatus == 'sending' ||
-        _sending.contains(key)) {
+    if (_sending.contains(key) ||
+        (!force && (existingStatus == 'sent' || existingStatus == 'sending'))) {
       return {'status': 'already_sent'};
     }
     _sending.add(key);
@@ -247,11 +247,12 @@ WHERE environment = ? AND report_date = ?
   }
 
   /// Sends the report for [day] to the one shop address.
-  /// A day already marked sent is skipped.
+  /// A day already marked sent is skipped, unless [force] is set for a test.
   Future<List<String>> sendDay(
     DateTime day, {
     String reportFormat = 'builtin',
     String? template,
+    bool force = false,
   }) async {
     final custom = normalizeReportFormat(reportFormat) == 'custom';
     final wording = template?.trim() ?? '';
@@ -273,7 +274,7 @@ WHERE environment = ? AND report_date = ?
       final status = existing.isEmpty
           ? null
           : existing.first['status']?.toString();
-      if (status == 'sent') {
+      if (!force && status == 'sent') {
         continue;
       }
       final logs = _logs(environment);
@@ -300,6 +301,7 @@ WHERE environment = ? AND report_date = ?
         subject: content.subject,
         body: content.body,
         html: content.html,
+        force: force,
       );
       statuses.add(result['status']?.toString() ?? 'failed');
     }

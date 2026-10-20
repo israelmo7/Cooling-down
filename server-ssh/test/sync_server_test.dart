@@ -511,7 +511,7 @@ void main() {
       cookie: allowed.cookie,
     );
     expect(again.status, 302);
-    expect(mailer.sent, 1);
+    expect(mailer.sent, 2);
   });
 
   test('the report waits until the chosen hour', () async {
@@ -703,11 +703,12 @@ void main() {
       final shown = await _get(
         client,
         server.port,
-        '/admin',
+        '/admin?tab=report',
         cookie: allowed.cookie,
       );
       expect(shown.body, contains('הדוח הקבוע'));
-      expect(shown.body, contains('סביבה: {{environment}}'));
+      expect(shown.body, contains('איך נקלט'));
+      expect(shown.body, contains('value="custom" checked'));
       expect(shown.body, isNot(contains('name="smtp_password"')));
     },
   );
