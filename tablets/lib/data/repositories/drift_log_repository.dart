@@ -2,16 +2,12 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/clock.dart';
-import '../../core/temperature.dart';
-import '../../domain/entities/alert.dart';
-import '../../domain/entities/fridge.dart';
 import '../../domain/entities/open_holding.dart';
 import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/failures.dart';
 import '../../domain/repositories/log_repository.dart';
 import '../db/app_database.dart';
 import '../db/ensure_settings.dart';
-import '../mappers.dart';
 import '../sync/enqueue.dart';
 
 class DriftLogRepository implements LogRepository {
@@ -30,6 +26,7 @@ class DriftLogRepository implements LogRepository {
     required double temperatureCelsius,
     DateTime? occurredAt,
     required String workerName,
+    DateTime? dueAt,
   }) {
     final recordedWorker = workerName.trim();
     if (recordedWorker.isEmpty) {
@@ -63,14 +60,9 @@ class DriftLogRepository implements LogRepository {
         createdAt: capturedAt,
         originDeviceId: deviceId,
         workerNameSnapshot: recordedWorker,
+        dueAt: dueAt?.toUtc(),
       );
       await _insertLog(log);
-      await _maybeAlert(
-        log: log,
-        fridge: mapFridge(fridge),
-        eventLabel: 'נקלט',
-        capturedAt: capturedAt,
-      );
       return log;
     });
   }
@@ -132,12 +124,6 @@ class DriftLogRepository implements LogRepository {
         workerNameSnapshot: recordedWorker,
       );
       await _insertLog(log);
-      await _maybeAlert(
-        log: log,
-        fridge: mapFridge(fridge),
-        eventLabel: 'הוצא',
-        capturedAt: capturedAt,
-      );
       return log;
     });
   }
@@ -179,9 +165,23 @@ class DriftLogRepository implements LogRepository {
                 .readTable(checkIn)
                 .temperatureCelsius,
             checkedInAt: row.readTable(checkIn).occurredAt,
+            dueAt: row.readTable(checkIn).dueAt,
           ),
       ];
     });
+  }
+
+  @override
+  Future<double?> averageCheckInCelsius(String productId) async {
+    final average = _db.refrigerationLogs.temperatureCelsius.avg();
+    final query = _db.selectOnly(_db.refrigerationLogs)
+      ..addColumns([average])
+      ..where(
+        _db.refrigerationLogs.productId.equals(productId) &
+            _db.refrigerationLogs.eventType.equalsValue(LogEventType.checkIn),
+      );
+    final row = await query.getSingle();
+    return row.read(average);
   }
 
   Future<void> _insertLog(RefrigerationLog log) async {
@@ -200,6 +200,7 @@ class DriftLogRepository implements LogRepository {
             createdAt: log.createdAt,
             originDeviceId: Value(log.originDeviceId),
             workerNameSnapshot: Value(log.workerNameSnapshot),
+            dueAt: Value(log.dueAt),
           ),
         );
     final fridge = await (_db.select(
@@ -222,60 +223,9 @@ class DriftLogRepository implements LogRepository {
         'created_at': log.createdAt.toIso8601String(),
         'origin_device_id': log.originDeviceId,
         'worker_name_snapshot': log.workerNameSnapshot,
+        if (log.dueAt != null) 'due_at': log.dueAt!.toUtc().toIso8601String(),
       },
       createdAt: log.createdAt,
-    );
-  }
-
-  Future<void> _maybeAlert({
-    required RefrigerationLog log,
-    required Fridge fridge,
-    required String eventLabel,
-    required DateTime capturedAt,
-  }) async {
-    if (fridge.contains(log.temperatureCelsius)) {
-      return;
-    }
-    final alert = Alert(
-      id: _uuid.v4(),
-      severity: AlertSeverity.warning,
-      kind: AlertKind.temperatureOutOfRange,
-      productId: log.productId,
-      logId: log.id,
-      message:
-          '${log.productNameSnapshot} $eventLabel ב-${ltrCelsius(log.temperatureCelsius)}, מחוץ לטווח של ${fridge.name} (${ltrCelsiusRange(fridge.minCelsius, fridge.maxCelsius)}).',
-      createdAt: capturedAt,
-      originDeviceId: log.originDeviceId,
-    );
-    await _db
-        .into(_db.alerts)
-        .insert(
-          AlertsCompanion.insert(
-            id: alert.id,
-            severity: alert.severity,
-            kind: alert.kind,
-            productId: Value(alert.productId),
-            logId: Value(alert.logId),
-            message: alert.message,
-            createdAt: alert.createdAt,
-            originDeviceId: Value(alert.originDeviceId),
-          ),
-        );
-    await enqueueInsert(
-      _db,
-      entityType: 'alert',
-      entityId: alert.id,
-      payload: {
-        'id': alert.id,
-        'severity': alert.severity.storageValue,
-        'kind': alert.kind.storageValue,
-        'product_id': alert.productId,
-        'log_id': alert.logId,
-        'message': alert.message,
-        'created_at': alert.createdAt.toIso8601String(),
-        'origin_device_id': alert.originDeviceId,
-      },
-      createdAt: alert.createdAt,
     );
   }
 }

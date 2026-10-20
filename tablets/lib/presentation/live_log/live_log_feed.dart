@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../format.dart';
+import '../hold_tone.dart';
 import '../providers.dart';
 import '../widgets/station_widgets.dart';
 
@@ -47,6 +48,11 @@ class LiveLogFeed extends ConsumerWidget {
                         itemCount: items.length,
                         itemBuilder: (context, index) {
                           final holding = items[index];
+                          final nameColor = holdNameColor(
+                            holding.dueAt,
+                            now,
+                            markSoon: false,
+                          );
                           return Card(
                             child: Padding(
                               padding: const EdgeInsets.all(18),
@@ -55,11 +61,20 @@ class LiveLogFeed extends ConsumerWidget {
                                 children: [
                                   Text(
                                     holding.productName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w700,
+                                      color: nameColor,
                                     ),
                                   ),
+                                  if (holding.dueAt != null)
+                                    Text(
+                                      'יציאה ${formatClock(holding.dueAt!)}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF5C6B70),
+                                      ),
+                                    ),
                                   const Spacer(),
                                   Text(
                                     'נקלט ב-${formatCelsius(holding.checkInTemperatureCelsius)}',

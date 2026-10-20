@@ -506,7 +506,8 @@ void main() {
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('מחוץ לטווח'), findsOneWidget);
+    expect(find.textContaining('מחוץ לטווח'), findsNothing);
+    expect(find.textContaining('נקלט'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 11));
     await tester.pump();

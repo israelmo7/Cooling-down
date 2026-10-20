@@ -8,6 +8,7 @@ import '../../domain/entities/open_holding.dart';
 import '../../domain/failures.dart';
 import '../../domain/workers/worker_refresh.dart';
 import '../format.dart';
+import '../hold_tone.dart';
 import '../providers.dart';
 import '../widgets/confirm_action_dialog.dart';
 import '../widgets/station_widgets.dart';
@@ -300,6 +301,11 @@ class _OpenItemList extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final holding = items[index];
                     final selected = holding.movementId == selectedMovementId;
+                    final nameColor = holdNameColor(
+                      holding.dueAt,
+                      DateTime.now(),
+                      markSoon: true,
+                    );
                     return SizedBox(
                       height: 76,
                       width: double.infinity,
@@ -312,9 +318,10 @@ class _OpenItemList extends StatelessWidget {
                           children: [
                             Text(
                               holding.productName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
+                                color: nameColor,
                               ),
                             ),
                             const SizedBox(height: 2),

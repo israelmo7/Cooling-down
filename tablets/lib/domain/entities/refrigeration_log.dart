@@ -21,6 +21,7 @@ class RefrigerationLog {
     required this.createdAt,
     this.originDeviceId = '',
     this.workerNameSnapshot = '',
+    this.dueAt,
   });
 
   final String id;
@@ -34,4 +35,7 @@ class RefrigerationLog {
   final DateTime createdAt;
   final String originDeviceId;
   final String workerNameSnapshot;
+
+  /// When this check-in should leave the fridge. Empty when no time was set.
+  final DateTime? dueAt;
 }

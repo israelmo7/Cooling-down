@@ -1055,6 +1055,15 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         requiredDuringInsert: false,
         defaultValue: const Constant(''),
       );
+  static const VerificationMeta _dueAtMeta = const VerificationMeta('dueAt');
+  @override
+  late final GeneratedColumn<DateTime> dueAt = GeneratedColumn<DateTime>(
+    'due_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1068,6 +1077,7 @@ class $RefrigerationLogsTable extends RefrigerationLogs
     createdAt,
     originDeviceId,
     workerNameSnapshot,
+    dueAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1166,6 +1176,12 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         ),
       );
     }
+    if (data.containsKey('due_at')) {
+      context.handle(
+        _dueAtMeta,
+        dueAt.isAcceptableOrUnknown(data['due_at']!, _dueAtMeta),
+      );
+    }
     return context;
   }
 
@@ -1221,6 +1237,10 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         DriftSqlType.string,
         data['${effectivePrefix}worker_name_snapshot'],
       )!,
+      dueAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_at'],
+      ),
     );
   }
 
@@ -1246,6 +1266,7 @@ class RefrigerationLogRow extends DataClass
   final DateTime createdAt;
   final String originDeviceId;
   final String workerNameSnapshot;
+  final DateTime? dueAt;
   const RefrigerationLogRow({
     required this.id,
     required this.movementId,
@@ -1258,6 +1279,7 @@ class RefrigerationLogRow extends DataClass
     required this.createdAt,
     required this.originDeviceId,
     required this.workerNameSnapshot,
+    this.dueAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1277,6 +1299,9 @@ class RefrigerationLogRow extends DataClass
     map['created_at'] = Variable<DateTime>(createdAt);
     map['origin_device_id'] = Variable<String>(originDeviceId);
     map['worker_name_snapshot'] = Variable<String>(workerNameSnapshot);
+    if (!nullToAbsent || dueAt != null) {
+      map['due_at'] = Variable<DateTime>(dueAt);
+    }
     return map;
   }
 
@@ -1293,6 +1318,9 @@ class RefrigerationLogRow extends DataClass
       createdAt: Value(createdAt),
       originDeviceId: Value(originDeviceId),
       workerNameSnapshot: Value(workerNameSnapshot),
+      dueAt: dueAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueAt),
     );
   }
 
@@ -1319,6 +1347,7 @@ class RefrigerationLogRow extends DataClass
       workerNameSnapshot: serializer.fromJson<String>(
         json['workerNameSnapshot'],
       ),
+      dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
     );
   }
   @override
@@ -1336,6 +1365,7 @@ class RefrigerationLogRow extends DataClass
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'originDeviceId': serializer.toJson<String>(originDeviceId),
       'workerNameSnapshot': serializer.toJson<String>(workerNameSnapshot),
+      'dueAt': serializer.toJson<DateTime?>(dueAt),
     };
   }
 
@@ -1351,6 +1381,7 @@ class RefrigerationLogRow extends DataClass
     DateTime? createdAt,
     String? originDeviceId,
     String? workerNameSnapshot,
+    Value<DateTime?> dueAt = const Value.absent(),
   }) => RefrigerationLogRow(
     id: id ?? this.id,
     movementId: movementId ?? this.movementId,
@@ -1363,6 +1394,7 @@ class RefrigerationLogRow extends DataClass
     createdAt: createdAt ?? this.createdAt,
     originDeviceId: originDeviceId ?? this.originDeviceId,
     workerNameSnapshot: workerNameSnapshot ?? this.workerNameSnapshot,
+    dueAt: dueAt.present ? dueAt.value : this.dueAt,
   );
   RefrigerationLogRow copyWithCompanion(RefrigerationLogsCompanion data) {
     return RefrigerationLogRow(
@@ -1389,6 +1421,7 @@ class RefrigerationLogRow extends DataClass
       workerNameSnapshot: data.workerNameSnapshot.present
           ? data.workerNameSnapshot.value
           : this.workerNameSnapshot,
+      dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
     );
   }
 
@@ -1405,7 +1438,8 @@ class RefrigerationLogRow extends DataClass
           ..write('occurredAt: $occurredAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('originDeviceId: $originDeviceId, ')
-          ..write('workerNameSnapshot: $workerNameSnapshot')
+          ..write('workerNameSnapshot: $workerNameSnapshot, ')
+          ..write('dueAt: $dueAt')
           ..write(')'))
         .toString();
   }
@@ -1423,6 +1457,7 @@ class RefrigerationLogRow extends DataClass
     createdAt,
     originDeviceId,
     workerNameSnapshot,
+    dueAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -1438,7 +1473,8 @@ class RefrigerationLogRow extends DataClass
           other.occurredAt == this.occurredAt &&
           other.createdAt == this.createdAt &&
           other.originDeviceId == this.originDeviceId &&
-          other.workerNameSnapshot == this.workerNameSnapshot);
+          other.workerNameSnapshot == this.workerNameSnapshot &&
+          other.dueAt == this.dueAt);
 }
 
 class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
@@ -1453,6 +1489,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
   final Value<DateTime> createdAt;
   final Value<String> originDeviceId;
   final Value<String> workerNameSnapshot;
+  final Value<DateTime?> dueAt;
   final Value<int> rowid;
   const RefrigerationLogsCompanion({
     this.id = const Value.absent(),
@@ -1466,6 +1503,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     this.createdAt = const Value.absent(),
     this.originDeviceId = const Value.absent(),
     this.workerNameSnapshot = const Value.absent(),
+    this.dueAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RefrigerationLogsCompanion.insert({
@@ -1480,6 +1518,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     required DateTime createdAt,
     this.originDeviceId = const Value.absent(),
     this.workerNameSnapshot = const Value.absent(),
+    this.dueAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        movementId = Value(movementId),
@@ -1502,6 +1541,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     Expression<DateTime>? createdAt,
     Expression<String>? originDeviceId,
     Expression<String>? workerNameSnapshot,
+    Expression<DateTime>? dueAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1518,6 +1558,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
       if (originDeviceId != null) 'origin_device_id': originDeviceId,
       if (workerNameSnapshot != null)
         'worker_name_snapshot': workerNameSnapshot,
+      if (dueAt != null) 'due_at': dueAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1534,6 +1575,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     Value<DateTime>? createdAt,
     Value<String>? originDeviceId,
     Value<String>? workerNameSnapshot,
+    Value<DateTime?>? dueAt,
     Value<int>? rowid,
   }) {
     return RefrigerationLogsCompanion(
@@ -1548,6 +1590,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
       createdAt: createdAt ?? this.createdAt,
       originDeviceId: originDeviceId ?? this.originDeviceId,
       workerNameSnapshot: workerNameSnapshot ?? this.workerNameSnapshot,
+      dueAt: dueAt ?? this.dueAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1592,6 +1635,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     if (workerNameSnapshot.present) {
       map['worker_name_snapshot'] = Variable<String>(workerNameSnapshot.value);
     }
+    if (dueAt.present) {
+      map['due_at'] = Variable<DateTime>(dueAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1612,6 +1658,7 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
           ..write('createdAt: $createdAt, ')
           ..write('originDeviceId: $originDeviceId, ')
           ..write('workerNameSnapshot: $workerNameSnapshot, ')
+          ..write('dueAt: $dueAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5613,6 +5660,7 @@ typedef $$RefrigerationLogsTableCreateCompanionBuilder =
       required DateTime createdAt,
       Value<String> originDeviceId,
       Value<String> workerNameSnapshot,
+      Value<DateTime?> dueAt,
       Value<int> rowid,
     });
 typedef $$RefrigerationLogsTableUpdateCompanionBuilder =
@@ -5628,6 +5676,7 @@ typedef $$RefrigerationLogsTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String> originDeviceId,
       Value<String> workerNameSnapshot,
+      Value<DateTime?> dueAt,
       Value<int> rowid,
     });
 
@@ -5750,6 +5799,11 @@ class $$RefrigerationLogsTableFilterComposer
 
   ColumnFilters<String> get workerNameSnapshot => $composableBuilder(
     column: $table.workerNameSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueAt => $composableBuilder(
+    column: $table.dueAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5879,6 +5933,11 @@ class $$RefrigerationLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get dueAt => $composableBuilder(
+    column: $table.dueAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ProductsTableOrderingComposer get productId {
     final $$ProductsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -5973,6 +6032,9 @@ class $$RefrigerationLogsTableAnnotationComposer
     column: $table.workerNameSnapshot,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get dueAt =>
+      $composableBuilder(column: $table.dueAt, builder: (column) => column);
 
   $$ProductsTableAnnotationComposer get productId {
     final $$ProductsTableAnnotationComposer composer = $composerBuilder(
@@ -6094,6 +6156,7 @@ class $$RefrigerationLogsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> originDeviceId = const Value.absent(),
                 Value<String> workerNameSnapshot = const Value.absent(),
+                Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RefrigerationLogsCompanion(
                 id: id,
@@ -6107,6 +6170,7 @@ class $$RefrigerationLogsTableTableManager
                 createdAt: createdAt,
                 originDeviceId: originDeviceId,
                 workerNameSnapshot: workerNameSnapshot,
+                dueAt: dueAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6122,6 +6186,7 @@ class $$RefrigerationLogsTableTableManager
                 required DateTime createdAt,
                 Value<String> originDeviceId = const Value.absent(),
                 Value<String> workerNameSnapshot = const Value.absent(),
+                Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RefrigerationLogsCompanion.insert(
                 id: id,
@@ -6135,6 +6200,7 @@ class $$RefrigerationLogsTableTableManager
                 createdAt: createdAt,
                 originDeviceId: originDeviceId,
                 workerNameSnapshot: workerNameSnapshot,
+                dueAt: dueAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

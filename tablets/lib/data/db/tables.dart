@@ -52,6 +52,7 @@ class RefrigerationLogs extends Table {
       text().named('origin_device_id').withDefault(const Constant(''))();
   TextColumn get workerNameSnapshot =>
       text().named('worker_name_snapshot').withDefault(const Constant(''))();
+  DateTimeColumn get dueAt => dateTime().named('due_at').nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

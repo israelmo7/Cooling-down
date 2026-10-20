@@ -8,6 +8,7 @@ class OpenHolding {
     required this.fridgeName,
     required this.checkInTemperatureCelsius,
     required this.checkedInAt,
+    this.dueAt,
   });
 
   final String movementId;
@@ -17,4 +18,5 @@ class OpenHolding {
   final String fridgeName;
   final double checkInTemperatureCelsius;
   final DateTime checkedInAt;
+  final DateTime? dueAt;
 }

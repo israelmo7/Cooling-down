@@ -1,3 +1,4 @@
+import 'package:cooling_down/domain/hold_for.dart';
 import 'package:cooling_down/data/db/app_database.dart';
 import 'package:cooling_down/data/db/seed_ids.dart';
 import 'package:cooling_down/data/repositories/drift_log_repository.dart';
@@ -74,8 +75,8 @@ void main() {
     expect(stored.temperatureCelsius, 5);
   });
 
-  test('an out-of-range temperature stores the log and an alert', () async {
-    final checkIn = await repository.insertCheckIn(
+  test('an out-of-range temperature is stored without a warning', () async {
+    await repository.insertCheckIn(
       productId: SeedIds.wholeMilk,
       fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 12,
@@ -88,14 +89,45 @@ void main() {
 
     expect(logs, hasLength(1));
     expect(logs.single.temperatureCelsius, 12);
-    expect(alerts, hasLength(1));
-    expect(alerts.single.logId, checkIn.id);
-    expect(alerts.single.message, contains('חלב'));
-    expect(outbox, hasLength(2));
-    expect(outbox.map((row) => row.entityType).toSet(), {
-      'refrigeration_log',
-      'alert',
-    });
+    expect(alerts, isEmpty);
+    expect(outbox, hasLength(1));
+    expect(outbox.single.entityType, 'refrigeration_log');
+  });
+
+  test('a product starts from the average of its check-ins', () async {
+    await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 2,
+      workerName: 'דנה',
+    );
+    await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 4,
+      workerName: 'דנה',
+    );
+
+    expect(await repository.averageCheckInCelsius(SeedIds.wholeMilk), 3);
+    expect(
+      await repository.averageCheckInCelsius(SeedIds.chickenBreast),
+      isNull,
+    );
+  });
+
+  test('a come-out time stays on the open item', () async {
+    final due = DateTime.utc(2026, 10, 20, 16);
+    final checkIn = await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+      dueAt: due,
+    );
+
+    final open = await repository.watchOpenHoldings().first;
+    expect(open.single.dueAt?.isAtSameMomentAs(due), isTrue);
+    expect(checkIn.dueAt?.isAtSameMomentAs(due), isTrue);
   });
 
   test('a check-in without a worker is rejected', () async {
@@ -126,5 +158,14 @@ void main() {
     expect(outbox, hasLength(1));
     expect(outbox.single.status.name, 'pending');
     expect(outbox.single.attemptCount, 0);
+  });
+
+  test('come-out hours accept a half hour and ignore empty text', () {
+    expect(parseHoldHours(''), isNull);
+    expect(parseHoldHours('0'), isNull);
+    expect(parseHoldHours('0.5'), 0.5);
+    expect(parseHoldHours('2,5'), 2.5);
+    final due = dueAfter(DateTime.utc(2026, 10, 20, 12), 0.5);
+    expect(due, DateTime.utc(2026, 10, 20, 12, 30));
   });
 }
