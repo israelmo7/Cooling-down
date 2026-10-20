@@ -202,4 +202,52 @@ void main() {
     expect(report.html, contains('<pre'));
     expect(report.html, isNot(contains('<table')));
   });
+
+  test('a quiet day still names the actions already stored', () {
+    final report = buildClosedDayReport(
+      environmentName: 'מטבח',
+      day: DateTime(2026, 10, 11),
+      logs: [
+        StoredLogLine(
+          movementId: 'milk',
+          eventType: 'check_in',
+          occurredAt: DateTime(2026, 10, 10, 8, 5),
+          productName: 'חלב',
+          temperature: 4,
+          fridgeName: 'מקרר מטבח',
+          workerName: 'דנה',
+        ),
+      ],
+      notices: const [],
+    );
+
+    expect(report.body, contains('אין תנועות.'));
+    expect(report.body, contains('תנועות אחרונות שנשמרו'));
+    expect(report.body, contains('10/10 08:05 חלב קליטה'));
+    expect(report.html, contains('חלב'));
+    expect(report.html, contains('קליטה'));
+  });
+
+  test('the stored-action list stops after thirty lines', () {
+    final report = buildClosedDayReport(
+      environmentName: 'מטבח',
+      day: DateTime(2026, 10, 11),
+      logs: [
+        for (var index = 0; index < 31; index++)
+          StoredLogLine(
+            movementId: 'move-$index',
+            eventType: 'check_in',
+            occurredAt: DateTime(2026, 10, 1, 8, index),
+            productName: 'מוצר $index',
+            temperature: 4,
+            fridgeName: 'מטבח',
+          ),
+      ],
+      notices: const [],
+    );
+
+    expect(report.body, contains('מוצר 30'));
+    expect(report.body, isNot(contains('מוצר 0')));
+    expect(report.body, contains('מוצגות 30 התנועות האחרונות מתוך 31.'));
+  });
 }

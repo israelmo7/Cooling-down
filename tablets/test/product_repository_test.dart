@@ -17,51 +17,48 @@ void main() {
 
   tearDown(() => database.close());
 
-  test(
-    'check-in shows frequent products and search keeps the full list',
-    () async {
-      final before = await products.watchSearch('').first;
-      expect(
-        before.map((product) => product.name),
-        containsAll(['חלב', 'חזה עוף', 'אינסולין', 'חיסון']),
-      );
+  test('check-in keeps the catalog and a product added on the spot', () async {
+    final before = await products.watchSearch('').first;
+    expect(
+      before.map((product) => product.name),
+      containsAll(['חלב', 'חזה עוף', 'אינסולין', 'חיסון']),
+    );
 
-      await logs.insertCheckIn(
-        productId: SeedIds.wholeMilk,
-        fridgeId: SeedIds.kitchenFridge,
-        temperatureCelsius: 3,
-        workerName: 'דנה',
-      );
-      await logs.insertCheckIn(
-        productId: SeedIds.wholeMilk,
-        fridgeId: SeedIds.kitchenFridge,
-        temperatureCelsius: 3,
-        workerName: 'דנה',
-      );
-      await logs.insertCheckIn(
-        productId: SeedIds.chickenBreast,
-        fridgeId: SeedIds.kitchenFridge,
-        temperatureCelsius: 3,
-        workerName: 'דנה',
-      );
-      final oneOff = await products.addOneOffProduct('גבינה צהובה');
-      await logs.insertCheckIn(
-        productId: oneOff!.id,
-        fridgeId: SeedIds.kitchenFridge,
-        temperatureCelsius: 3,
-        workerName: 'דנה',
-      );
+    await logs.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+    );
+    await logs.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+    );
+    await logs.insertCheckIn(
+      productId: SeedIds.chickenBreast,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+    );
+    final oneOff = await products.addOneOffProduct('גבינה צהובה');
+    await logs.insertCheckIn(
+      productId: oneOff!.id,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+    );
 
-      final frequent = await products.watchSearch('').first;
-      expect(frequent.map((product) => product.name).toList(), [
-        'חלב',
-        'חזה עוף',
-      ]);
+    final shown = await products.watchSearch('').first;
+    expect(
+      shown.map((product) => product.name),
+      containsAll(['חלב', 'חזה עוף', 'אינסולין', 'חיסון', 'גבינה צהובה']),
+    );
 
-      final searched = await products.watchSearch('חיסון').first;
-      expect(searched.single.name, 'חיסון');
-    },
-  );
+    final searched = await products.watchSearch('חיסון').first;
+    expect(searched.single.name, 'חיסון');
+  });
 
   test('a used product leaves the list and the log keeps its name', () async {
     await logs.insertCheckIn(
@@ -77,6 +74,9 @@ void main() {
     final listed = await products.watchAll().first;
     expect(listed.map((product) => product.name), isNot(contains('חלב')));
     expect(listed.map((product) => product.name), isNot(contains('חיסון')));
+    final onCheckIn = await products.watchSearch('').first;
+    expect(onCheckIn.map((product) => product.name), isNot(contains('חלב')));
+    expect(onCheckIn.map((product) => product.name), isNot(contains('חיסון')));
     expect(await products.findById(SeedIds.wholeMilk), isNotNull);
     expect(await products.findById(SeedIds.vaccine), isNull);
 

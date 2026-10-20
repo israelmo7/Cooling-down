@@ -365,7 +365,7 @@ String _settings(
 </form>
 <form method="post" action="/admin/test-report" class="card test">
   <h2>בדיקת הדוח</h2>
-  <p class="hint">שולח את תנועות היום לאימייל הבעלים. הדוח הקבוע של אתמול נשאר בשעה שנשמרה.</p>
+  <p class="hint">שולח את תנועות היום לאימייל הבעלים. ביום בלי תנועות הדוח מצרף את מה שכבר נשמר. הדוח הקבוע של אתמול נשאר בשעה שנשמרה.</p>
   <button type="submit">שליחת דוח לבדיקה</button>
 </form>
 ''';
@@ -384,9 +384,19 @@ String _places(SyncStore store) {
     if (logs.isEmpty) {
       rows.writeln('<p class="hint">אין תנועות בסביבה הזו.</p>');
     } else {
+      final ordered = [...logs]
+        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      final shown = ordered.take(recentActionLimit).toList();
+      rows.writeln(
+        '<p class="hint">מוצגות ${shown.length} התנועות האחרונות מתוך ${ordered.length}. הרשימה נעצרת ב-$recentActionLimit.</p>',
+      );
       rows.writeln('<ul>');
-      for (final log in logs.reversed.take(20)) {
-        final word = log.eventType == 'check_in' ? 'קליטה' : 'הוצאה';
+      for (final log in shown) {
+        final word = log.eventType == 'check_in'
+            ? 'קליטה'
+            : log.eventType == 'check_out'
+            ? 'הוצאה'
+            : _escape(log.eventType);
         final temperature = log.temperature == null
             ? ''
             : ' ${_ltr('${log.temperature!.toStringAsFixed(1)}°C')}';
@@ -394,7 +404,7 @@ String _places(SyncStore store) {
             ? ''
             : ' · ${_escape(log.workerName.trim())}';
         rows.writeln(
-          '<li>${_escape(_clock(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker</li>',
+          '<li>${_escape(_stamp(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker</li>',
         );
       }
       rows.writeln('</ul>');
@@ -508,4 +518,11 @@ String _clock(DateTime instant) {
   final hour = local.hour.toString().padLeft(2, '0');
   final minute = local.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
+}
+
+String _stamp(DateTime instant) {
+  final local = instant.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  return '$day/$month ${_clock(instant)}';
 }

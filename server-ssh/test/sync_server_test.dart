@@ -233,6 +233,61 @@ void main() {
     expect(places.body, isNot(contains('name="owner_email"')));
   });
 
+  test('the environment list keeps the latest actions only', () async {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    for (var index = 0; index < 2; index++) {
+      store.exchange(
+        deviceId: 'tablet-a',
+        environment: 'מטבח',
+        cursor: 0,
+        push: [
+          _push('refrigeration_log', {
+            ..._log(
+              id: 'log-$index',
+              movementId: 'move-$index',
+              eventType: 'check_in',
+            ),
+            'product_name_snapshot': 'חלב',
+            'occurred_at': DateTime(
+              2026,
+              10,
+              11,
+              8,
+              index,
+            ).toUtc().toIso8601String(),
+          }),
+        ],
+      );
+    }
+    final server = await shelf_io.serve(
+      buildHandler(
+        store: store,
+        token: 'secret',
+        adminUser: 'owner',
+        adminPassword: 'panel-secret',
+      ),
+      InternetAddress.loopbackIPv4,
+      0,
+    );
+    addTearDown(server.close);
+    final client = HttpClient();
+    addTearDown(client.close);
+    final allowed = await _form(client, server.port, '/admin/login', {
+      'user': 'owner',
+      'password': 'panel-secret',
+    });
+    final places = await _get(
+      client,
+      server.port,
+      '/admin?tab=places',
+      cookie: allowed.cookie,
+    );
+    expect(places.body, contains('הרשימה נעצרת ב-30'));
+    expect(places.body, contains('מתוך 2'));
+    expect(places.body, contains('חלב'));
+  });
+
   test('midnight emails yesterday once from the stored logs', () async {
     final mailer = _RecordingMailer();
     final store = SyncStore.memory(
