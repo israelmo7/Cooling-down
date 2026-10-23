@@ -26,6 +26,18 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        // Releasing the screen is only for the visit outside the app.
+        // Once the activity has actually been left, arm pinning again so
+        // coming back into the app pins it again. Without this the static
+        // flag stayed off for the whole process and the tablet never
+        // re-pinned on re-entry.
+        if (!holdScreen) {
+            holdScreen = true
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)

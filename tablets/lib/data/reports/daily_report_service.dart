@@ -153,6 +153,7 @@ class DailyReportService {
             occurredAt: row.occurredAt,
             fridgeName: fridgeNames[row.fridgeId] ?? row.fridgeId,
             workerName: row.workerNameSnapshot,
+            quantity: row.quantity,
           ),
       ],
       stillInside: holdings,
@@ -175,16 +176,20 @@ class DailyReportService {
     Map<String, String> fridgeNames,
   ) async {
     final logs = await _db.select(_db.refrigerationLogs).get();
-    final closed = logs
-        .where((row) => row.eventType == LogEventType.checkOut)
-        .map((row) => row.movementId)
-        .toSet();
+    // A movement is still inside while part of its quantity remains.
+    final takenOut = <String, int>{};
+    for (final row in logs) {
+      if (row.eventType == LogEventType.checkOut) {
+        takenOut[row.movementId] =
+            (takenOut[row.movementId] ?? 0) + row.quantity;
+      }
+    }
     final open =
         logs
             .where(
               (row) =>
                   row.eventType == LogEventType.checkIn &&
-                  !closed.contains(row.movementId),
+                  row.quantity - (takenOut[row.movementId] ?? 0) > 0,
             )
             .toList()
           ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
@@ -195,6 +200,7 @@ class DailyReportService {
           fridgeName: fridgeNames[row.fridgeId] ?? row.fridgeId,
           checkedInAt: row.occurredAt,
           workerName: row.workerNameSnapshot,
+          quantity: row.quantity - (takenOut[row.movementId] ?? 0),
         ),
     ];
   }

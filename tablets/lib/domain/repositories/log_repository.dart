@@ -12,6 +12,7 @@ abstract class LogRepository {
     DateTime? occurredAt,
     required String workerName,
     DateTime? dueAt,
+    int quantity = 1,
   });
 
   /// Mean check-in temperature for [productId], or null when it has none.
@@ -22,6 +23,7 @@ abstract class LogRepository {
     required double temperatureCelsius,
     DateTime? occurredAt,
     required String workerName,
+    int quantity = 1,
   });
 
   Stream<List<OpenHolding>> watchOpenHoldings();

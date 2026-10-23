@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db/seed_ids.dart';
@@ -9,6 +10,7 @@ import '../../domain/entities/product.dart';
 import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/failures.dart';
 import '../../domain/hold_for.dart';
+import '../../domain/quantity.dart';
 import '../../domain/workers/worker_refresh.dart';
 import '../format.dart';
 import '../providers.dart';
@@ -26,6 +28,7 @@ class CheckInPanel extends ConsumerStatefulWidget {
 class _CheckInPanelState extends ConsumerState<CheckInPanel> {
   final _searchController = TextEditingController();
   final _holdHours = TextEditingController();
+  final _quantity = TextEditingController(text: '1');
   String _query = '';
   Product? _selectedProduct;
   double? _chosenTemperature;
@@ -36,6 +39,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
   void dispose() {
     _searchController.dispose();
     _holdHours.dispose();
+    _quantity.dispose();
     super.dispose();
   }
 
@@ -78,8 +82,11 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final refresh =
         ref.read(settingsProvider).asData?.value?.workerRefresh ??
         const WorkerRefresh();
+    final quantity = tryParseQuantity(_quantity.text);
     if (product == null ||
         fridge == null ||
+        quantity == null ||
+        !isValidHoldHoursInput(_holdHours.text) ||
         _saving ||
         !workerAllowsAction(
           session: session,
@@ -92,7 +99,8 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final accepted = await confirmRecordedAction(
       context,
       enabled: ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
-      action: 'קליטה: ${product.name} ב-${formatCelsius(_reading(fridge))}$who',
+      action:
+          'קליטה: ${product.name} ב-${formatCelsius(_reading(fridge))} · כמות $quantity$who',
     );
     if (!accepted || !mounted) {
       return;
@@ -108,6 +116,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
             temperatureCelsius: _reading(fridge),
             workerName: workerName,
             dueAt: hours == null ? null : dueAfter(DateTime.now(), hours),
+            quantity: quantity,
           );
       if (!mounted) {
         return;
@@ -117,6 +126,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
         _query = '';
         _searchController.clear();
         _holdHours.clear();
+        _quantity.text = '1';
         _chosenTemperature = null;
       });
       showTransientNotice(
@@ -126,6 +136,11 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
       );
       unawaited(_syncSoon());
     } on CatalogEntryNotFound catch (error) {
+      if (!mounted) {
+        return;
+      }
+      showTransientNotice(context, error.message);
+    } on InvalidQuantityException catch (error) {
       if (!mounted) {
         return;
       }
@@ -170,6 +185,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
             movementId: log.movementId,
             temperatureCelsius: log.temperatureCelsius,
             workerName: '$workerName · ביטול',
+            quantity: log.quantity,
           );
       if (!mounted) {
         return;
@@ -199,9 +215,13 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final fridge = fridges.asData == null
         ? null
         : _environmentFridge(fridges.asData!.value);
+    final quantityValid = tryParseQuantity(_quantity.text) != null;
+    final holdValid = isValidHoldHoursInput(_holdHours.text);
     final canConfirm =
         _selectedProduct != null &&
         fridge != null &&
+        quantityValid &&
+        holdValid &&
         !_saving &&
         workerAllowsAction(
           session: ref.watch(workerSessionProvider).asData?.value,
@@ -240,6 +260,12 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
             selectedName: selectedName,
             temperature: _reading(fridge),
             holdHours: _holdHours,
+            quantity: _quantity,
+            quantityError: quantityValid
+                ? null
+                : 'מספר שלם בין 1 ל-$maxQuantity',
+            holdError: holdValid ? null : 'מספר שעות עד 72, או להשאיר ריק',
+            onInputChanged: () => setState(() {}),
             canConfirm: canConfirm,
             saving: _saving,
             onTemperatureChanged: (value) {
@@ -423,6 +449,10 @@ class _CheckInControls extends StatelessWidget {
     required this.selectedName,
     required this.temperature,
     required this.holdHours,
+    required this.quantity,
+    required this.quantityError,
+    required this.holdError,
+    required this.onInputChanged,
     required this.canConfirm,
     required this.saving,
     required this.onTemperatureChanged,
@@ -433,6 +463,10 @@ class _CheckInControls extends StatelessWidget {
   final String? selectedName;
   final double temperature;
   final TextEditingController holdHours;
+  final TextEditingController quantity;
+  final String? quantityError;
+  final String? holdError;
+  final VoidCallback onInputChanged;
   final bool canConfirm;
   final bool saving;
   final ValueChanged<double> onTemperatureChanged;
@@ -474,17 +508,40 @@ class _CheckInControls extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               TextField(
+                key: const Key('check-in-quantity'),
+                controller: quantity,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(4),
+                ],
+                style: const TextStyle(fontSize: 16),
+                decoration: InputDecoration(
+                  labelText: 'כמות',
+                  hintText: '1',
+                  isDense: true,
+                  errorText: quantityError,
+                ),
+                onChanged: (_) => onInputChanged(),
+              ),
+              const SizedBox(height: 12),
+              TextField(
                 key: const Key('hold-hours'),
                 controller: holdHours,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
                 style: const TextStyle(fontSize: 16),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'יציאה בעוד',
                   hintText: 'שעות, לא חובה',
                   isDense: true,
+                  errorText: holdError,
                 ),
+                onChanged: (_) => onInputChanged(),
               ),
               const SizedBox(height: 16),
               ConfirmBar(

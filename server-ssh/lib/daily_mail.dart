@@ -22,6 +22,7 @@ class StoredLogLine {
     required this.temperature,
     required this.fridgeName,
     this.workerName = '',
+    this.quantity = 1,
   });
 
   final String movementId;
@@ -31,6 +32,9 @@ class StoredLogLine {
   final double? temperature;
   final String fridgeName;
   final String workerName;
+
+  /// How many units this event moved.
+  final int quantity;
 }
 
 class StoredNotice {
@@ -44,6 +48,9 @@ class _Pair {
   StoredLogLine? checkIn;
   StoredLogLine? checkOut;
 
+  /// Every (possibly partial) check-out of this movement.
+  final checkOuts = <StoredLogLine>[];
+
   void take(StoredLogLine line) {
     if (line.eventType == 'check_in') {
       if (checkIn == null || line.occurredAt.isBefore(checkIn!.occurredAt)) {
@@ -52,6 +59,7 @@ class _Pair {
       return;
     }
     if (line.eventType == 'check_out') {
+      checkOuts.add(line);
       if (checkOut == null || line.occurredAt.isBefore(checkOut!.occurredAt)) {
         checkOut = line;
       }
@@ -65,15 +73,26 @@ class _ReportRow {
     required this.checkIn,
     required this.checkOut,
     required this.order,
+    this.checkOutQuantity = 0,
   });
 
   final String productName;
   final StoredLogLine? checkIn;
   final StoredLogLine? checkOut;
   final DateTime order;
+
+  /// Total units taken out, summed over partial check-outs.
+  final int checkOutQuantity;
 }
 
-const _columns = ['מוצר', 'איך נקלט', 'מתי נקלט', 'איך הוצא', 'מתי הוצא'];
+const _columns = [
+  'מוצר',
+  'כמות',
+  'איך נקלט',
+  'מתי נקלט',
+  'איך הוצא',
+  'מתי הוצא',
+];
 
 /// How many stored actions the admin page and a quiet-day mail will list.
 const recentActionLimit = 30;
@@ -185,6 +204,7 @@ String _fillTemplate({
     final rendered = rows.map((row) {
       return pattern
           .replaceAll('{{product}}', row.productName)
+          .replaceAll('{{quantity}}', _quantityText(row))
           .replaceAll('{{check_in}}', _how(row.checkIn))
           .replaceAll('{{check_in_time}}', _when(row.checkIn, day))
           .replaceAll('{{check_out}}', _how(row.checkOut))
@@ -199,6 +219,7 @@ String _fillTemplate({
       .replaceAll('{{conclusion}}', conclusion);
   for (final token in [
     'product',
+    'quantity',
     'check_in',
     'check_in_time',
     'check_out',
@@ -267,6 +288,9 @@ List<_ReportRow> _rowsForDay(List<StoredLogLine> logs, DateTime day) {
         checkIn: checkIn,
         checkOut: checkOut,
         order: _orderTime(checkIn, checkOut, day),
+        checkOutQuantity: pair.checkOuts
+            .where((line) => !_afterDay(line.occurredAt, day))
+            .fold(0, (sum, line) => sum + line.quantity),
       ),
     );
   }
@@ -331,6 +355,7 @@ String _plain({
       buffer.writeln(
         [
           row.productName,
+          _quantityText(row),
           _how(row.checkIn),
           _when(row.checkIn, day),
           _how(row.checkOut),
@@ -355,10 +380,18 @@ String _plain({
   return buffer.toString();
 }
 
-enum _ReportColumn { product, checkIn, checkInTime, checkOut, checkOutTime }
+enum _ReportColumn {
+  product,
+  quantity,
+  checkIn,
+  checkInTime,
+  checkOut,
+  checkOutTime,
+}
 
 const _allColumns = [
   _ReportColumn.product,
+  _ReportColumn.quantity,
   _ReportColumn.checkIn,
   _ReportColumn.checkInTime,
   _ReportColumn.checkOut,
@@ -377,6 +410,7 @@ List<_ReportColumn> _columnsIn(String template) {
   ).allMatches(match.group(1)!)) {
     final column = switch (token.group(1)) {
       'product' => _ReportColumn.product,
+      'quantity' => _ReportColumn.quantity,
       'check_in' => _ReportColumn.checkIn,
       'check_in_time' => _ReportColumn.checkInTime,
       'check_out' => _ReportColumn.checkOut,
@@ -393,6 +427,7 @@ List<_ReportColumn> _columnsIn(String template) {
 String _columnTitle(_ReportColumn column) {
   return switch (column) {
     _ReportColumn.product => 'מוצר',
+    _ReportColumn.quantity => 'כמות',
     _ReportColumn.checkIn => 'איך נקלט',
     _ReportColumn.checkInTime => 'מתי נקלט',
     _ReportColumn.checkOut => 'איך הוצא',
@@ -403,6 +438,7 @@ String _columnTitle(_ReportColumn column) {
 String _columnValue(_ReportColumn column, _ReportRow row, DateTime day) {
   return switch (column) {
     _ReportColumn.product => row.productName,
+    _ReportColumn.quantity => _quantityText(row),
     _ReportColumn.checkIn => _how(row.checkIn),
     _ReportColumn.checkInTime => _when(row.checkIn, day),
     _ReportColumn.checkOut => _how(row.checkOut),
@@ -541,6 +577,28 @@ String _cell(String value, {bool ltr = false}) {
   final color = missing ? 'color:#6b7280;' : '';
   final direction = ltr ? ' dir="ltr"' : '';
   return '<td$direction style="text-align:right;padding:10px 12px;border:1px solid #d7e0e4;$color">${_escape(value)}</td>';
+}
+
+/// One row pairs a check-in with its check-out, so the single כמות cell
+/// shows the checked-in amount and, when the checked-out amount differs,
+/// both amounts: `נכנס 5 · הוצא 3`. Equal amounts show once.
+String _quantityText(_ReportRow row) {
+  final checkedIn = row.checkIn?.quantity;
+  // Partial check-outs add up; the single check-out line only carries the
+  // first one's own quantity.
+  final checkedOut = row.checkOut == null
+      ? null
+      : (row.checkOutQuantity > 0
+            ? row.checkOutQuantity
+            : row.checkOut!.quantity);
+  if (checkedIn != null && checkedOut != null) {
+    if (checkedIn == checkedOut) {
+      return '$checkedIn';
+    }
+    return 'נכנס $checkedIn · הוצא $checkedOut';
+  }
+  final only = checkedIn ?? checkedOut;
+  return only == null ? '-' : '$only';
 }
 
 String _how(StoredLogLine? line) {

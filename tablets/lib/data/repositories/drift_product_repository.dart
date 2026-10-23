@@ -9,8 +9,8 @@ import '../db/app_database.dart';
 import '../mappers.dart';
 
 /// A used product that was removed from the catalog. The row stays because a
-/// log points at it. Check-in hides this mark. A one-off keeps a null sku, so
-/// it stays on the check-in list without joining the settings list.
+/// log points at it. Check-in hides this mark. A one-off is listed=false, so
+/// it stays off both the check-in list and the settings list.
 const removedFromCheckIn = 'hidden';
 
 class DriftProductRepository implements ProductRepository {
@@ -22,10 +22,11 @@ class DriftProductRepository implements ProductRepository {
   @override
   Stream<List<Product>> watchSearch(String query) {
     final trimmed = query.trim().replaceAll('%', '').replaceAll('_', '');
-    // The settings list, plus a name added on this screen. A removed product
-    // is listed=false and marked [removedFromCheckIn].
-    final onCheckIn =
-        _db.products.listed.equals(true) | _db.products.sku.isNull();
+    // Only the builtin list from settings. A name added on the check-in
+    // screen is a one-off (listed=false): it can be used for that one
+    // check-in, but it never joins this list. A removed product is also
+    // listed=false and marked [removedFromCheckIn].
+    final onCheckIn = _db.products.listed.equals(true);
     if (trimmed.isEmpty) {
       final uses = _db.refrigerationLogs.id.count();
       final ranked =
@@ -70,7 +71,7 @@ class DriftProductRepository implements ProductRepository {
   @override
   Future<Product?> addProduct(String name) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) {
+    if (trimmed.isEmpty || trimmed.length > 60) {
       return null;
     }
     final existing = await _productNamed(trimmed);
@@ -94,7 +95,7 @@ class DriftProductRepository implements ProductRepository {
   @override
   Future<Product?> addOneOffProduct(String name) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) {
+    if (trimmed.isEmpty || trimmed.length > 60) {
       return null;
     }
     final existing = await _productNamed(trimmed);
@@ -134,7 +135,7 @@ class DriftProductRepository implements ProductRepository {
   @override
   Future<void> renameProduct(String id, String name) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) {
+    if (trimmed.isEmpty || trimmed.length > 60) {
       return;
     }
     await (_db.update(_db.products)..where((table) => table.id.equals(id)))

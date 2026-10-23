@@ -1,6 +1,7 @@
 /// The columns a shop can turn on. The product name is always in the table.
 class ReportColumns {
   const ReportColumns({
+    this.quantity = true,
     this.checkIn = true,
     this.checkInTime = true,
     this.checkOut = true,
@@ -9,6 +10,7 @@ class ReportColumns {
     this.conclusion = true,
   });
 
+  final bool quantity;
   final bool checkIn;
   final bool checkInTime;
   final bool checkOut;
@@ -24,6 +26,7 @@ class ReportColumns {
       return fixed;
     }
     return ReportColumns(
+      quantity: _has(template, 'quantity'),
       checkIn: _has(template, 'check_in'),
       checkInTime: _has(template, 'check_in_time'),
       checkOut: _has(template, 'check_out'),
@@ -37,6 +40,10 @@ class ReportColumns {
   String toTemplate() {
     final headers = <String>['מוצר'];
     final tokens = <String>['{{product}}'];
+    if (quantity) {
+      headers.add('כמות');
+      tokens.add('{{quantity}}');
+    }
     if (checkIn) {
       headers.add('איך נקלט');
       tokens.add('{{check_in}}');

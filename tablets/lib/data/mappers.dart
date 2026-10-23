@@ -36,6 +36,7 @@ RefrigerationLog mapLog(RefrigerationLogRow row) {
     originDeviceId: row.originDeviceId,
     workerNameSnapshot: row.workerNameSnapshot,
     dueAt: row.dueAt,
+    quantity: row.quantity,
   );
 }
 

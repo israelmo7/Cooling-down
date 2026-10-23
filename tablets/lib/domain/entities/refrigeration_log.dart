@@ -22,6 +22,7 @@ class RefrigerationLog {
     this.originDeviceId = '',
     this.workerNameSnapshot = '',
     this.dueAt,
+    this.quantity = 1,
   });
 
   final String id;
@@ -38,4 +39,7 @@ class RefrigerationLog {
 
   /// When this check-in should leave the fridge. Empty when no time was set.
   final DateTime? dueAt;
+
+  /// How many units this event moved. Always at least 1.
+  final int quantity;
 }

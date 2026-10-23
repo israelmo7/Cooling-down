@@ -102,29 +102,29 @@ void main() {
     expect(report.subject, 'דוח קירור · מטבח · 2026-10-11');
     expect(
       report.body,
-      contains('מוצר | איך נקלט | מתי נקלט | איך הוצא | מתי הוצא'),
+      contains('מוצר | כמות | איך נקלט | מתי נקלט | איך הוצא | מתי הוצא'),
     );
     expect(
       report.body,
       contains(
-        'חזה עוף | ${_celsius(3.2)} · יוסי · מקרר מטבח | 08:10 | ${_celsius(5.1)} · דנה · מקרר מטבח | 18:40',
+        'חזה עוף | 1 | ${_celsius(3.2)} · יוסי · מקרר מטבח | 08:10 | ${_celsius(5.1)} · דנה · מקרר מטבח | 18:40',
       ),
     );
     expect(
       report.body,
       contains(
-        'אינסולין | ${_celsius(4.5)} · יוסי · מקרר תרופות | 10/10 21:05 | ${_celsius(6)} · דנה · מקרר תרופות | 09:30',
+        'אינסולין | 1 | ${_celsius(4.5)} · יוסי · מקרר תרופות | 10/10 21:05 | ${_celsius(6)} · דנה · מקרר תרופות | 09:30',
       ),
     );
     expect(
       report.body,
       contains(
-        'חיסון <מנה> | ${_celsius(3)} · דנה · מקרר תרופות | 11:00 | - | -',
+        'חיסון <מנה> | 1 | ${_celsius(3)} · דנה · מקרר תרופות | 11:00 | - | -',
       ),
     );
     expect(
       report.body,
-      contains('חלב | ${_celsius(4)} · דנה · מקרר מטבח | 15:00 | - | -'),
+      contains('חלב | 1 | ${_celsius(4)} · דנה · מקרר מטבח | 15:00 | - | -'),
     );
     expect(report.body, isNot(contains('גבינה')));
     expect(report.body, isNot(contains('12/10')));
@@ -140,6 +140,88 @@ void main() {
     expect(report.html, isNot(contains('גבינה')));
   });
 
+  test('the quantity cell shows both amounts when in and out differ', () {
+    final report = buildClosedDayReport(
+      environmentName: 'מטבח',
+      day: DateTime(2026, 10, 11),
+      logs: [
+        StoredLogLine(
+          movementId: 'milk',
+          eventType: 'check_in',
+          occurredAt: DateTime(2026, 10, 11, 8),
+          productName: 'חלב',
+          temperature: 4,
+          fridgeName: 'מטבח',
+          quantity: 5,
+        ),
+        StoredLogLine(
+          movementId: 'milk',
+          eventType: 'check_out',
+          occurredAt: DateTime(2026, 10, 11, 12),
+          productName: 'חלב',
+          temperature: 4,
+          fridgeName: 'מטבח',
+          quantity: 3,
+        ),
+        StoredLogLine(
+          movementId: 'cheese',
+          eventType: 'check_in',
+          occurredAt: DateTime(2026, 10, 11, 9),
+          productName: 'גבינה',
+          temperature: 4,
+          fridgeName: 'מטבח',
+          quantity: 2,
+        ),
+      ],
+      notices: const [],
+    );
+
+    expect(report.body, contains('חלב | נכנס 5 · הוצא 3 |'));
+    expect(report.body, contains('גבינה | 2 |'));
+    expect(report.html, contains('>נכנס 5 · הוצא 3</td>'));
+    expect(report.html, contains('>כמות</th>'));
+  });
+
+  test('partial check-outs add up in the quantity cell', () {
+    final report = buildClosedDayReport(
+      environmentName: 'מטבח',
+      day: DateTime(2026, 10, 11),
+      logs: [
+        StoredLogLine(
+          movementId: 'milk',
+          eventType: 'check_in',
+          occurredAt: DateTime(2026, 10, 11, 8),
+          productName: 'חלב',
+          temperature: 4,
+          fridgeName: 'מטבח',
+          quantity: 5,
+        ),
+        StoredLogLine(
+          movementId: 'milk',
+          eventType: 'check_out',
+          occurredAt: DateTime(2026, 10, 11, 10),
+          productName: 'חלב',
+          temperature: 4,
+          fridgeName: 'מטבח',
+          quantity: 2,
+        ),
+        StoredLogLine(
+          movementId: 'milk',
+          eventType: 'check_out',
+          occurredAt: DateTime(2026, 10, 11, 12),
+          productName: 'חלב',
+          temperature: 5,
+          fridgeName: 'מטבח',
+          quantity: 3,
+        ),
+      ],
+      notices: const [],
+    );
+
+    expect(report.body, contains('חלב | 5 |'));
+    expect(report.body, isNot(contains('נכנס 5 · הוצא 2')));
+  });
+
   test('an empty day still shows the table and a dash is not invented', () {
     final report = buildClosedDayReport(
       environmentName: 'מטבח',
@@ -150,7 +232,7 @@ void main() {
 
     expect(
       report.body,
-      contains('מוצר | איך נקלט | מתי נקלט | איך הוצא | מתי הוצא'),
+      contains('מוצר | כמות | איך נקלט | מתי נקלט | איך הוצא | מתי הוצא'),
     );
     expect(report.body, contains('אין תנועות.'));
     expect(report.html, contains('אין תנועות.'));

@@ -78,6 +78,125 @@ void main() {
     expect(alert['payload']['kind'], 'sync_conflict');
   });
 
+  test('partial check-outs are fine, an over-large one is flagged', () {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    Map<String, dynamic> withQuantity(
+      Map<String, dynamic> log,
+      Object? quantity,
+    ) => {...log, 'quantity': quantity};
+
+    final partial = store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'Kitchen',
+      cursor: 0,
+      push: [
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'in-p', movementId: 'move-p', eventType: 'check_in'),
+            5,
+          ),
+        ),
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'out-p1', movementId: 'move-p', eventType: 'check_out'),
+            2,
+          ),
+        ),
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'out-p2', movementId: 'move-p', eventType: 'check_out'),
+            3,
+          ),
+        ),
+      ],
+    );
+    expect(partial['conflicts'], isEmpty);
+
+    store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'Kitchen',
+      cursor: 0,
+      push: [
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'in-q', movementId: 'move-q', eventType: 'check_in'),
+            3,
+          ),
+        ),
+      ],
+    );
+    final over = store.exchange(
+      deviceId: 'tablet-b',
+      environment: 'Kitchen',
+      cursor: 0,
+      push: [
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'out-q', movementId: 'move-q', eventType: 'check_out'),
+            1000,
+          ),
+        ),
+      ],
+    );
+    final conflicts = over['conflicts'] as List;
+    expect(conflicts, hasLength(1));
+    expect(
+      (conflicts.single as Map)['reason'],
+      'checkout quantity exceeds check-in',
+    );
+  });
+
+  test('a malformed quantity, temperature, or date is refused', () {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    final badPayloads = <Map<String, dynamic>>[
+      {
+        ..._log(id: 'bad-1', movementId: 'move-b1', eventType: 'check_in'),
+        'quantity': 0,
+      },
+      {
+        ..._log(id: 'bad-2', movementId: 'move-b2', eventType: 'check_in'),
+        'quantity': 10000,
+      },
+      {
+        ..._log(id: 'bad-3', movementId: 'move-b3', eventType: 'check_in'),
+        'quantity': 2.5,
+      },
+      {
+        ..._log(id: 'bad-4', movementId: 'move-b4', eventType: 'check_in'),
+        'quantity': '3',
+      },
+      {
+        ..._log(id: 'bad-5', movementId: 'move-b5', eventType: 'check_in'),
+        'temperature_celsius': 999,
+      },
+      {..._log(id: 'bad-6', movementId: 'move-b6', eventType: 'sideways')},
+      {
+        ..._log(id: 'bad-7', movementId: 'move-b7', eventType: 'check_in'),
+        'occurred_at': 'not-a-date',
+      },
+    ];
+    for (final payload in badPayloads) {
+      expect(
+        () => store.exchange(
+          deviceId: 'tablet-a',
+          environment: 'Kitchen',
+          cursor: 0,
+          push: [_push('refrigeration_log', payload)],
+        ),
+        throwsFormatException,
+        reason: '${payload['id']} should be refused',
+      );
+    }
+    expect(store.logsFor('Kitchen'), isEmpty);
+  });
+
   test('the first email wins and a later report is already sent', () async {
     final mailer = _RecordingMailer();
     final store = SyncStore.memory(mailer: mailer);
@@ -307,6 +426,7 @@ void main() {
           'fridge_name': 'מקרר מטבח',
           'worker_name_snapshot': 'דנה',
           'temperature_celsius': 4.0,
+          'quantity': 5,
           'occurred_at': occurred.toUtc().toIso8601String(),
         }),
       ],
@@ -327,7 +447,7 @@ void main() {
     expect(mailer.lastBody, contains('מסקנה:'));
     expect(
       mailer.lastBody,
-      contains('חלב | \u20664.0°C\u2069 · דנה · מקרר מטבח | 15:00 | - | -'),
+      contains('חלב | 5 | \u20664.0°C\u2069 · דנה · מקרר מטבח | 15:00 | - | -'),
     );
     expect(mailer.lastHtml, contains('<table'));
     expect(mailer.lastHtml, contains('>חלב</td>'));

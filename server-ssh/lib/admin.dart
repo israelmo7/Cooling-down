@@ -394,6 +394,7 @@ Future<Response> _saveReport(
   final custom = form['layout'] == 'custom';
   if (custom && reportFile != null) {
     final columns = ReportColumns(
+      quantity: form.containsKey('col_quantity'),
       checkIn: form.containsKey('col_check_in'),
       checkInTime: form.containsKey('col_check_in_time'),
       checkOut: form.containsKey('col_check_out'),
@@ -434,6 +435,7 @@ String _reportBuilder(ShopSchedule schedule, File? reportFile) {
   <label class="choice"><input type="radio" name="layout" value="builtin"$builtin> הדוח הקבוע</label>
   <label class="choice"><input type="radio" name="layout" value="custom"$chosen> טבלה לפי הסימונים</label>
   <div class="cols">
+    ${box('col_quantity', 'כמות', columns.quantity)}
     ${box('col_check_in', 'איך נקלט', columns.checkIn)}
     ${box('col_check_in_time', 'מתי נקלט', columns.checkInTime)}
     ${box('col_check_out', 'איך הוצא', columns.checkOut)}
@@ -445,6 +447,7 @@ String _reportBuilder(ShopSchedule schedule, File? reportFile) {
   <table class="preview">
     <thead><tr>
       ${cell('product', 'מוצר', head: true)}
+      ${cell('quantity', 'כמות', head: true)}
       ${cell('check_in', 'איך נקלט', head: true)}
       ${cell('check_in_time', 'מתי נקלט', head: true)}
       ${cell('check_out', 'איך הוצא', head: true)}
@@ -452,6 +455,7 @@ String _reportBuilder(ShopSchedule schedule, File? reportFile) {
     </tr></thead>
     <tbody><tr>
       ${cell('product', 'חלב')}
+      ${cell('quantity', '2')}
       ${cell('check_in', '4.0°C · דנה · מטבח')}
       ${cell('check_in_time', '15:04')}
       ${cell('check_out', '—')}
@@ -521,7 +525,7 @@ String _places(SyncStore store) {
             ? ''
             : ' · ${_escape(log.workerName.trim())}';
         rows.writeln(
-          '<li>${_escape(_stamp(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker</li>',
+          '<li>${_escape(_stamp(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker · כמות ${log.quantity}</li>',
         );
       }
       rows.writeln('</ul>');

@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS environments (
     _addColumn('refrigeration_logs', 'temperature', 'REAL');
     _addColumn('refrigeration_logs', 'fridge_name', 'TEXT');
     _addColumn('refrigeration_logs', 'worker_name', 'TEXT');
+    _addColumn('refrigeration_logs', 'quantity', 'INTEGER');
   }
 
   factory SyncStore.memory({ReportMailer? mailer, String ownerEmail = ''}) {
@@ -511,7 +512,7 @@ ON CONFLICT(name) DO UPDATE SET owner_email = excluded.owner_email
   List<StoredLogLine> _logs(String environment) {
     final rows = _db.select(
       '''
-SELECT movement_id, event_type, occurred_at, product_name, temperature, fridge_name, worker_name
+SELECT movement_id, event_type, occurred_at, product_name, temperature, fridge_name, worker_name, quantity
 FROM refrigeration_logs
 WHERE environment = ?
 ''',
@@ -527,6 +528,7 @@ WHERE environment = ?
           temperature: (row['temperature'] as num?)?.toDouble(),
           fridgeName: row['fridge_name'] as String? ?? '',
           workerName: row['worker_name'] as String? ?? '',
+          quantity: (row['quantity'] as num?)?.toInt() ?? 1,
         ),
     ];
   }
@@ -641,20 +643,53 @@ INSERT INTO sync_events (
     final occurredAt = payload['occurred_at'];
     final productName = payload['product_name_snapshot'];
     if (movementId is! String ||
+        movementId.trim().isEmpty ||
         eventType is! String ||
+        (eventType != 'check_in' && eventType != 'check_out') ||
         occurredAt is! String ||
-        productName is! String) {
+        DateTime.tryParse(occurredAt) == null ||
+        productName is! String ||
+        productName.trim().isEmpty ||
+        productName.length > 200) {
       throw const FormatException('A refrigeration log payload is incomplete.');
     }
     final temperature = payload['temperature_celsius'];
+    if (temperature != null &&
+        (temperature is! num ||
+            !temperature.isFinite ||
+            temperature < -40 ||
+            temperature > 30)) {
+      throw const FormatException(
+        'A refrigeration log temperature is out of range.',
+      );
+    }
     final fridgeName = payload['fridge_name'];
     final workerName = payload['worker_name_snapshot'];
+    if ((fridgeName != null && fridgeName is! String) ||
+        (workerName != null && workerName is! String)) {
+      throw const FormatException('A refrigeration log payload is incomplete.');
+    }
+    // Old tablets send no quantity: that is 1. Anything sent must be a
+    // whole number in range; it is never silently turned into 1.
+    final rawQuantity = payload['quantity'];
+    final int quantity;
+    if (rawQuantity == null) {
+      quantity = 1;
+    } else if (rawQuantity is num &&
+        rawQuantity.isFinite &&
+        rawQuantity == rawQuantity.toInt() &&
+        rawQuantity >= 1 &&
+        rawQuantity <= 9999) {
+      quantity = rawQuantity.toInt();
+    } else {
+      throw const FormatException('A refrigeration log quantity is invalid.');
+    }
     _db.execute(
       '''
 INSERT INTO refrigeration_logs (
   id, environment, movement_id, event_type, occurred_at, product_name,
-  temperature, fridge_name, worker_name
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  temperature, fridge_name, worker_name, quantity
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''',
       [
         id,
@@ -666,23 +701,58 @@ INSERT INTO refrigeration_logs (
         temperature is num ? temperature.toDouble() : null,
         fridgeName is String ? fridgeName : '',
         workerName is String ? workerName : '',
+        quantity,
       ],
     );
     if (eventType != 'check_out') {
       return;
     }
-    final checkouts = _db.select(
+    // Partial check-outs are fine while the total taken out stays within
+    // what was checked in. Past that, keep the row (as before) but flag it.
+    final checkIns = _db.select(
       '''
-SELECT id FROM refrigeration_logs
-WHERE environment = ? AND movement_id = ? AND event_type = 'check_out'
+SELECT quantity FROM refrigeration_logs
+WHERE environment = ? AND movement_id = ? AND event_type = 'check_in'
 ORDER BY occurred_at
+LIMIT 1
 ''',
       [environment, movementId],
     );
-    if (checkouts.length < 2) {
+    final checkouts = _db.select(
+      '''
+SELECT quantity FROM refrigeration_logs
+WHERE environment = ? AND movement_id = ? AND event_type = 'check_out'
+''',
+      [environment, movementId],
+    );
+    final totalOut = checkouts.fold<int>(
+      0,
+      (sum, row) => sum + ((row['quantity'] as num?)?.toInt() ?? 1),
+    );
+    final String? conflictReason;
+    final String conflictMessage;
+    if (checkIns.isEmpty) {
+      conflictReason = checkouts.length >= 2
+          ? 'movement already checked out'
+          : null;
+      conflictMessage = checkoutConflictMessage(productName);
+    } else {
+      final checkedIn = (checkIns.first['quantity'] as num?)?.toInt() ?? 1;
+      if (totalOut <= checkedIn) {
+        return;
+      }
+      final alreadyOut = totalOut - quantity;
+      conflictReason = alreadyOut >= checkedIn
+          ? 'movement already checked out'
+          : 'checkout quantity exceeds check-in';
+      conflictMessage = alreadyOut >= checkedIn
+          ? checkoutConflictMessage(productName)
+          : checkoutQuantityConflictMessage(productName);
+    }
+    if (conflictReason == null) {
       return;
     }
-    conflicts.add({'entity_id': id, 'reason': 'movement already checked out'});
+    conflicts.add({'entity_id': id, 'reason': conflictReason});
     final alertId = checkoutConflictAlertId(movementId);
     final alertPayload = <String, Object?>{
       'id': alertId,
@@ -690,7 +760,7 @@ ORDER BY occurred_at
       'kind': 'sync_conflict',
       'product_id': payload['product_id'],
       'log_id': id,
-      'message': checkoutConflictMessage(productName),
+      'message': conflictMessage,
       'created_at': occurredAt,
       'origin_device_id': payload['origin_device_id'] ?? deviceId,
     };
