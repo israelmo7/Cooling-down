@@ -22,6 +22,7 @@ class StoredLogLine {
     required this.temperature,
     required this.fridgeName,
     this.workerName = '',
+    this.quantity = 1,
   });
 
   final String movementId;
@@ -31,6 +32,9 @@ class StoredLogLine {
   final double? temperature;
   final String fridgeName;
   final String workerName;
+
+  /// How many units this event moved.
+  final int quantity;
 }
 
 class StoredNotice {
@@ -44,6 +48,9 @@ class _Pair {
   StoredLogLine? checkIn;
   StoredLogLine? checkOut;
 
+  /// Every (possibly partial) check-out of this movement.
+  final checkOuts = <StoredLogLine>[];
+
   void take(StoredLogLine line) {
     if (line.eventType == 'check_in') {
       if (checkIn == null || line.occurredAt.isBefore(checkIn!.occurredAt)) {
@@ -52,6 +59,7 @@ class _Pair {
       return;
     }
     if (line.eventType == 'check_out') {
+      checkOuts.add(line);
       if (checkOut == null || line.occurredAt.isBefore(checkOut!.occurredAt)) {
         checkOut = line;
       }
@@ -65,15 +73,26 @@ class _ReportRow {
     required this.checkIn,
     required this.checkOut,
     required this.order,
+    this.checkOutQuantity = 0,
   });
 
   final String productName;
   final StoredLogLine? checkIn;
   final StoredLogLine? checkOut;
   final DateTime order;
+
+  /// Total units taken out, summed over partial check-outs.
+  final int checkOutQuantity;
 }
 
-const _columns = ['מוצר', 'איך נקלט', 'מתי נקלט', 'איך הוצא', 'מתי הוצא'];
+const _columns = [
+  'מוצר',
+  'כמות',
+  'איך נקלט',
+  'מתי נקלט',
+  'איך הוצא',
+  'מתי הוצא',
+];
 
 /// How many stored actions the admin page and a quiet-day mail will list.
 const recentActionLimit = 30;
@@ -147,11 +166,24 @@ ClosedDayReport buildCustomReport({
   );
   final storedText = _storedText(stored);
   final fullBody = storedText.isEmpty ? body : '$body\n\n$storedText';
+  final columns = _columnsIn(template);
   return ClosedDayReport(
     subject: 'דוח קירור · $environmentName · $date',
     body: fullBody,
-    html:
-        '<pre dir="rtl" style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">${_escape(fullBody)}</pre>',
+    html: columns.isEmpty
+        ? '<pre dir="rtl" style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;">${_escape(fullBody)}</pre>'
+        : _html(
+            environmentName: environmentName,
+            date: date,
+            day: day,
+            rows: rows,
+            notices: dayNotices,
+            conclusion: conclusion,
+            stored: stored,
+            columns: columns,
+            showNotes: template.contains('{{notes}}'),
+            showConclusion: template.contains('{{conclusion}}'),
+          ),
   );
 }
 
@@ -172,6 +204,7 @@ String _fillTemplate({
     final rendered = rows.map((row) {
       return pattern
           .replaceAll('{{product}}', row.productName)
+          .replaceAll('{{quantity}}', _quantityText(row))
           .replaceAll('{{check_in}}', _how(row.checkIn))
           .replaceAll('{{check_in_time}}', _when(row.checkIn, day))
           .replaceAll('{{check_out}}', _how(row.checkOut))
@@ -186,6 +219,7 @@ String _fillTemplate({
       .replaceAll('{{conclusion}}', conclusion);
   for (final token in [
     'product',
+    'quantity',
     'check_in',
     'check_in_time',
     'check_out',
@@ -254,6 +288,9 @@ List<_ReportRow> _rowsForDay(List<StoredLogLine> logs, DateTime day) {
         checkIn: checkIn,
         checkOut: checkOut,
         order: _orderTime(checkIn, checkOut, day),
+        checkOutQuantity: pair.checkOuts
+            .where((line) => !_afterDay(line.occurredAt, day))
+            .fold(0, (sum, line) => sum + line.quantity),
       ),
     );
   }
@@ -318,6 +355,7 @@ String _plain({
       buffer.writeln(
         [
           row.productName,
+          _quantityText(row),
           _how(row.checkIn),
           _when(row.checkIn, day),
           _how(row.checkOut),
@@ -342,6 +380,77 @@ String _plain({
   return buffer.toString();
 }
 
+enum _ReportColumn {
+  product,
+  quantity,
+  checkIn,
+  checkInTime,
+  checkOut,
+  checkOutTime,
+}
+
+const _allColumns = [
+  _ReportColumn.product,
+  _ReportColumn.quantity,
+  _ReportColumn.checkIn,
+  _ReportColumn.checkInTime,
+  _ReportColumn.checkOut,
+  _ReportColumn.checkOutTime,
+];
+
+List<_ReportColumn> _columnsIn(String template) {
+  final match = RegExp(r'\{\{rows\}\}([\s\S]*?)\{\{/rows\}\}')
+      .firstMatch(template);
+  if (match == null) {
+    return const [];
+  }
+  final found = <_ReportColumn>[];
+  for (final token in RegExp(
+    r'\{\{([a-z_]+)\}\}',
+  ).allMatches(match.group(1)!)) {
+    final column = switch (token.group(1)) {
+      'product' => _ReportColumn.product,
+      'quantity' => _ReportColumn.quantity,
+      'check_in' => _ReportColumn.checkIn,
+      'check_in_time' => _ReportColumn.checkInTime,
+      'check_out' => _ReportColumn.checkOut,
+      'check_out_time' => _ReportColumn.checkOutTime,
+      _ => null,
+    };
+    if (column != null && !found.contains(column)) {
+      found.add(column);
+    }
+  }
+  return found;
+}
+
+String _columnTitle(_ReportColumn column) {
+  return switch (column) {
+    _ReportColumn.product => 'מוצר',
+    _ReportColumn.quantity => 'כמות',
+    _ReportColumn.checkIn => 'איך נקלט',
+    _ReportColumn.checkInTime => 'מתי נקלט',
+    _ReportColumn.checkOut => 'איך הוצא',
+    _ReportColumn.checkOutTime => 'מתי הוצא',
+  };
+}
+
+String _columnValue(_ReportColumn column, _ReportRow row, DateTime day) {
+  return switch (column) {
+    _ReportColumn.product => row.productName,
+    _ReportColumn.quantity => _quantityText(row),
+    _ReportColumn.checkIn => _how(row.checkIn),
+    _ReportColumn.checkInTime => _when(row.checkIn, day),
+    _ReportColumn.checkOut => _how(row.checkOut),
+    _ReportColumn.checkOutTime => _when(row.checkOut, day),
+  };
+}
+
+bool _columnLtr(_ReportColumn column) {
+  return column == _ReportColumn.checkInTime ||
+      column == _ReportColumn.checkOutTime;
+}
+
 String _html({
   required String environmentName,
   required String date,
@@ -350,28 +459,36 @@ String _html({
   required List<StoredNotice> notices,
   required String conclusion,
   required List<StoredLogLine> stored,
+  List<_ReportColumn> columns = _allColumns,
+  bool showNotes = true,
+  bool showConclusion = true,
 }) {
-  final head = _columns
+  final head = columns
       .map(
         (column) =>
-            '<th style="text-align:right;padding:10px 12px;border:1px solid #d7e0e4;background:#eef3f5;">${_escape(column)}</th>',
+            '<th style="text-align:right;padding:10px 12px;border:1px solid #d7e0e4;background:#eef3f5;">${_escape(_columnTitle(column))}</th>',
       )
       .join();
   final body = rows.isEmpty
-      ? '<tr><td colspan="5" style="padding:12px;border:1px solid #d7e0e4;">אין תנועות.</td></tr>'
+      ? '<tr><td colspan="${columns.length}" style="padding:12px;border:1px solid #d7e0e4;">אין תנועות.</td></tr>'
       : rows.map((row) {
           final cells = [
-            _cell(row.productName),
-            _cell(_how(row.checkIn)),
-            _cell(_when(row.checkIn, day), ltr: true),
-            _cell(_how(row.checkOut)),
-            _cell(_when(row.checkOut, day), ltr: true),
+            for (final column in columns)
+              _cell(_columnValue(column, row, day), ltr: _columnLtr(column)),
           ];
           return '<tr>${cells.join()}</tr>';
         }).join();
   final notes = notices.isEmpty
       ? '<p style="margin:0;">אין אזהרות.</p>'
       : '<ul style="margin:0;padding-right:20px;">${notices.map((notice) => '<li>${_escape(notice.message)}</li>').join()}</ul>';
+  final notesBlock = showNotes
+      ? '''
+  <h2 style="font-size:16px;margin:20px 0 8px;">הערות</h2>
+  $notes'''
+      : '';
+  final conclusionBlock = showConclusion
+      ? '<p style="margin:16px 0 0;">${_escape(conclusion)}</p>'
+      : '';
   return '''
 <div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;color:#122428;background:#f4f7f8;padding:24px;">
   <h1 style="font-size:22px;margin:0 0 12px;">דוח קירור</h1>
@@ -381,10 +498,9 @@ String _html({
     <thead><tr>$head</tr></thead>
     <tbody>$body</tbody>
   </table>
-  <h2 style="font-size:16px;margin:20px 0 8px;">הערות</h2>
-  $notes
+  $notesBlock
   ${_storedHtml(stored)}
-  <p style="margin:16px 0 0;">${_escape(conclusion)}</p>
+  $conclusionBlock
 </div>
 ''';
 }
@@ -461,6 +577,28 @@ String _cell(String value, {bool ltr = false}) {
   final color = missing ? 'color:#6b7280;' : '';
   final direction = ltr ? ' dir="ltr"' : '';
   return '<td$direction style="text-align:right;padding:10px 12px;border:1px solid #d7e0e4;$color">${_escape(value)}</td>';
+}
+
+/// One row pairs a check-in with its check-out, so the single כמות cell
+/// shows the checked-in amount and, when the checked-out amount differs,
+/// both amounts: `נכנס 5 · הוצא 3`. Equal amounts show once.
+String _quantityText(_ReportRow row) {
+  final checkedIn = row.checkIn?.quantity;
+  // Partial check-outs add up; the single check-out line only carries the
+  // first one's own quantity.
+  final checkedOut = row.checkOut == null
+      ? null
+      : (row.checkOutQuantity > 0
+            ? row.checkOutQuantity
+            : row.checkOut!.quantity);
+  if (checkedIn != null && checkedOut != null) {
+    if (checkedIn == checkedOut) {
+      return '$checkedIn';
+    }
+    return 'נכנס $checkedIn · הוצא $checkedOut';
+  }
+  final only = checkedIn ?? checkedOut;
+  return only == null ? '-' : '$only';
 }
 
 String _how(StoredLogLine? line) {

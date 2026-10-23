@@ -13,6 +13,9 @@ class Kiosk {
 
   static Future<void> unpin() => _call('unpin');
 
+  /// Leaves the pinned app so the browser can open, and pins again on return.
+  static Future<void> openOutside() => _call('openOutside');
+
   static Future<void> _call(String method) async {
     if (!supported) {
       return;

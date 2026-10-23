@@ -64,6 +64,7 @@ void main() {
           temperatureCelsius: 3,
           occurredAt: DateTime.utc(2026, 10, 11, 8),
           fridgeName: 'Kitchen fridge',
+          quantity: 4,
         ),
         ReportMovement(
           productName: 'Whole milk',
@@ -80,6 +81,8 @@ void main() {
     expect(clean.subject, contains('Kitchen'));
     expect(clean.body, contains('1 קליטות'));
     expect(clean.body, contains('1 הוצאות'));
+    expect(clean.body, contains('כמות 4'));
+    expect(clean.body, contains('כמות 1'));
     expect(clean.body, contains('נסגר בצורה תקינה'));
 
     final messy = buildDailyReport(

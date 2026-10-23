@@ -11,13 +11,19 @@ abstract class LogRepository {
     required double temperatureCelsius,
     DateTime? occurredAt,
     required String workerName,
+    DateTime? dueAt,
+    int quantity = 1,
   });
+
+  /// Mean check-in temperature for [productId], or null when it has none.
+  Future<double?> averageCheckInCelsius(String productId);
 
   Future<RefrigerationLog> insertCheckOut({
     required String movementId,
     required double temperatureCelsius,
     DateTime? occurredAt,
     required String workerName,
+    int quantity = 1,
   });
 
   Stream<List<OpenHolding>> watchOpenHoldings();

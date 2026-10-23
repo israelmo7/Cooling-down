@@ -17,6 +17,7 @@ class ReportMovement {
     required this.occurredAt,
     required this.fridgeName,
     this.workerName = '',
+    this.quantity = 1,
   });
 
   final String productName;
@@ -25,6 +26,9 @@ class ReportMovement {
   final DateTime occurredAt;
   final String fridgeName;
   final String workerName;
+
+  /// How many units this event moved.
+  final int quantity;
 }
 
 class ReportHolding {
@@ -33,12 +37,14 @@ class ReportHolding {
     required this.fridgeName,
     required this.checkedInAt,
     this.workerName = '',
+    this.quantity = 1,
   });
 
   final String productName;
   final String fridgeName;
   final DateTime checkedInAt;
   final String workerName;
+  final int quantity;
 }
 
 class ReportNotice {
@@ -152,7 +158,7 @@ DailyReportContent buildDailyReport({
     title: 'תנועות',
     lines: [
       for (final row in movements)
-        '${formatReportClock(row.occurredAt)} ${row.productName} ${_eventWord(row.eventLabel)} ב-${ltrCelsius(row.temperatureCelsius)} (${row.fridgeName})${_workerSuffix(row.workerName)}',
+        '${formatReportClock(row.occurredAt)} ${row.productName} ${_eventWord(row.eventLabel)} ב-${ltrCelsius(row.temperatureCelsius)} (${row.fridgeName}) · כמות ${row.quantity}${_workerSuffix(row.workerName)}',
     ],
   );
   _writeList(
@@ -160,7 +166,7 @@ DailyReportContent buildDailyReport({
     title: 'עדיין במקרר',
     lines: [
       for (final row in stillInside)
-        '${row.productName} ב${row.fridgeName} מאז ${formatReportClock(row.checkedInAt)}${_workerSuffix(row.workerName)}',
+        '${row.productName} ב${row.fridgeName} מאז ${formatReportClock(row.checkedInAt)} · כמות ${row.quantity}${_workerSuffix(row.workerName)}',
     ],
     empty: 'אין פריטים שנשארו במקרר.',
   );

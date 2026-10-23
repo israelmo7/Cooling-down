@@ -1,3 +1,5 @@
+import 'package:cooling_down/domain/hold_for.dart';
+import 'package:cooling_down/domain/quantity.dart';
 import 'package:cooling_down/data/db/app_database.dart';
 import 'package:cooling_down/data/db/seed_ids.dart';
 import 'package:cooling_down/data/repositories/drift_log_repository.dart';
@@ -74,8 +76,8 @@ void main() {
     expect(stored.temperatureCelsius, 5);
   });
 
-  test('an out-of-range temperature stores the log and an alert', () async {
-    final checkIn = await repository.insertCheckIn(
+  test('an out-of-range temperature is stored without a warning', () async {
+    await repository.insertCheckIn(
       productId: SeedIds.wholeMilk,
       fridgeId: SeedIds.kitchenFridge,
       temperatureCelsius: 12,
@@ -88,14 +90,45 @@ void main() {
 
     expect(logs, hasLength(1));
     expect(logs.single.temperatureCelsius, 12);
-    expect(alerts, hasLength(1));
-    expect(alerts.single.logId, checkIn.id);
-    expect(alerts.single.message, contains('חלב'));
-    expect(outbox, hasLength(2));
-    expect(outbox.map((row) => row.entityType).toSet(), {
-      'refrigeration_log',
-      'alert',
-    });
+    expect(alerts, isEmpty);
+    expect(outbox, hasLength(1));
+    expect(outbox.single.entityType, 'refrigeration_log');
+  });
+
+  test('a product starts from the average of its check-ins', () async {
+    await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 2,
+      workerName: 'דנה',
+    );
+    await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 4,
+      workerName: 'דנה',
+    );
+
+    expect(await repository.averageCheckInCelsius(SeedIds.wholeMilk), 3);
+    expect(
+      await repository.averageCheckInCelsius(SeedIds.chickenBreast),
+      isNull,
+    );
+  });
+
+  test('a come-out time stays on the open item', () async {
+    final due = DateTime.utc(2026, 10, 20, 16);
+    final checkIn = await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+      dueAt: due,
+    );
+
+    final open = await repository.watchOpenHoldings().first;
+    expect(open.single.dueAt?.isAtSameMomentAs(due), isTrue);
+    expect(checkIn.dueAt?.isAtSameMomentAs(due), isTrue);
   });
 
   test('a check-in without a worker is rejected', () async {
@@ -126,5 +159,157 @@ void main() {
     expect(outbox, hasLength(1));
     expect(outbox.single.status.name, 'pending');
     expect(outbox.single.attemptCount, 0);
+  });
+
+  test('quantity is stored on both events and on the open item', () async {
+    final checkIn = await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+      quantity: 5,
+    );
+    expect(checkIn.quantity, 5);
+
+    var open = await repository.watchOpenHoldings().first;
+    expect(open.single.quantity, 5);
+    expect(open.single.checkedInQuantity, 5);
+
+    // A partial check-out leaves the rest inside.
+    final checkOut = await repository.insertCheckOut(
+      movementId: checkIn.movementId,
+      temperatureCelsius: 4,
+      workerName: 'דנה',
+      quantity: 3,
+    );
+    expect(checkOut.quantity, 3);
+    open = await repository.watchOpenHoldings().first;
+    expect(open.single.quantity, 2);
+    expect(open.single.checkedInQuantity, 5);
+
+    await repository.insertCheckOut(
+      movementId: checkIn.movementId,
+      temperatureCelsius: 4,
+      workerName: 'דנה',
+      quantity: 2,
+    );
+    expect(await repository.watchOpenHoldings().first, isEmpty);
+
+    final outbox = await database.select(database.syncOutbox).get();
+    expect(outbox.length, 3);
+    expect(outbox.first.payloadJson, contains('"quantity":5'));
+    expect(outbox[1].payloadJson, contains('"quantity":3'));
+    expect(outbox.last.payloadJson, contains('"quantity":2'));
+
+    expect(tryParseQuantity(''), isNull);
+    expect(tryParseQuantity('0'), isNull);
+    expect(tryParseQuantity('-1'), isNull);
+    expect(tryParseQuantity('7'), 7);
+    expect(tryParseQuantity('abc'), isNull);
+    expect(tryParseQuantity('10000'), isNull);
+    expect(tryParseQuantity('9999'), 9999);
+  });
+
+  test(
+    'an invalid quantity or temperature is rejected, not corrected',
+    () async {
+      Future<Object?> errorOf(Future<dynamic> Function() action) async {
+        try {
+          await action();
+        } on Object catch (error) {
+          return error;
+        }
+        return null;
+      }
+
+      expect(
+        await errorOf(
+          () => repository.insertCheckIn(
+            productId: SeedIds.wholeMilk,
+            fridgeId: SeedIds.kitchenFridge,
+            temperatureCelsius: 3,
+            workerName: 'דנה',
+            quantity: 0,
+          ),
+        ),
+        isA<InvalidQuantityException>(),
+      );
+      expect(
+        await errorOf(
+          () => repository.insertCheckIn(
+            productId: SeedIds.wholeMilk,
+            fridgeId: SeedIds.kitchenFridge,
+            temperatureCelsius: 3,
+            workerName: 'דנה',
+            quantity: 10000,
+          ),
+        ),
+        isA<InvalidQuantityException>(),
+      );
+      expect(
+        await errorOf(
+          () => repository.insertCheckIn(
+            productId: SeedIds.wholeMilk,
+            fridgeId: SeedIds.kitchenFridge,
+            temperatureCelsius: 999,
+            workerName: 'דנה',
+          ),
+        ),
+        isA<CatalogEntryNotFound>(),
+      );
+      expect(await database.select(database.refrigerationLogs).get(), isEmpty);
+
+      final checkIn = await repository.insertCheckIn(
+        productId: SeedIds.wholeMilk,
+        fridgeId: SeedIds.kitchenFridge,
+        temperatureCelsius: 3,
+        workerName: 'דנה',
+        quantity: 3,
+      );
+      // More than what is inside, and zero, are both refused. Nothing extra
+      // is written for either attempt.
+      expect(
+        await errorOf(
+          () => repository.insertCheckOut(
+            movementId: checkIn.movementId,
+            temperatureCelsius: 4,
+            workerName: 'דנה',
+            quantity: 1000,
+          ),
+        ),
+        isA<InvalidQuantityException>(),
+      );
+      expect(
+        await errorOf(
+          () => repository.insertCheckOut(
+            movementId: checkIn.movementId,
+            temperatureCelsius: 4,
+            workerName: 'דנה',
+            quantity: 0,
+          ),
+        ),
+        isA<InvalidQuantityException>(),
+      );
+      final logs = await database.select(database.refrigerationLogs).get();
+      expect(logs, hasLength(1));
+      final open = await repository.watchOpenHoldings().first;
+      expect(open.single.quantity, 3);
+    },
+  );
+
+  test('come-out hours accept a half hour and ignore empty text', () {
+    expect(isValidHoldHoursInput(''), isTrue);
+    expect(isValidHoldHoursInput('0.5'), isTrue);
+    expect(isValidHoldHoursInput('72'), isTrue);
+    expect(isValidHoldHoursInput('0'), isFalse);
+    expect(isValidHoldHoursInput('-1'), isFalse);
+    expect(isValidHoldHoursInput('73'), isFalse);
+    expect(isValidHoldHoursInput('abc'), isFalse);
+    expect(parseHoldHours(''), isNull);
+    expect(parseHoldHours('0'), isNull);
+    expect(parseHoldHours('0.5'), 0.5);
+    expect(parseHoldHours('2,5'), 2.5);
+    final due = dueAfter(DateTime.utc(2026, 10, 20, 12), 0.5);
+    expect(due, DateTime.utc(2026, 10, 20, 12, 30));
   });
 }

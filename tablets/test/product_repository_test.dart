@@ -17,7 +17,7 @@ void main() {
 
   tearDown(() => database.close());
 
-  test('check-in keeps the catalog and a product added on the spot', () async {
+  test('check-in lists only the settings catalog, not a one-off', () async {
     final before = await products.watchSearch('').first;
     expect(
       before.map((product) => product.name),
@@ -50,11 +50,22 @@ void main() {
       workerName: 'דנה',
     );
 
+    // The one-off was used for its check-in, but it is not on the list:
+    // the list is only the builtin/settings catalog.
+    expect(oneOff, isNotNull);
+    expect(await products.findById(oneOff.id), isNotNull);
     final shown = await products.watchSearch('').first;
+    expect(shown.map((product) => product.name).toList(), [
+      'חלב',
+      'חזה עוף',
+      'אינסולין',
+      'חיסון',
+    ]);
     expect(
       shown.map((product) => product.name),
-      containsAll(['חלב', 'חזה עוף', 'אינסולין', 'חיסון', 'גבינה צהובה']),
+      isNot(contains('גבינה צהובה')),
     );
+    expect(await products.watchSearch('גבינה').first, isEmpty);
 
     final searched = await products.watchSearch('חיסון').first;
     expect(searched.single.name, 'חיסון');

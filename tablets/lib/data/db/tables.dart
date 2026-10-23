@@ -52,6 +52,9 @@ class RefrigerationLogs extends Table {
       text().named('origin_device_id').withDefault(const Constant(''))();
   TextColumn get workerNameSnapshot =>
       text().named('worker_name_snapshot').withDefault(const Constant(''))();
+  DateTimeColumn get dueAt => dateTime().named('due_at').nullable()();
+  IntColumn get quantity =>
+      integer().named('quantity').withDefault(const Constant(1))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -59,6 +62,7 @@ class RefrigerationLogs extends Table {
   @override
   List<String> get customConstraints => [
     "CHECK (event_type IN ('check_in', 'check_out'))",
+    "CHECK (quantity >= 1 AND quantity <= 9999)",
   ];
 }
 

@@ -85,11 +85,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final idleSeconds = normalizeWorkerIdleSeconds(_idleSeconds.text);
     final intervalHours = normalizeIntervalHours(_refreshHours.text);
     final startMinute = parseClockMinutes(_refreshStart.text) ?? 8 * 60;
-    var endMinute = parseClockMinutes(_refreshEnd.text) ?? 20 * 60;
-    if (endMinute <= startMinute) {
-      final later = startMinute + 60;
-      endMinute = later > 23 * 60 + 59 ? 23 * 60 + 59 : later;
-    }
+    final endMinute = parseClockMinutes(_refreshEnd.text) ?? 20 * 60;
     _idleSeconds.text = '$idleSeconds';
     _refreshHours.text = '$intervalHours';
     _refreshStart.text = formatClockMinutes(startMinute);
@@ -207,11 +203,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _show('יש להזין כתובת מחשב תחילה.');
       return;
     }
+    final saved = settings?.settingsPassword.trim() ?? '';
+    if (saved.isNotEmpty && !_unlocked) {
+      final unlocked = await showDialog<bool>(
+        context: context,
+        builder: (context) =>
+            _PasswordDialog(password: saved, title: 'לוח ניהול'),
+      );
+      if (unlocked != true || !mounted) {
+        return;
+      }
+    }
+    await Kiosk.openOutside();
     final opened = await launchUrl(
       Uri.parse('$base/admin'),
       mode: LaunchMode.externalApplication,
     );
     if (!opened && mounted) {
+      await Kiosk.pin();
       _show('לא ניתן לפתוח את לוח הניהול.');
     }
   }
@@ -450,7 +459,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ],
           ),
         if (_refreshMode == WorkerRefreshMode.periodic) ...[
-          _field(controller: _refreshStart, label: 'משעה'),
+          _field(
+            controller: _refreshStart,
+            label: 'משעה',
+            helper: '08:00 עד 08:00 הוא יום שלם. השאלה חוזרת בכל מספר השעות, מהשעה הראשונה.',
+          ),
           _field(
             controller: _refreshHours,
             label: 'שעות',
@@ -631,9 +644,10 @@ String _refreshModeLabel(WorkerRefreshMode mode) {
 }
 
 class _PasswordDialog extends StatefulWidget {
-  const _PasswordDialog({required this.password});
+  const _PasswordDialog({required this.password, this.title = 'שינוי הגדרות'});
 
   final String password;
+  final String title;
 
   @override
   State<_PasswordDialog> createState() => _PasswordDialogState();
@@ -660,7 +674,7 @@ class _PasswordDialogState extends State<_PasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('שינוי הגדרות'),
+      title: Text(widget.title),
       content: TextField(
         key: const Key('settings-password'),
         controller: _controller,

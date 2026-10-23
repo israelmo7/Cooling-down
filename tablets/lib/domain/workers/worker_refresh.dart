@@ -174,12 +174,17 @@ class WorkerRefresh {
     if (intervalHours < 1) {
       return null;
     }
-    final start = _onDay(local, startMinute);
-    final end = _onDay(local, endMinute);
-    if (!end.isAfter(start)) {
-      return null;
+    final startToday = _onDay(local, startMinute);
+    final endToday = _onDay(local, endMinute);
+    if (endToday.isAfter(startToday)) {
+      return _Window(startToday, endToday);
     }
-    return _Window(start, end);
+    // 08:00 until 08:00 is the whole day, through the next morning.
+    if (!local.isBefore(startToday)) {
+      return _Window(startToday, endToday.add(const Duration(days: 1)));
+    }
+    final yesterday = local.subtract(const Duration(days: 1));
+    return _Window(_onDay(yesterday, startMinute), endToday);
   }
 
   bool _hasWorker(WorkerSession? session) {
