@@ -1,126 +1,45 @@
-Cooling down 0.2
-
-All commands run from the root of this repository, unless a cd says otherwise.
+Cooling down 1.0
 
 
-Tablets
-  Build APK
+BUILD TIME (Mac)
+
+  Server
+    cd server-ssh
+    docker build -t cooling-down-server:1.0.0 .
+    sh apply.sh
+    → Token printed. Admin: http://localhost:8080/admin
+
+  Client (Android emulator)
     cd tablets
-    flutter pub get
-    flutter build apk --release
-  The APK is tablets/build/app/outputs/flutter-apk/app-release.apk. Copy only that file.
-  For a quicker build while developing: flutter build apk --debug
-  Keep the same signing key for the next update. A new key means uninstall first.
-
-  Test / run over device
-    cd tablets
-    flutter analyze
-    flutter test
-  Connect the tablet by USB, turn on Developer options and USB debugging on it,
-  and accept the prompt on the tablet. Then:
-    flutter devices
-    flutter run -d <device-id>
-  That builds, installs, and starts the debug app on that tablet. Hot reload works
-  while it runs; q stops it.
-  To run the release build on the same tablet instead:
-    flutter run --release -d <device-id>
-  Or install an APK that was already built:
-    adb install -r build/app/outputs/flutter-apk/app-release.apk
-  adb is in the Android SDK platform-tools. If it is not on the path, flutter run
-  is the simpler install.
-
-  iPhone
-    A USB stick cannot install it. On a Mac, with an Apple developer account:
-      flutter build ipa
+    flutter run -d <emulator-id>
+    Settings:
+      כתובת המחשב  http://10.0.2.2:8080
+      אסימון גישה   <Token>
+      סנכרון עכשיו
 
 
-Server
-  Build app
-  The shop computer runs a Docker image. It needs Docker, not Dart.
-  Build the image on this computer:
-    server-ssh/deploy.sh --build-only
-  That is the same as:
-    docker build -t cooling-down-server:0.2.0 server-ssh
-  Pack a folder for a Windows shop PC (the image inside it is linux/amd64):
+PRODUCTION TIME (shop)
+
+  Server (pack on Mac, run on Windows)
     sh server-ssh/pack-windows.sh
-  The folder is server-ssh/dist/cooling-down. See "Windows shop PC" below.
-
-  Test / run over PC
-    cd server-ssh
-    dart pub get
-    dart analyze lib
-    dart test
-  Smoke-test it on this computer, without Docker (shell syntax; on Windows use
-  the Docker route below instead):
-    cd server-ssh
-    ADMIN_USER=admin ADMIN_PASSWORD=change-me dart run bin/server.dart
-  Then open http://localhost:8080/admin and put http://localhost:8080 with the
-  printed token into a tablet on the same network to see it sync. Ctrl+C stops it.
-  This local run writes .env and cooling_down_server.sqlite in server-ssh, and
-  fills an empty SYNC_TOKEN in server-ssh/shop.json with the token it created.
-  Delete both files, and clear that token, to start again from nothing.
-
-  Linux shop PC
-    If Docker, Compose, or SSH is missing on the shop PC and it has no internet:
-    on an Ubuntu computer with internet, of the same Ubuntu version, run
-    sudo sh server-usb/fetch-packages.sh, then copy server-usb to a USB stick.
-    With internet the stick is enough as it is. Either way, on the PC run:
-      sudo sh install.sh
-    Log out and back in. Then, from a computer with the same chip as the shop PC:
-      server-ssh/deploy.sh user@shop-pc
-    The first deploy copies shop.json. Later deploys keep the copy on the PC.
-    Edit ~/cooling-down/shop.json on the PC, then apply it and restart:
-      sh ~/cooling-down/apply.sh
-    apply prints the token. Check it is up:
-      ssh user@shop-pc 'cd ~/cooling-down && docker compose ps'
-      ssh user@shop-pc 'cd ~/cooling-down && docker compose logs --tail 40'
-    Next visit, at the PC: sudo sh ~/cooling-down/ssh-window.sh 30
-    SSH stays open 30 minutes, then closes, including after a reboot.
-    ssh-window.sh is Linux only. Tablets do not use SSH.
-
-  Windows shop PC
-    The server is a Linux image. Docker Desktop runs it.
-    On a computer with internet and Docker:
-      sh server-usb/windows/fetch.sh arm64
-    Use amd64 for a 64-bit Intel or AMD PC. Copy server-usb/windows to a USB stick.
-    On Windows, in an Administrator PowerShell, from that folder:
-      powershell -ExecutionPolicy Bypass -File .\install.ps1
-    Restart, start Docker Desktop, and run that command again. It prints the token.
-    If the folder was packed with pack-windows.sh instead, copy
-    server-ssh/dist/cooling-down to the PC, edit its shop.json, then:
+    Copy server-ssh/dist/cooling-down to the Windows PC.
+    Edit shop.json. Docker Desktop on. Then:
       powershell -ExecutionPolicy Bypass -File .\start.ps1
-    Tablet address: http://<this-pc>:8080
-    If Windows asks, allow Docker on the private shop network.
+    → Token printed. Admin: http://localhost:8080/admin
+    Give the PC a fixed LAN IP.
 
-  Shop settings — server-ssh/shop.json
-    Empty SYNC_TOKEN: first apply creates one and prints it. Put that token on every tablet.
-    Empty ADMIN_USER or ADMIN_PASSWORD: http://<shop-pc>:8080/admin stays off.
-    Change those on /admin or in this file. The token stays in this file.
-    Empty SMTP_HOST: no mail. The report is still stored. SMTP_PORT defaults to 587.
-    The sending mailbox stays in this file. /admin only keeps the owner address.
-    TZ defaults to Asia/Jerusalem and applies the next time the program starts.
-    REPORT_TIME defaults to 00:00. The report waits until that minute, then covers yesterday.
-    REPORT_FORMAT builtin is the fixed table. custom uses data/report.txt.
-    Copy server-ssh/report.example.txt to data/report.txt, then choose it on /admin.
-    /admin has one save for the login, the clock, the report choice, and the owner address.
-    A clock that is not HH:mm, such as 18:30, is refused and nothing else is saved.
-    שליחת דוח לבדיקה sends today's report. The nightly report is still yesterday.
-    Tablet address: http://<shop-pc>:8080
-    The program reads .env. apply writes .env from shop.json.
+  Client (real Android tablets)
+    cd tablets && flutter build apk --release
+    Install tablets/build/app/outputs/flutter-apk/app-release.apk
+    Settings on each tablet:
+      שם הסביבה    <one name per fridge — set before first sync>
+      כתובת המחשב  http://<shop-pc-lan-ip>:8080
+      אסימון גישה   <same Token>
+      סנכרון עכשיו
+    Same shop Wi‑Fi as the PC.
 
-
-On site
-  Fixed Wi-Fi address for the PC. One environment name per tablet, from שם הסביבה. The same name shares one archive.
-  The Android app stays awake and pinned. Release is inside settings, after the password.
-  Releasing the screen is only for that visit: leave the app and come back, and it pins again.
-  Products and workers are typed on each tablet. Confirm stays off until a worker is signed in.
-
-When it fails
-  לא מסונכרן: the PC address changed, the token does not match, or Wi-Fi blocks device-to-device traffic.
-  Deleting data/.env creates a new token. Tablets need the new one.
-  Two environment names split the archive.
-  Wrong SMTP stores the report and does not send it. Wrong TZ or report time moves the mail.
-  Linux USB packages must match that Ubuntu version.
-  The Windows stick must match the PC: arm64 or amd64.
-  Server not up on the PC: docker compose ps and docker compose logs --tail 40 in
-  the folder with docker-compose.yml (~/cooling-down on Linux, the packed folder on Windows).
+  Field notes
+    Sync pending rows before changing PC address or token on a tablet.
+    After TZ change on Windows, recreate the container (start.ps1 again).
+    Keep the shop PC running across report time; restart catches up ~7 days.
+    Never copy SYNC_TOKEN between two shops.

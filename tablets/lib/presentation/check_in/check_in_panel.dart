@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
 import '../../data/db/seed_ids.dart';
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
@@ -28,10 +29,10 @@ class CheckInPanel extends ConsumerStatefulWidget {
 class _CheckInPanelState extends ConsumerState<CheckInPanel> {
   final _searchController = TextEditingController();
   final _holdHours = TextEditingController();
-  final _quantity = TextEditingController(text: '1');
   String _query = '';
   Product? _selectedProduct;
   double? _chosenTemperature;
+  int _quantity = 1;
   var _averageToken = 0;
   bool _saving = false;
 
@@ -39,7 +40,6 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
   void dispose() {
     _searchController.dispose();
     _holdHours.dispose();
-    _quantity.dispose();
     super.dispose();
   }
 
@@ -82,10 +82,12 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final refresh =
         ref.read(settingsProvider).asData?.value?.workerRefresh ??
         const WorkerRefresh();
-    final quantity = tryParseQuantity(_quantity.text);
+    final showQuantity =
+        ref.read(settingsProvider).asData?.value?.showQuantity ?? false;
+    final quantity = showQuantity ? _quantity : 1;
     if (product == null ||
         fridge == null ||
-        quantity == null ||
+        !isValidQuantity(quantity) ||
         !isValidHoldHoursInput(_holdHours.text) ||
         _saving ||
         !workerAllowsAction(
@@ -126,7 +128,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
         _query = '';
         _searchController.clear();
         _holdHours.clear();
-        _quantity.text = '1';
+        _quantity = 1;
         _chosenTemperature = null;
       });
       showTransientNotice(
@@ -215,12 +217,14 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final fridge = fridges.asData == null
         ? null
         : _environmentFridge(fridges.asData!.value);
-    final quantityValid = tryParseQuantity(_quantity.text) != null;
+    final showQuantity =
+        ref.watch(settingsProvider).asData?.value?.showQuantity ?? false;
+    final quantity = showQuantity ? _quantity : 1;
     final holdValid = isValidHoldHoursInput(_holdHours.text);
     final canConfirm =
         _selectedProduct != null &&
         fridge != null &&
-        quantityValid &&
+        isValidQuantity(quantity) &&
         holdValid &&
         !_saving &&
         workerAllowsAction(
@@ -260,10 +264,8 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
             selectedName: selectedName,
             temperature: _reading(fridge),
             holdHours: _holdHours,
-            quantity: _quantity,
-            quantityError: quantityValid
-                ? null
-                : 'מספר שלם בין 1 ל-$maxQuantity',
+            quantity: quantity,
+            showQuantity: showQuantity,
             holdError: holdValid ? null : 'מספר שעות עד 72, או להשאיר ריק',
             onInputChanged: () => setState(() {}),
             canConfirm: canConfirm,
@@ -272,6 +274,7 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
               _averageToken += 1;
               setState(() => _chosenTemperature = value);
             },
+            onQuantityChanged: (value) => setState(() => _quantity = value),
             onConfirm: _confirm,
           );
           if (!wide) {
@@ -450,12 +453,13 @@ class _CheckInControls extends StatelessWidget {
     required this.temperature,
     required this.holdHours,
     required this.quantity,
-    required this.quantityError,
+    required this.showQuantity,
     required this.holdError,
     required this.onInputChanged,
     required this.canConfirm,
     required this.saving,
     required this.onTemperatureChanged,
+    required this.onQuantityChanged,
     required this.onConfirm,
   });
 
@@ -463,13 +467,14 @@ class _CheckInControls extends StatelessWidget {
   final String? selectedName;
   final double temperature;
   final TextEditingController holdHours;
-  final TextEditingController quantity;
-  final String? quantityError;
+  final int quantity;
+  final bool showQuantity;
   final String? holdError;
   final VoidCallback onInputChanged;
   final bool canConfirm;
   final bool saving;
   final ValueChanged<double> onTemperatureChanged;
+  final ValueChanged<int> onQuantityChanged;
   final VoidCallback onConfirm;
 
   @override
@@ -506,24 +511,14 @@ class _CheckInControls extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyMedium
                     ?.copyWith(color: const Color(0xFF5C6B70)),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('check-in-quantity'),
-                controller: quantity,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(4),
-                ],
-                style: const TextStyle(fontSize: 16),
-                decoration: InputDecoration(
-                  labelText: 'כמות',
-                  hintText: '1',
-                  isDense: true,
-                  errorText: quantityError,
+              if (showQuantity) ...[
+                const SizedBox(height: 12),
+                QuantityStepper(
+                  key: const Key('check-in-quantity'),
+                  quantity: quantity,
+                  onChanged: onQuantityChanged,
                 ),
-                onChanged: (_) => onInputChanged(),
-              ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 key: const Key('hold-hours'),

@@ -229,7 +229,11 @@ Future<Response> _save(
   }
   final form = await _form(request);
   final user = (form['admin_user'] ?? '').trim();
-  final password = form['admin_password'] ?? '';
+  final submittedPassword = form['admin_password'] ?? '';
+  // Blank password keeps the current one so the form never echoes secrets.
+  final password = submittedPassword.isEmpty
+      ? gate.password
+      : submittedPassword;
   final zone = (form['time_zone'] ?? '').trim();
   final rawTime = (form['report_time'] ?? '').trim();
   final ownerEmail = (form['owner_email'] ?? '').trim();
@@ -345,7 +349,7 @@ String _settings(AdminGate gate, MailSettings mail, ShopSchedule schedule) {
       <input name="admin_user" value="${_escape(gate.user)}" autocomplete="username" required>
     </label>
     <label>סיסמה
-      <input name="admin_password" type="password" value="${_escape(gate.password)}" autocomplete="new-password" required>
+      <input name="admin_password" type="password" value="" autocomplete="new-password" placeholder="השאירו ריק כדי לא לשנות">
     </label>
   </section>
   <section>
@@ -399,8 +403,6 @@ Future<Response> _saveReport(
       checkInTime: form.containsKey('col_check_in_time'),
       checkOut: form.containsKey('col_check_out'),
       checkOutTime: form.containsKey('col_check_out_time'),
-      notes: form.containsKey('col_notes'),
-      conclusion: form.containsKey('col_conclusion'),
     );
     reportFile.parent.createSync(recursive: true);
     reportFile.writeAsStringSync(columns.toTemplate());
@@ -440,8 +442,6 @@ String _reportBuilder(ShopSchedule schedule, File? reportFile) {
     ${box('col_check_in_time', 'מתי נקלט', columns.checkInTime)}
     ${box('col_check_out', 'איך הוצא', columns.checkOut)}
     ${box('col_check_out_time', 'מתי הוצא', columns.checkOutTime)}
-    ${box('col_notes', 'הערות', columns.notes)}
-    ${box('col_conclusion', 'מסקנה', columns.conclusion)}
   </div>
   <h2>תצוגה</h2>
   <table class="preview">
@@ -462,8 +462,6 @@ String _reportBuilder(ShopSchedule schedule, File? reportFile) {
       ${cell('check_out_time', '—')}
     </tr></tbody>
   </table>
-  <p class="hint" data-col="notes">הערות: אין אזהרות.</p>
-  <p class="hint" data-col="conclusion">מסקנה: היום נסגר לפי מה שכבר הגיע למחשב.</p>
   <button type="submit" class="primary">שמירת המבנה</button>
 </form>
 <script>
@@ -495,22 +493,42 @@ String _reportBuilder(ShopSchedule schedule, File? reportFile) {
 String _places(SyncStore store) {
   final environments = store.environmentSummaries();
   if (environments.isEmpty) {
-    return '<section class="card"><p>עדיין אין סביבות. טאבלט מעלה נתונים אחרי הסנכרון הראשון.</p></section>';
+    return '''
+<section class="card">
+  <p>עדיין אין סביבות. טאבלט מעלה נתונים אחרי הסנכרון הראשון.</p>
+</section>
+''';
   }
-  final sections = StringBuffer();
+  final today = DateTime.now();
+  final dayLabel =
+      '${today.day.toString().padLeft(2, '0')}/${today.month.toString().padLeft(2, '0')}/${today.year}';
+  final sections = StringBuffer()
+    ..writeln('''
+<section class="card">
+  <h2>תמונת מצב להיום</h2>
+  <p class="hint">תנועות מהיום ($dayLabel) בכל סביבה — סיכום קצר למנהל. הדוח המלא נשלח באימייל לפי ההגדרות.</p>
+</section>
+''');
   for (final environment in environments) {
     final name = environment['name'] as String;
     final logs = store.logsFor(name);
+    final todayLogs = logs
+        .where((log) => _sameLocalDay(log.occurredAt, today))
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final checkIns = todayLogs.where((log) => log.eventType == 'check_in').length;
+    final checkOuts =
+        todayLogs.where((log) => log.eventType == 'check_out').length;
     final rows = StringBuffer();
-    if (logs.isEmpty) {
-      rows.writeln('<p class="hint">אין תנועות בסביבה הזו.</p>');
+    if (todayLogs.isEmpty) {
+      rows.writeln('<p class="hint">אין תנועות היום בסביבה הזו.</p>');
     } else {
-      final ordered = [...logs]
-        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-      final shown = ordered.take(recentActionLimit).toList();
-      rows.writeln(
-        '<p class="hint">מוצגות ${shown.length} התנועות האחרונות מתוך ${ordered.length}. הרשימה נעצרת ב-$recentActionLimit.</p>',
-      );
+      final shown = todayLogs.take(recentActionLimit).toList();
+      if (todayLogs.length > shown.length) {
+        rows.writeln(
+          '<p class="hint">מוצגות ${shown.length} האחרונות מתוך ${todayLogs.length} היום.</p>',
+        );
+      }
       rows.writeln('<ul>');
       for (final log in shown) {
         final word = log.eventType == 'check_in'
@@ -533,12 +551,19 @@ String _places(SyncStore store) {
     sections.writeln('''
 <section class="card">
   <h2>${_escape(name)}</h2>
-  <p class="hint">${environment['logs']} תנועות שמורות במחשב.</p>
+  <p class="hint">היום: $checkIns קליטות · $checkOuts הוצאות.</p>
   $rows
 </section>
 ''');
   }
   return sections.toString();
+}
+
+bool _sameLocalDay(DateTime instant, DateTime day) {
+  final local = instant.toLocal();
+  return local.year == day.year &&
+      local.month == day.month &&
+      local.day == day.day;
 }
 
 String _reportText(File? reportFile) {

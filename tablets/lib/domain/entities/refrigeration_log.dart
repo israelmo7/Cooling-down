@@ -23,6 +23,7 @@ class RefrigerationLog {
     this.workerNameSnapshot = '',
     this.dueAt,
     this.quantity = 1,
+    this.packageId,
   });
 
   final String id;
@@ -42,4 +43,7 @@ class RefrigerationLog {
 
   /// How many units this event moved. Always at least 1.
   final int quantity;
+
+  /// Supplier receiving package, when this check-in was part of one.
+  final String? packageId;
 }

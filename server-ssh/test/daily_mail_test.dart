@@ -91,12 +91,6 @@ void main() {
           workerName: 'יוסי',
         ),
       ],
-      notices: [
-        StoredNotice(
-          message: 'חיסון היה חם.',
-          createdAt: DateTime(2026, 10, 11, 11, 5),
-        ),
-      ],
     );
 
     expect(report.subject, 'דוח קירור · מטבח · 2026-10-11');
@@ -128,8 +122,10 @@ void main() {
     );
     expect(report.body, isNot(contains('גבינה')));
     expect(report.body, isNot(contains('12/10')));
-    expect(report.body, contains('חיסון היה חם.'));
-    expect(report.body, contains('מסקנה:'));
+    expect(report.body, isNot(contains('הערות')));
+    expect(report.body, isNot(contains('מסקנה:')));
+    expect(report.body, isNot(contains('חיסון היה חם.')));
+    expect(report.body, isNot(contains('תנועות אחרונות שנשמרו')));
     expect(report.html, contains('dir="rtl"'));
     expect(report.html, contains('dir="ltr"'));
     expect(report.html, contains('>10/10 21:05</td>'));
@@ -138,6 +134,7 @@ void main() {
     expect(report.html, contains('>-</td>'));
     expect(report.html, contains('חיסון &lt;מנה&gt;'));
     expect(report.html, isNot(contains('גבינה')));
+    expect(report.html, isNot(contains('הערות')));
   });
 
   test('the quantity cell shows both amounts when in and out differ', () {
@@ -173,7 +170,6 @@ void main() {
           quantity: 2,
         ),
       ],
-      notices: const [],
     );
 
     expect(report.body, contains('חלב | נכנס 5 · הוצא 3 |'));
@@ -215,19 +211,17 @@ void main() {
           quantity: 3,
         ),
       ],
-      notices: const [],
     );
 
     expect(report.body, contains('חלב | 5 |'));
     expect(report.body, isNot(contains('נכנס 5 · הוצא 2')));
   });
 
-  test('an empty day still shows the table and a dash is not invented', () {
+  test('an empty day is only the table', () {
     final report = buildClosedDayReport(
       environmentName: 'מטבח',
       day: DateTime(2026, 10, 11),
       logs: const [],
-      notices: const [],
     );
 
     expect(
@@ -236,7 +230,8 @@ void main() {
     );
     expect(report.body, contains('אין תנועות.'));
     expect(report.html, contains('אין תנועות.'));
-    expect(report.body, contains('מסקנה:'));
+    expect(report.body, isNot(contains('מסקנה:')));
+    expect(report.body, isNot(contains('הערות')));
   });
 
   test('a custom file repeats one line per movement', () {
@@ -247,8 +242,6 @@ void main() {
 {{rows}}
 {{product}} | {{check_in}} | {{check_in_time}} | {{check_out}} | {{check_out_time}}
 {{/rows}}
-{{notes}}
-{{conclusion}}
 ''',
       environmentName: 'מטבח',
       day: DateTime(2026, 10, 11),
@@ -272,7 +265,6 @@ void main() {
           workerName: 'יוסי',
         ),
       ],
-      notices: const [],
     );
 
     expect(report.body, contains('סביבה: מטבח'));
@@ -280,7 +272,7 @@ void main() {
     expect(report.body, contains('חלב |'));
     expect(report.body, contains('גבינה |'));
     expect(report.body, contains('| - | -'));
-    expect(report.body, contains('מסקנה:'));
+    expect(report.body, isNot(contains('מסקנה:')));
     expect(report.html, contains('<table'));
     expect(report.html, contains('>חלב</td>'));
     expect(report.html, contains('>גבינה</td>'));
@@ -288,7 +280,7 @@ void main() {
     expect(report.html, isNot(contains('<pre')));
   });
 
-  test('a quiet day still names the actions already stored', () {
+  test('a quiet day does not list older stored actions', () {
     final report = buildClosedDayReport(
       environmentName: 'מטבח',
       day: DateTime(2026, 10, 11),
@@ -303,36 +295,74 @@ void main() {
           workerName: 'דנה',
         ),
       ],
-      notices: const [],
     );
 
     expect(report.body, contains('אין תנועות.'));
-    expect(report.body, contains('תנועות אחרונות שנשמרו'));
-    expect(report.body, contains('10/10 08:05 חלב קליטה'));
-    expect(report.html, contains('חלב'));
-    expect(report.html, contains('קליטה'));
+    expect(report.body, isNot(contains('תנועות אחרונות שנשמרו')));
+    expect(report.body, isNot(contains('10/10 08:05 חלב קליטה')));
   });
 
-  test('the stored-action list stops after thirty lines', () {
+  test('a supplier delivery report is entry-only with environment first', () {
+    final report = buildSupplierPackageReport(
+      closedAt: DateTime(2026, 10, 11, 16),
+      entries: [
+        SupplierEntry(
+          environmentName: 'מטבח',
+          line: StoredLogLine(
+            movementId: 'm1',
+            eventType: 'check_in',
+            occurredAt: DateTime(2026, 10, 11, 15, 10),
+            productName: 'חלב',
+            temperature: 4,
+            fridgeName: 'מטבח',
+            workerName: 'דנה',
+            quantity: 2,
+          ),
+        ),
+        SupplierEntry(
+          environmentName: 'בר',
+          line: StoredLogLine(
+            movementId: 'm2',
+            eventType: 'check_in',
+            occurredAt: DateTime(2026, 10, 11, 15, 20),
+            productName: 'גבינה',
+            temperature: 5,
+            fridgeName: 'בר',
+            workerName: 'יוסי',
+            quantity: 1,
+          ),
+        ),
+      ],
+    );
+
+    expect(report.subject, contains('מצב אספקה'));
+    expect(report.body, contains('סביבה | מוצר | כמות | טמפ׳ | מתי | מי'));
+    expect(report.body, contains('מטבח | חלב | 2 |'));
+    expect(report.body, contains('בר | גבינה | 1 |'));
+    expect(report.body, isNot(contains('איך הוצא')));
+    expect(report.html, contains('מצב אספקה'));
+  });
+
+  test('a sync gap line sits under the table', () {
     final report = buildClosedDayReport(
       environmentName: 'מטבח',
       day: DateTime(2026, 10, 11),
-      logs: [
-        for (var index = 0; index < 31; index++)
-          StoredLogLine(
-            movementId: 'move-$index',
-            eventType: 'check_in',
-            occurredAt: DateTime(2026, 10, 1, 8, index),
-            productName: 'מוצר $index',
-            temperature: 4,
-            fridgeName: 'מטבח',
-          ),
+      logs: const [],
+      syncGaps: [
+        SyncGapNote(
+          environmentName: 'מטבח',
+          unsynced: const Duration(hours: 3),
+        ),
       ],
-      notices: const [],
     );
 
-    expect(report.body, contains('מוצר 30'));
-    expect(report.body, isNot(contains('מוצר 0')));
-    expect(report.body, contains('מוצגות 30 התנועות האחרונות מתוך 31.'));
+    expect(report.body, contains('מטבח: לא סונכרן במלואו · כ־3 שעות'));
+    expect(report.html, contains('מטבח: לא סונכרן במלואו · כ־3 שעות'));
+    expect(formatSyncGapLine(
+      const SyncGapNote(
+        environmentName: 'בר',
+        unsynced: Duration(minutes: 20),
+      ),
+    ), 'בר: לא סונכרן במלואו · כ־20 דקות');
   });
 }

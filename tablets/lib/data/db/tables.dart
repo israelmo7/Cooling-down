@@ -55,6 +55,7 @@ class RefrigerationLogs extends Table {
   DateTimeColumn get dueAt => dateTime().named('due_at').nullable()();
   IntColumn get quantity =>
       integer().named('quantity').withDefault(const Constant(1))();
+  TextColumn get packageId => text().named('package_id').nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -155,6 +156,11 @@ class LocalSettings extends Table {
       .withDefault(const Constant(1200))();
   TextColumn get settingsPassword =>
       text().named('settings_password').withDefault(const Constant(''))();
+  TextColumn get receivingPackageId =>
+      text().named('receiving_package_id').withDefault(const Constant(''))();
+  /// When false, check-in/out hide the stepper and use quantity 1 (or all out).
+  BoolColumn get showQuantity =>
+      boolean().named('show_quantity').withDefault(const Constant(false))();
   TextColumn get currentWorkerId =>
       text().named('current_worker_id').nullable()();
   DateTimeColumn get workerActiveAt =>

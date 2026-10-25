@@ -1,7 +1,7 @@
 name: cooling_down_server
 description: Shop computer for Cooling down tablets.
 publish_to: none
-version: 0.2.0
+version: 1.0.0
 
 environment:
   sdk: ^3.13.5

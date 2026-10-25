@@ -18,6 +18,7 @@ class SyncRequest {
     required this.cursor,
     required this.push,
     this.ownerEmail = '',
+    this.pendingCount,
   });
 
   final String deviceId;
@@ -25,6 +26,9 @@ class SyncRequest {
   final int cursor;
   final List<SyncPushItem> push;
   final String ownerEmail;
+
+  /// Outbox rows still waiting before this exchange (usually [push.length]).
+  final int? pendingCount;
 }
 
 class SyncChange {

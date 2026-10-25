@@ -5,6 +5,3 @@
 {{rows}}
 {{product}} | {{quantity}} | {{check_in}} | {{check_in_time}} | {{check_out}} | {{check_out_time}}
 {{/rows}}
-
-{{notes}}
-{{conclusion}}

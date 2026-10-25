@@ -53,6 +53,8 @@ class DriftLogRepository implements LogRepository {
 
       final capturedAt = (occurredAt ?? _clock.now()).toUtc();
       final deviceId = await ensureDeviceId(_db);
+      final settings = await ensureLocalSettingsRow(_db);
+      final packageId = settings.receivingPackageId.trim();
       final log = RefrigerationLog(
         id: _uuid.v4(),
         movementId: _uuid.v4(),
@@ -67,6 +69,7 @@ class DriftLogRepository implements LogRepository {
         workerNameSnapshot: recordedWorker,
         dueAt: dueAt?.toUtc(),
         quantity: quantity,
+        packageId: packageId.isEmpty ? null : packageId,
       );
       await _insertLog(log);
       return log;
@@ -165,6 +168,34 @@ class DriftLogRepository implements LogRepository {
     if (!isValidTemperature(temperatureCelsius)) {
       throw const CatalogEntryNotFound('הטמפרטורה מחוץ לטווח האפשרי.');
     }
+  }
+
+  @override
+  Future<int> clearOpenHoldings({required String workerName}) async {
+    final recordedWorker = workerName.trim();
+    if (recordedWorker.isEmpty) {
+      throw const CatalogEntryNotFound('יש לבחור עובד.');
+    }
+    // Snapshot once, then empty each holding. Skip rows that vanished mid-run
+    // so a concurrent check-out does not abort a half-cleared fridge.
+    final open = await watchOpenHoldings().first;
+    var cleared = 0;
+    for (final holding in [...open]) {
+      try {
+        await insertCheckOut(
+          movementId: holding.movementId,
+          temperatureCelsius: holding.checkInTemperatureCelsius,
+          workerName: recordedWorker,
+          quantity: holding.quantity,
+        );
+        cleared += 1;
+      } on NoOpenHoldingException {
+        continue;
+      } on InvalidQuantityException {
+        continue;
+      }
+    }
+    return cleared;
   }
 
   @override
@@ -269,6 +300,7 @@ class DriftLogRepository implements LogRepository {
             workerNameSnapshot: Value(log.workerNameSnapshot),
             dueAt: Value(log.dueAt),
             quantity: Value(log.quantity),
+            packageId: Value(log.packageId),
           ),
         );
     final fridge = await (_db.select(
@@ -293,6 +325,8 @@ class DriftLogRepository implements LogRepository {
         'worker_name_snapshot': log.workerNameSnapshot,
         'quantity': log.quantity,
         if (log.dueAt != null) 'due_at': log.dueAt!.toUtc().toIso8601String(),
+        if (log.packageId != null && log.packageId!.trim().isNotEmpty)
+          'package_id': log.packageId!.trim(),
       },
       createdAt: log.createdAt,
     );

@@ -35,6 +35,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   var _unlocked = false;
   var _busy = false;
   var _confirmAction = false;
+  var _showQuantity = false;
   var _refreshMode = WorkerRefreshMode.idle;
   var _promptStyle = WorkerPromptStyle.wait;
 
@@ -75,6 +76,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _refreshMode = settings.workerRefreshMode;
       _promptStyle = settings.workerPromptStyle;
       _confirmAction = settings.confirmAction;
+      _showQuantity = settings.showQuantity;
       _settingsPassword.text = settings.settingsPassword;
       _loaded = true;
     });
@@ -99,6 +101,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       reportHour: 0,
       reportMinute: 0,
       confirmAction: _confirmAction,
+      showQuantity: _showQuantity,
       workerIdleSeconds: idleSeconds,
       workerRefreshMode: _refreshMode,
       workerPromptStyle: _promptStyle,
@@ -138,11 +141,37 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
+  Future<void> _askShowQuantity(bool next) async {
+    if (_busy || next == _showQuantity) {
+      return;
+    }
+    setState(() => _showQuantity = next);
+    try {
+      final current = await ref.read(settingsRepositoryProvider).ensure();
+      await ref
+          .read(settingsRepositoryProvider)
+          .save(current.copyWith(showQuantity: next));
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _showQuantity = !next);
+      _show('לא ניתן לשמור את הגדרת הכמות.');
+    }
+  }
+
   Future<void> _syncNow() async {
     await _run(() async {
-      final saved = await _save();
-      if (saved == null) {
-        return;
+      // Persist URL/token only when unlocked; otherwise just push the queue.
+      final DeviceSettings saved;
+      if (_unlocked) {
+        final next = await _save();
+        if (next == null) {
+          return;
+        }
+        saved = next;
+      } else {
+        saved = await ref.read(settingsRepositoryProvider).ensure();
       }
       final attempt = await ref.read(syncRepositoryProvider).trySync();
       if (!mounted) {
@@ -186,6 +215,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     setState(() => _busy = true);
     try {
       await action();
+    } on FormatException catch (error) {
+      if (mounted) {
+        _show(error.message);
+      }
     } on Object catch (error) {
       if (mounted) {
         _show(error.toString());
@@ -195,6 +228,101 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         setState(() => _busy = false);
       }
     }
+  }
+
+  Future<void> _startReceiving() async {
+    final accepted = await confirmEnterSupplyMode(context);
+    if (!accepted || !mounted) {
+      return;
+    }
+    await _run(() async {
+      await ref.read(settingsRepositoryProvider).startReceivingPackage();
+      try {
+        await ref.read(syncRepositoryProvider).trySync();
+      } on Object {
+        // Open event stays queued until the shop computer is reachable.
+      }
+      if (mounted) {
+        _show('מצב אספקה פעיל. קליטות נרשמות לאספקה המשותפת.');
+      }
+    });
+  }
+
+  Future<void> _endReceiving() async {
+    final accepted = await confirmLeaveSupplyMode(context);
+    if (!accepted || !mounted) {
+      return;
+    }
+    await _run(() async {
+      final id = await ref
+          .read(settingsRepositoryProvider)
+          .endReceivingPackage();
+      if (id == null) {
+        if (mounted) {
+          _show('מצב אספקה כבר כבוי.');
+        }
+        return;
+      }
+      try {
+        await ref.read(syncRepositoryProvider).trySync();
+      } on Object {
+        // Close event stays queued until the shop computer is reachable.
+      }
+      if (mounted) {
+        _show('יצאת ממצב אספקה.');
+      }
+    });
+  }
+
+  Future<void> _clearFridge() async {
+    if (_busy) {
+      return;
+    }
+    final holdings =
+        await ref.read(logRepositoryProvider).watchOpenHoldings().first;
+    if (!mounted) {
+      return;
+    }
+    if (holdings.isEmpty) {
+      _show('המקרר כבר ריק.');
+      return;
+    }
+    final session = ref.read(workerSessionProvider).asData?.value;
+    final workerName = session?.workerName.trim() ?? '';
+    if (workerName.isEmpty) {
+      _show('יש לבחור עובד לפני ריקון המקרר.');
+      return;
+    }
+    final units = holdings.fold<int>(0, (sum, item) => sum + item.quantity);
+    final accepted = await confirmRecordedAction(
+      context,
+      enabled: true,
+      action:
+          'ריקון המקרר: ${holdings.length} פריטים · כמות $units · $workerName',
+    );
+    if (!accepted || !mounted) {
+      return;
+    }
+    await _run(() async {
+      final cleared = await ref
+          .read(logRepositoryProvider)
+          .clearOpenHoldings(workerName: workerName);
+      try {
+        await ref.read(syncRepositoryProvider).trySync();
+      } on Object {
+        // Rows stay queued until the shop computer is reachable.
+      }
+      if (!mounted) {
+        return;
+      }
+      _show(
+        cleared == 0
+            ? 'המקרר כבר ריק.'
+            : cleared == 1
+            ? 'הוצא פריט אחד מהמקרר.'
+            : 'הוצאו $cleared פריטים מהמקרר.',
+      );
+    });
   }
 
   Future<void> _openAdmin(DeviceSettings? settings) async {
@@ -259,6 +387,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       const _SectionRule('settings-section-secure'),
       if (_unlocked) ...[
         _workerRefreshControl(),
+        _showQuantityControl(),
+        const SizedBox(height: 12),
         _field(
           controller: _serverUrl,
           label: 'כתובת המחשב',
@@ -281,8 +411,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ],
         ),
         if (Kiosk.supported) _releaseKioskButton(),
-      ] else
+      ] else ...[
         _confirmActionControl(),
+        const SizedBox(height: 12),
+        _showQuantityControl(),
+      ],
     ];
     final actions = <Widget>[
       if (!_unlocked)
@@ -304,6 +437,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 }),
           child: const Text('שמירה'),
         ),
+      if (_unlocked) ...[
+        const SizedBox(height: 12),
+        _receivingPackageButton(settings),
+        const SizedBox(height: 12),
+        _clearFridgeButton(),
+      ],
       const SizedBox(height: 12),
       OutlinedButton(
         onPressed: _busy ? null : _syncNow,
@@ -522,7 +661,60 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
+  Widget _showQuantityControl() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('כמות בקליטה', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          'כבוי = תמיד 1. דלוק = כפתורי כמות קטנים במסך.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: const Color(0xFF5C6B70),
+          ),
+        ),
+        Switch(
+          key: const Key('show-quantity'),
+          value: _showQuantity,
+          onChanged: _busy ? null : _askShowQuantity,
+        ),
+      ],
+    );
+  }
+
   bool get _canEdit => _unlocked && !_busy;
+
+  Widget _receivingPackageButton(DeviceSettings? settings) {
+    final open = settings?.isReceivingSupplier ?? false;
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        key: const Key('receiving-package'),
+        onPressed: _busy
+            ? null
+            : (open ? _endReceiving : _startReceiving),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(64, 56),
+          foregroundColor: const Color(0xFF122428),
+        ),
+        child: Text(open ? 'יציאה ממצב אספקה' : 'מצב אספקה'),
+      ),
+    );
+  }
+
+  Widget _clearFridgeButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        key: const Key('clear-fridge'),
+        onPressed: _busy ? null : _clearFridge,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(64, 56),
+          foregroundColor: const Color(0xFFB91C1C),
+        ),
+        child: const Text('ריקון המקרר'),
+      ),
+    );
+  }
 
   Widget _releaseKioskButton() {
     return Padding(

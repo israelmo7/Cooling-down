@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/fridge.dart';
@@ -24,17 +23,11 @@ class CheckOutPanel extends ConsumerStatefulWidget {
 }
 
 class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
-  final _quantity = TextEditingController(text: '1');
   String _query = '';
   String? _selectedMovementId;
   double? _chosenTemperature;
+  int _quantity = 1;
   bool _saving = false;
-
-  @override
-  void dispose() {
-    _quantity.dispose();
-    super.dispose();
-  }
 
   double _reading() {
     final chosen = _chosenTemperature;
@@ -66,9 +59,15 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
     final refresh =
         ref.read(settingsProvider).asData?.value?.workerRefresh ??
         const WorkerRefresh();
-    final quantity = tryParseQuantity(_quantity.text);
-    if (holding == null ||
-        quantity == null ||
+    if (holding == null) {
+      return;
+    }
+    final showQuantity =
+        ref.read(settingsProvider).asData?.value?.showQuantity ?? false;
+    final quantity = showQuantity
+        ? clampQuantity(_quantity, max: holding.quantity)
+        : holding.quantity;
+    if (!isValidQuantity(quantity) ||
         quantity > holding.quantity ||
         !workerAllowsAction(
           session: session,
@@ -103,7 +102,7 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
       setState(() {
         _selectedMovementId = null;
         _chosenTemperature = null;
-        _quantity.text = '1';
+        _quantity = 1;
       });
       showTransientNotice(
         context,
@@ -157,25 +156,18 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
               break;
             }
           }
-          final quantityValue = tryParseQuantity(_quantity.text);
-          final quantityValid =
-              quantityValue != null &&
-              selectedHolding != null &&
-              quantityValue <= selectedHolding.quantity;
-          final String? quantityError;
-          if (selectedHolding == null ||
-              quantityValue != null &&
-                  quantityValue <= selectedHolding.quantity) {
-            quantityError = quantityValue == null && selectedHolding != null
-                ? 'מספר שלם בין 1 ל-$maxQuantity'
-                : null;
-          } else {
-            quantityError = 'נשארו רק ${selectedHolding.quantity} במקרר';
-          }
+          final showQuantity =
+              ref.watch(settingsProvider).asData?.value?.showQuantity ?? false;
+          final maxOut = selectedHolding?.quantity ?? maxQuantity;
+          // Hidden stepper: take the whole open amount (usually 1).
+          final quantity = showQuantity
+              ? clampQuantity(_quantity, max: maxOut)
+              : (selectedHolding?.quantity ?? 1);
           final canConfirm =
               _selectedMovementId != null &&
               selectedHolding != null &&
-              quantityValid &&
+              isValidQuantity(quantity) &&
+              quantity <= selectedHolding.quantity &&
               !_saving &&
               workerAllowsAction(
                 session: ref.watch(workerSessionProvider).asData?.value,
@@ -195,14 +187,15 @@ class _CheckOutPanelState extends ConsumerState<CheckOutPanel> {
                 onQueryChanged: (value) => setState(() => _query = value),
                 onSelected: (holding) => setState(() {
                   _selectedMovementId = holding.movementId;
-                  _quantity.text = '${holding.quantity}';
+                  _quantity = holding.quantity;
                 }),
               );
               final controls = _CheckOutControls(
                 temperature: _reading(),
-                quantity: _quantity,
-                quantityError: quantityError,
-                onQuantityChanged: () => setState(() {}),
+                quantity: quantity,
+                maxOut: maxOut,
+                showQuantity: showQuantity,
+                onQuantityChanged: (value) => setState(() => _quantity = value),
                 saving: _saving,
                 canConfirm: canConfirm,
                 onTemperatureChanged: (value) =>
@@ -258,7 +251,8 @@ class _CheckOutControls extends StatelessWidget {
   const _CheckOutControls({
     required this.temperature,
     required this.quantity,
-    required this.quantityError,
+    required this.maxOut,
+    required this.showQuantity,
     required this.onQuantityChanged,
     required this.saving,
     required this.canConfirm,
@@ -267,9 +261,10 @@ class _CheckOutControls extends StatelessWidget {
   });
 
   final double temperature;
-  final TextEditingController quantity;
-  final String? quantityError;
-  final VoidCallback onQuantityChanged;
+  final int quantity;
+  final int maxOut;
+  final bool showQuantity;
+  final ValueChanged<int> onQuantityChanged;
   final bool saving;
   final bool canConfirm;
   final ValueChanged<double> onTemperatureChanged;
@@ -291,24 +286,15 @@ class _CheckOutControls extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: const Color(0xFF5C6B70)),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const Key('check-out-quantity'),
-            controller: quantity,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(4),
-            ],
-            style: const TextStyle(fontSize: 16),
-            decoration: InputDecoration(
-              labelText: 'כמות',
-              hintText: '1',
-              isDense: true,
-              errorText: quantityError,
+          if (showQuantity) ...[
+            const SizedBox(height: 12),
+            QuantityStepper(
+              key: const Key('check-out-quantity'),
+              quantity: quantity,
+              max: maxOut,
+              onChanged: onQuantityChanged,
             ),
-            onChanged: (_) => onQuantityChanged(),
-          ),
+          ],
           const SizedBox(height: 16),
           ConfirmBar(
             buttonKey: const Key('confirm-check-out'),

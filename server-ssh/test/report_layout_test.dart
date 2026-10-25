@@ -9,8 +9,6 @@ void main() {
       checkInTime: true,
       checkOut: false,
       checkOutTime: false,
-      notes: false,
-      conclusion: true,
     );
 
     final text = columns.toTemplate();
@@ -21,10 +19,9 @@ void main() {
     expect(text, contains('{{check_in_time}}'));
     expect(text, isNot(contains('{{check_out}}')));
     expect(text, isNot(contains('{{notes}}')));
-    expect(text, contains('{{conclusion}}'));
+    expect(text, isNot(contains('{{conclusion}}')));
     expect(ReportColumns.fromTemplate(text).checkOut, isFalse);
     expect(ReportColumns.fromTemplate(text).quantity, isTrue);
-    expect(ReportColumns.fromTemplate(text).conclusion, isTrue);
   });
 
   test('an empty file means the full table', () {
@@ -32,6 +29,5 @@ void main() {
     expect(columns.quantity, isTrue);
     expect(columns.checkIn, isTrue);
     expect(columns.checkOutTime, isTrue);
-    expect(columns.notes, isTrue);
   });
 }

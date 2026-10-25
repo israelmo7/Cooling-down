@@ -6,8 +6,6 @@ class ReportColumns {
     this.checkInTime = true,
     this.checkOut = true,
     this.checkOutTime = true,
-    this.notes = true,
-    this.conclusion = true,
   });
 
   final bool quantity;
@@ -15,8 +13,6 @@ class ReportColumns {
   final bool checkInTime;
   final bool checkOut;
   final bool checkOutTime;
-  final bool notes;
-  final bool conclusion;
 
   static const fixed = ReportColumns();
 
@@ -31,8 +27,6 @@ class ReportColumns {
       checkInTime: _has(template, 'check_in_time'),
       checkOut: _has(template, 'check_out'),
       checkOutTime: _has(template, 'check_out_time'),
-      notes: _has(template, 'notes'),
-      conclusion: _has(template, 'conclusion'),
     );
   }
 
@@ -60,25 +54,15 @@ class ReportColumns {
       headers.add('מתי הוצא');
       tokens.add('{{check_out_time}}');
     }
-    final buffer = StringBuffer()
-      ..writeln('סביבה: {{environment}}')
-      ..writeln('תאריך: {{date}}')
-      ..writeln()
-      ..writeln(headers.join(' | '))
-      ..writeln('{{rows}}')
-      ..writeln(tokens.join(' | '))
-      ..writeln('{{/rows}}');
-    if (notes) {
-      buffer
-        ..writeln()
-        ..writeln('{{notes}}');
-    }
-    if (conclusion) {
-      buffer
-        ..writeln()
-        ..writeln('{{conclusion}}');
-    }
-    return buffer.toString();
+    return (StringBuffer()
+          ..writeln('סביבה: {{environment}}')
+          ..writeln('תאריך: {{date}}')
+          ..writeln()
+          ..writeln(headers.join(' | '))
+          ..writeln('{{rows}}')
+          ..writeln(tokens.join(' | '))
+          ..writeln('{{/rows}}'))
+        .toString();
   }
 }
 

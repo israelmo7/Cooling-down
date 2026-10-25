@@ -103,6 +103,38 @@ void main() {
     tester.view.resetDevicePixelRatio();
   }, timeout: const Timeout(Duration(seconds: 30)));
 
+  testWidgets('supply mode shows a top banner', (tester) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    await DriftSettingsRepository(database).startReceivingPackage();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byKey(const Key('receiving-banner')), findsOneWidget);
+    expect(find.text('מצב אספקה'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
   testWidgets('settings opens from the top bar', (tester) async {
     final database = AppDatabase.memory();
     tester.view.physicalSize = const Size(1280, 800);
@@ -547,11 +579,14 @@ void main() {
     tester.view.resetDevicePixelRatio();
   }, timeout: const Timeout(Duration(seconds: 30)));
 
-  testWidgets('check-out refuses 0 and more than is inside, allows part', (
+  testWidgets('check-out stepper stays in remaining, allows part', (
     tester,
   ) async {
     final database = AppDatabase.memory();
     await signInWorker(database);
+    final settings = DriftSettingsRepository(database);
+    final current = await settings.ensure();
+    await settings.save(current.copyWith(showQuantity: true));
     final logs = DriftLogRepository(database);
     await logs.insertCheckIn(
       productId: SeedIds.wholeMilk,
@@ -592,25 +627,44 @@ void main() {
             .onPressed !=
         null;
 
-    // The field starts at what is inside (3), so it can be confirmed.
+    // Starts at what is inside (3); + is disabled at the remaining max.
+    expect(find.byKey(const Key('quantity-value')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('quantity-value'))).data,
+      '3',
+    );
+    expect(confirmEnabled(), isTrue);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('quantity-increase')))
+          .onPressed,
+      isNull,
+    );
+
+    // − down to 1; cannot go to 0.
+    await tester.tap(find.byKey(const Key('quantity-decrease')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('quantity-decrease')));
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const Key('quantity-value'))).data,
+      '1',
+    );
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('quantity-decrease')))
+          .onPressed,
+      isNull,
+    );
     expect(confirmEnabled(), isTrue);
 
-    await tester.enterText(find.byKey(const Key('check-out-quantity')), '1000');
-    await tester.pump();
-    expect(confirmEnabled(), isFalse);
-    expect(find.text('נשארו רק 3 במקרר'), findsOneWidget);
-
-    await tester.enterText(find.byKey(const Key('check-out-quantity')), '0');
-    await tester.pump();
-    expect(confirmEnabled(), isFalse);
-
-    await tester.enterText(find.byKey(const Key('check-out-quantity')), '');
-    await tester.pump();
-    expect(confirmEnabled(), isFalse);
-
     // Taking 2 of the 3 out leaves 1 inside.
-    await tester.enterText(find.byKey(const Key('check-out-quantity')), '2');
+    await tester.tap(find.byKey(const Key('quantity-increase')));
     await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const Key('quantity-value'))).data,
+      '2',
+    );
     expect(confirmEnabled(), isTrue);
     await tester.tap(find.byKey(const Key('confirm-check-out')));
     await tester.pump();
@@ -638,6 +692,44 @@ void main() {
     expect(clipEnvironmentName('  '), 'מטבח');
     expect(clipEnvironmentName('א' * 25), 'א' * 20);
   });
+
+  testWidgets('settings shows clear fridge only after unlock', (tester) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('open-settings')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const Key('clear-fridge')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('unlock-settings')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('clear-fridge')), findsOneWidget);
+    expect(find.text('ריקון המקרר'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
   testWidgets('a temperature warning disappears on its own', (tester) async {
     final database = AppDatabase.memory();

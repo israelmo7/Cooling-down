@@ -3,6 +3,7 @@ import 'package:cooling_down/domain/quantity.dart';
 import 'package:cooling_down/data/db/app_database.dart';
 import 'package:cooling_down/data/db/seed_ids.dart';
 import 'package:cooling_down/data/repositories/drift_log_repository.dart';
+import 'package:cooling_down/data/repositories/drift_settings_repository.dart';
 import 'package:cooling_down/domain/entities/refrigeration_log.dart';
 import 'package:cooling_down/domain/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -296,6 +297,73 @@ void main() {
       expect(open.single.quantity, 3);
     },
   );
+
+  test('check-in during supplier receiving keeps the package id', () async {
+    final settings = DriftSettingsRepository(database);
+    final packageId = await settings.startReceivingPackage();
+    final openRows = await database.select(database.syncOutbox).get();
+    expect(
+      openRows.where((row) => row.entityType == 'receiving_package'),
+      hasLength(1),
+    );
+    expect(openRows.first.payloadJson, contains('"status":"open"'));
+
+    final checkIn = await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+      quantity: 2,
+    );
+    expect(checkIn.packageId, packageId);
+    final outbox = await database.select(database.syncOutbox).get();
+    expect(
+      outbox.any((row) => row.payloadJson.contains('"package_id":"$packageId"')),
+      isTrue,
+    );
+
+    final closed = await settings.endReceivingPackage();
+    expect(closed, packageId);
+    expect((await settings.ensure()).isReceivingSupplier, isFalse);
+    final closeRow = await database.select(database.syncOutbox).get();
+    final packages = closeRow
+        .where((row) => row.entityType == 'receiving_package')
+        .toList();
+    expect(packages, hasLength(2));
+    expect(
+      packages.any((row) => row.payloadJson.contains('"status":"closed"')),
+      isTrue,
+    );
+  });
+
+  test('clearing the fridge checks out every open holding', () async {
+    await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+      quantity: 2,
+    );
+    await repository.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 4,
+      workerName: 'דנה',
+      quantity: 1,
+    );
+    expect(await repository.watchOpenHoldings().first, hasLength(2));
+
+    final cleared = await repository.clearOpenHoldings(workerName: 'דנה');
+    expect(cleared, 2);
+    expect(await repository.watchOpenHoldings().first, isEmpty);
+
+    final logs = await database.select(database.refrigerationLogs).get();
+    expect(logs, hasLength(4));
+    expect(
+      logs.where((row) => row.eventType == LogEventType.checkOut),
+      hasLength(2),
+    );
+  });
 
   test('come-out hours accept a half hour and ignore empty text', () {
     expect(isValidHoldHoursInput(''), isTrue);

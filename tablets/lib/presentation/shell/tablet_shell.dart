@@ -379,6 +379,29 @@ class _TabletShellState extends ConsumerState<TabletShell>
             ),
             body: Column(
               children: [
+                if (settings?.isReceivingSupplier ?? false)
+                  const Material(
+                    color: Color(0xFFFEF3C7),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        child: Text(
+                          key: Key('receiving-banner'),
+                          'מצב אספקה',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF92400E),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 if (alerts.isNotEmpty) _DismissingAlert(alert: alerts.first),
                 Expanded(
                   child: IndexedStack(

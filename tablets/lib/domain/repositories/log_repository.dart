@@ -26,5 +26,9 @@ abstract class LogRepository {
     int quantity = 1,
   });
 
+  /// Checks out every open holding with its remaining quantity.
+  /// Returns how many check-out events were written.
+  Future<int> clearOpenHoldings({required String workerName});
+
   Stream<List<OpenHolding>> watchOpenHoldings();
 }

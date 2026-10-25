@@ -34,6 +34,8 @@ class HttpSyncGateway implements SyncGateway {
               'cursor': request.cursor,
               if (request.ownerEmail.trim().isNotEmpty)
                 'owner_email': request.ownerEmail.trim(),
+              'pending_count':
+                  request.pendingCount ?? request.push.length,
               'push': [
                 for (final item in request.push)
                   {
@@ -44,7 +46,7 @@ class HttpSyncGateway implements SyncGateway {
               ],
             }),
           )
-          .timeout(const Duration(seconds: 20));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode == 401) {
         return const SyncExchange.offline('המחשב דחה את האסימון.');
       }
@@ -103,7 +105,7 @@ class HttpSyncGateway implements SyncGateway {
               'body': report.body,
             }),
           )
-          .timeout(const Duration(seconds: 20));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode == 401) {
         return const ReportPostResult(
           status: 'failed',

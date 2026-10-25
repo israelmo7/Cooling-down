@@ -23,6 +23,10 @@ class DriftSyncRepository implements SyncRepository {
   final Clock _clock;
   final SyncGateway Function(DeviceSettings settings) _gatewayFor;
 
+  /// One upload at a time so a manual tap and the minute timer cannot
+  /// mark the same rows in-flight and restore each other’s work.
+  Future<SyncAttempt>? _running;
+
   @override
   Stream<int> watchPendingCount() {
     final count = _db.syncOutbox.id.count();
@@ -33,7 +37,21 @@ class DriftSyncRepository implements SyncRepository {
   }
 
   @override
-  Future<SyncAttempt> trySync() async {
+  Future<SyncAttempt> trySync() {
+    final existing = _running;
+    if (existing != null) {
+      return existing;
+    }
+    final started = _trySyncOnce();
+    _running = started;
+    return started.whenComplete(() {
+      if (identical(_running, started)) {
+        _running = null;
+      }
+    });
+  }
+
+  Future<SyncAttempt> _trySyncOnce() async {
     final current = await settings.ensure();
     final pending =
         await (_db.select(_db.syncOutbox)
@@ -71,6 +89,7 @@ class DriftSyncRepository implements SyncRepository {
           environment: current.environmentName,
           cursor: current.syncCursor,
           ownerEmail: '',
+          pendingCount: pending.length,
           push: [
             for (final row in pending)
               SyncPushItem(
@@ -82,17 +101,18 @@ class DriftSyncRepository implements SyncRepository {
         ),
       );
     } on Object catch (error) {
-      await _restore(pending, error.toString());
-      await settings.recordSync(error: error.toString());
+      final reason = syncFailureMessage(error);
+      await _restore(pending, reason);
+      await settings.recordSync(error: reason);
       return SyncAttempt(
         synced: 0,
         remaining: pending.length,
-        stoppedBecause: error.toString(),
+        stoppedBecause: reason,
       );
     }
 
     if (!result.reachable) {
-      final reason = result.error ?? 'אין חיבור למחשב';
+      final reason = syncFailureMessage(result.error);
       await _restore(pending, reason);
       await settings.recordSync(error: reason);
       return SyncAttempt(
@@ -128,12 +148,13 @@ class DriftSyncRepository implements SyncRepository {
         clearError: true,
       );
     } on Object catch (error) {
-      await _restore(pending, error.toString());
-      await settings.recordSync(error: error.toString());
+      final reason = syncFailureMessage(error);
+      await _restore(pending, reason);
+      await settings.recordSync(error: reason);
       return SyncAttempt(
         synced: 0,
         remaining: pending.length,
-        stoppedBecause: error.toString(),
+        stoppedBecause: reason,
       );
     }
 
@@ -156,4 +177,31 @@ class DriftSyncRepository implements SyncRepository {
       );
     }
   }
+}
+
+/// Short Hebrew line for offline / timeout / socket noise.
+String syncFailureMessage(Object? error) {
+  if (error == null) {
+    return 'אין חיבור למחשב';
+  }
+  final text = error.toString().trim();
+  if (text.isEmpty) {
+    return 'אין חיבור למחשב';
+  }
+  final lower = text.toLowerCase();
+  if (lower.contains('timeout') ||
+      lower.contains('timed out') ||
+      lower.contains('socket') ||
+      lower.contains('clientexception') ||
+      lower.contains('connection') ||
+      lower.contains('network') ||
+      lower.contains('failed host') ||
+      lower.contains('errno') ||
+      text.contains('אין חיבור')) {
+    return 'אין חיבור למחשב';
+  }
+  if (text.length > 80) {
+    return 'אין חיבור למחשב';
+  }
+  return text;
 }

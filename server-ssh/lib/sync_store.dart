@@ -55,11 +55,47 @@ CREATE TABLE IF NOT EXISTS environments (
   owner_email TEXT NOT NULL
 )
 ''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS device_sync_state (
+  environment TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  last_full_sync_at TEXT,
+  PRIMARY KEY (environment, device_id)
+)
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS device_day_presence (
+  environment TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  day TEXT NOT NULL,
+  PRIMARY KEY (environment, device_id, day)
+)
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS supplier_deliveries (
+  id TEXT PRIMARY KEY,
+  status TEXT NOT NULL,
+  opened_at TEXT NOT NULL,
+  closed_at TEXT,
+  mail_status TEXT
+)
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS supplier_participants (
+  session_id TEXT PRIMARY KEY,
+  delivery_id TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  environment TEXT NOT NULL,
+  active INTEGER NOT NULL
+)
+''');
     _addColumn('daily_reports', 'sent_time', 'TEXT');
     _addColumn('refrigeration_logs', 'temperature', 'REAL');
     _addColumn('refrigeration_logs', 'fridge_name', 'TEXT');
     _addColumn('refrigeration_logs', 'worker_name', 'TEXT');
     _addColumn('refrigeration_logs', 'quantity', 'INTEGER');
+    _addColumn('refrigeration_logs', 'package_id', 'TEXT');
   }
 
   factory SyncStore.memory({ReportMailer? mailer, String ownerEmail = ''}) {
@@ -86,16 +122,138 @@ CREATE TABLE IF NOT EXISTS environments (
 
   void close() => _db.close();
 
-  Map<String, Object?> exchange({
+  /// Records that [deviceId] reached the shop computer.
+  /// [fullySynced] is true when the tablet outbox was empty after this exchange.
+  void _noteDeviceContact({
+    required String environment,
+    required String deviceId,
+    required bool fullySynced,
+    required DateTime now,
+  }) {
+    final instant = now.toUtc().toIso8601String();
+    final day = _reportDate(now.toLocal());
+    final existing = _db.select(
+      '''
+SELECT last_full_sync_at FROM device_sync_state
+WHERE environment = ? AND device_id = ?
+''',
+      [environment, deviceId],
+    );
+    if (existing.isEmpty) {
+      _db.execute(
+        '''
+INSERT INTO device_sync_state (
+  environment, device_id, last_seen_at, last_full_sync_at
+) VALUES (?, ?, ?, ?)
+''',
+        [environment, deviceId, instant, fullySynced ? instant : null],
+      );
+    } else {
+      _db.execute(
+        '''
+UPDATE device_sync_state
+SET last_seen_at = ?, last_full_sync_at = CASE WHEN ? THEN ? ELSE last_full_sync_at END
+WHERE environment = ? AND device_id = ?
+''',
+        [
+          instant,
+          fullySynced ? 1 : 0,
+          instant,
+          environment,
+          deviceId,
+        ],
+      );
+    }
+    _db.execute(
+      '''
+INSERT OR IGNORE INTO device_day_presence (environment, device_id, day)
+VALUES (?, ?, ?)
+''',
+      [environment, deviceId, day],
+    );
+  }
+
+  /// Environments that were on during [day] but had not fully synced by
+  /// the end of that local day. Late sync after midnight clears the gap.
+  List<SyncGapNote> syncGapsForDay(
+    DateTime day, {
+    String? environment,
+    DateTime? asOf,
+  }) {
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+    final date = _reportDate(day);
+    final now = asOf ?? DateTime.now();
+    // Morning report: only attach a gap once the reported day has ended.
+    if (now.isBefore(end)) {
+      return const [];
+    }
+    final rows = environment == null
+        ? _db.select(
+            '''
+SELECT p.environment, s.last_full_sync_at
+FROM device_day_presence p
+LEFT JOIN device_sync_state s
+  ON s.environment = p.environment AND s.device_id = p.device_id
+WHERE p.day = ?
+''',
+            [date],
+          )
+        : _db.select(
+            '''
+SELECT p.environment, s.last_full_sync_at
+FROM device_day_presence p
+LEFT JOIN device_sync_state s
+  ON s.environment = p.environment AND s.device_id = p.device_id
+WHERE p.day = ? AND p.environment = ?
+''',
+            [date, environment],
+          );
+    final worst = <String, Duration>{};
+    for (final row in rows) {
+      final name = row['environment']?.toString() ?? '';
+      if (name.isEmpty) {
+        continue;
+      }
+      final raw = row['last_full_sync_at']?.toString();
+      final lastFull = raw == null || raw.isEmpty
+          ? null
+          : DateTime.tryParse(raw)?.toLocal();
+      // Synced at or after the day closed — morning mail has the full day.
+      if (lastFull != null && !lastFull.isBefore(end)) {
+        continue;
+      }
+      final from = lastFull == null || lastFull.isBefore(start)
+          ? start
+          : lastFull;
+      final gap = end.difference(from);
+      if (gap <= Duration.zero) {
+        continue;
+      }
+      final previous = worst[name];
+      if (previous == null || gap > previous) {
+        worst[name] = gap;
+      }
+    }
+    return [
+      for (final entry in worst.entries)
+        SyncGapNote(environmentName: entry.key, unsynced: entry.value),
+    ];
+  }
+
+  Future<Map<String, Object?>> exchange({
     required String deviceId,
     required String environment,
     required int cursor,
     required List<Map<String, dynamic>> push,
     String? ownerEmail,
-  }) {
+    int? pendingCount,
+    DateTime? now,
+  }) async {
     _rememberOwner(environment, ownerEmail);
     final accepted = <String>[];
     final conflicts = <Map<String, String>>[];
+    final deliveriesToMail = <String>[];
     _db.execute('BEGIN');
     try {
       for (final item in push) {
@@ -104,6 +262,7 @@ CREATE TABLE IF NOT EXISTS environments (
           environment: environment,
           item: item,
           conflicts: conflicts,
+          deliveriesToMail: deliveriesToMail,
         );
         accepted.add(entityId);
       }
@@ -112,6 +271,22 @@ CREATE TABLE IF NOT EXISTS environments (
       _db.execute('ROLLBACK');
       rethrow;
     }
+
+    for (final deliveryId in deliveriesToMail) {
+      await _sendClosedDeliveryMail(deliveryId);
+    }
+
+    // Tablet sends every pending row in one push. Older builds omit
+    // pending_count; a successful exchange then means the outbox was cleared.
+    final fullySynced = pendingCount == null
+        ? true
+        : pendingCount <= push.length;
+    _noteDeviceContact(
+      environment: environment,
+      deviceId: deviceId,
+      fullySynced: fullySynced,
+      now: now ?? DateTime.now(),
+    );
 
     final changes = _db.select(
       '''
@@ -226,26 +401,52 @@ WHERE environment = ? AND report_date = ?
     }
   }
 
-  /// Emails yesterday's report once the local clock has reached [reportTime].
-  /// The same clock time is not mailed again. A later clock time the same day
-  /// sends one more mail. A custom [template] is used only when [reportFormat]
-  /// is `custom` and the text is non-empty.
+  /// Emails closed days once the local clock has reached [reportTime].
+  /// Always covers yesterday; also walks up to [backlogDays] older unsent days
+  /// so a multi-day PC outage still catches up after restart.
   Future<List<String>> sendClosedDay(
     DateTime nowLocal, {
     ReportTime reportTime = ReportTime.midnight,
     String reportFormat = 'builtin',
     String? template,
+    int backlogDays = 7,
   }) async {
     if (!reportTime.reached(nowLocal)) {
       return const [];
     }
     final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
-    return sendDay(
-      startOfToday.subtract(const Duration(days: 1)),
-      reportFormat: reportFormat,
-      template: template,
-      reportTime: reportTime,
+    final statuses = <String>[];
+    final depth = backlogDays < 1 ? 1 : backlogDays;
+    for (var ago = depth; ago >= 1; ago--) {
+      final day = startOfToday.subtract(Duration(days: ago));
+      // Yesterday always; older days only if this shop actually had activity.
+      if (ago > 1 && !_dayHasLogs(day)) {
+        continue;
+      }
+      final batch = await sendDay(
+        day,
+        reportFormat: reportFormat,
+        template: template,
+        reportTime: reportTime,
+        asOf: nowLocal,
+      );
+      statuses.addAll(batch);
+    }
+    return statuses;
+  }
+
+  bool _dayHasLogs(DateTime day) {
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+    final rows = _db.select(
+      '''
+SELECT 1 AS n FROM refrigeration_logs
+WHERE datetime(occurred_at) >= datetime(?) AND datetime(occurred_at) < datetime(?)
+LIMIT 1
+''',
+      [start.toUtc().toIso8601String(), end.toUtc().toIso8601String()],
     );
+    return rows.isNotEmpty;
   }
 
   /// Sends one mail for [day], with one table per environment.
@@ -256,6 +457,7 @@ WHERE environment = ? AND report_date = ?
     String? template,
     bool force = false,
     ReportTime? reportTime,
+    DateTime? asOf,
   }) async {
     final custom = normalizeReportFormat(reportFormat) == 'custom';
     final wording = template?.trim() ?? '';
@@ -277,20 +479,25 @@ WHERE environment = ? AND report_date = ?
     final sections = <({String environment, ClosedDayReport content})>[];
     for (final environment in names) {
       final logs = _logs(environment);
-      final notices = _notices(environment);
+      final gaps = syncGapsForDay(
+        day,
+        environment: environment,
+        asOf: asOf ?? DateTime.now(),
+      );
       final content = custom && wording.isNotEmpty
           ? buildCustomReport(
               template: wording,
               environmentName: environment,
               day: day,
               logs: logs,
-              notices: notices,
+              notices: _notices(environment),
+              syncGaps: gaps,
             )
           : buildClosedDayReport(
               environmentName: environment,
               day: day,
               logs: logs,
-              notices: notices,
+              syncGaps: gaps,
             );
       sections.add((environment: environment, content: content));
     }
@@ -478,6 +685,25 @@ WHERE environment = ? AND report_date = ?
 
   List<StoredLogLine> logsFor(String environment) => _logs(environment);
 
+  /// Stored daily report rows for [environment], newest first.
+  List<Map<String, Object?>> reportsFor(String environment) {
+    final rows = _db.select(
+      '''
+SELECT id, environment, report_date, owner_email, subject, body, status, sent_time, last_error
+FROM daily_reports
+WHERE environment = ?
+ORDER BY report_date DESC
+''',
+      [environment],
+    );
+    return [
+      for (final row in rows)
+        {
+          for (final column in row.keys) column: row[column],
+        },
+    ];
+  }
+
   void _rememberOwner(String environment, String? fromTablet) {
     final existing = _db.select(
       'SELECT owner_email FROM environments WHERE name = ?',
@@ -571,6 +797,7 @@ WHERE environment = ? AND entity_type = 'alert'
     required String environment,
     required Map<String, dynamic> item,
     required List<Map<String, String>> conflicts,
+    required List<String> deliveriesToMail,
   }) {
     final entityType = item['entity_type'];
     final entityId = item['entity_id'];
@@ -600,7 +827,240 @@ WHERE environment = ? AND entity_type = 'alert'
     if (entityType == 'refrigeration_log' && inserted) {
       _insertLog(environment, body, deviceId, conflicts);
     }
+    if (entityType == 'receiving_package' && inserted) {
+      final deliveryId = _applyReceivingSession(
+        environment: environment,
+        deviceId: deviceId,
+        payload: body,
+      );
+      if (deliveryId != null && !deliveriesToMail.contains(deliveryId)) {
+        deliveriesToMail.add(deliveryId);
+      }
+    }
     return entityId;
+  }
+
+  /// Joins or leaves the open shop delivery. Returns a delivery id to mail
+  /// when this leave was the last active tablet.
+  String? _applyReceivingSession({
+    required String environment,
+    required String deviceId,
+    required Map<String, Object?> payload,
+  }) {
+    final status = payload['status'];
+    final sessionRaw = payload['session_id'] ?? payload['id'];
+    if (sessionRaw is! String || sessionRaw.trim().isEmpty) {
+      throw const FormatException('A receiving session needs an id.');
+    }
+    final sessionId = sessionRaw.trim();
+    if (status == 'open') {
+      _joinSupplierDelivery(
+        sessionId: sessionId,
+        deviceId: deviceId,
+        environment: environment,
+      );
+      return null;
+    }
+    if (status != 'closed') {
+      return null;
+    }
+    return _leaveSupplierDelivery(
+      sessionId: sessionId,
+      deviceId: deviceId,
+      closedAtRaw: payload['closed_at'],
+    );
+  }
+
+  void _joinSupplierDelivery({
+    required String sessionId,
+    required String deviceId,
+    required String environment,
+  }) {
+    final open = _db.select(
+      "SELECT id FROM supplier_deliveries WHERE status = 'open' ORDER BY opened_at LIMIT 1",
+    );
+    final deliveryId = open.isEmpty
+        ? _uuid.v4()
+        : open.first['id'] as String;
+    if (open.isEmpty) {
+      _db.execute(
+        '''
+INSERT INTO supplier_deliveries (id, status, opened_at, closed_at, mail_status)
+VALUES (?, 'open', ?, NULL, NULL)
+''',
+        [deliveryId, DateTime.now().toUtc().toIso8601String()],
+      );
+    }
+    final existing = _db.select(
+      'SELECT session_id FROM supplier_participants WHERE session_id = ?',
+      [sessionId],
+    );
+    if (existing.isEmpty) {
+      _db.execute(
+        '''
+INSERT INTO supplier_participants (
+  session_id, delivery_id, device_id, environment, active
+) VALUES (?, ?, ?, ?, 1)
+''',
+        [sessionId, deliveryId, deviceId, environment],
+      );
+    } else {
+      _db.execute(
+        '''
+UPDATE supplier_participants
+SET delivery_id = ?, device_id = ?, environment = ?, active = 1
+WHERE session_id = ?
+''',
+        [deliveryId, deviceId, environment, sessionId],
+      );
+    }
+  }
+
+  String? _leaveSupplierDelivery({
+    required String sessionId,
+    required String deviceId,
+    required Object? closedAtRaw,
+  }) {
+    final rows = _db.select(
+      '''
+SELECT delivery_id FROM supplier_participants
+WHERE session_id = ? OR (device_id = ? AND active = 1)
+ORDER BY CASE WHEN session_id = ? THEN 0 ELSE 1 END
+LIMIT 1
+''',
+      [sessionId, deviceId, sessionId],
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    final deliveryId = rows.first['delivery_id'] as String;
+    _db.execute(
+      '''
+UPDATE supplier_participants SET active = 0
+WHERE delivery_id = ? AND (session_id = ? OR device_id = ?)
+''',
+      [deliveryId, sessionId, deviceId],
+    );
+    final stillActive = _db.select(
+      '''
+SELECT COUNT(*) AS n FROM supplier_participants
+WHERE delivery_id = ? AND active = 1
+''',
+      [deliveryId],
+    );
+    final activeCount = (stillActive.first['n'] as int?) ?? 0;
+    if (activeCount > 0) {
+      return null;
+    }
+    final closedAt = closedAtRaw is String
+        ? DateTime.tryParse(closedAtRaw)?.toUtc().toIso8601String()
+        : null;
+    _db.execute(
+      '''
+UPDATE supplier_deliveries
+SET status = 'closed', closed_at = COALESCE(?, closed_at, ?)
+WHERE id = ? AND status = 'open'
+''',
+      [
+        closedAt,
+        DateTime.now().toUtc().toIso8601String(),
+        deliveryId,
+      ],
+    );
+    final mailed = _db.select(
+      'SELECT mail_status FROM supplier_deliveries WHERE id = ?',
+      [deliveryId],
+    );
+    final status = mailed.isEmpty
+        ? null
+        : mailed.first['mail_status']?.toString();
+    // `failed` is retried on the next leave path; only terminal successes skip.
+    if (status == 'sent' || status == 'stored' || status == 'empty') {
+      return null;
+    }
+    return deliveryId;
+  }
+
+  Future<String> _sendClosedDeliveryMail(String deliveryId) async {
+    final entries = _deliveryEntries(deliveryId);
+    if (entries.isEmpty) {
+      _db.execute(
+        'UPDATE supplier_deliveries SET mail_status = ? WHERE id = ?',
+        ['empty', deliveryId],
+      );
+      return 'empty';
+    }
+    final email = ownerEmail.trim();
+    final closedRow = _db.select(
+      'SELECT closed_at FROM supplier_deliveries WHERE id = ?',
+      [deliveryId],
+    );
+    final closedRaw = closedRow.isEmpty
+        ? null
+        : closedRow.first['closed_at']?.toString();
+    final closedAt = closedRaw == null || closedRaw.isEmpty
+        ? DateTime.now()
+        : DateTime.tryParse(closedRaw)?.toLocal() ?? DateTime.now();
+    final report = buildSupplierPackageReport(
+      entries: entries,
+      closedAt: closedAt,
+    );
+    if (!email.contains('@')) {
+      _db.execute(
+        'UPDATE supplier_deliveries SET mail_status = ? WHERE id = ?',
+        ['stored', deliveryId],
+      );
+      return 'stored';
+    }
+    try {
+      final emailed = await _mailer.send(
+        to: email,
+        subject: report.subject,
+        body: report.body,
+        html: report.html,
+      );
+      final status = emailed ? 'sent' : 'stored';
+      _db.execute(
+        'UPDATE supplier_deliveries SET mail_status = ? WHERE id = ?',
+        [status, deliveryId],
+      );
+      return status;
+    } on Object {
+      _db.execute(
+        'UPDATE supplier_deliveries SET mail_status = ? WHERE id = ?',
+        ['failed', deliveryId],
+      );
+      return 'failed';
+    }
+  }
+
+  List<SupplierEntry> _deliveryEntries(String deliveryId) {
+    final rows = _db.select(
+      '''
+SELECT environment, movement_id, event_type, occurred_at, product_name,
+       temperature, fridge_name, worker_name, quantity
+FROM refrigeration_logs
+WHERE package_id = ? AND event_type = 'check_in'
+ORDER BY environment, occurred_at
+''',
+      [deliveryId],
+    );
+    return [
+      for (final row in rows)
+        SupplierEntry(
+          environmentName: row['environment'] as String? ?? '',
+          line: StoredLogLine(
+            movementId: row['movement_id'] as String? ?? '',
+            eventType: row['event_type'] as String? ?? '',
+            occurredAt: DateTime.parse(row['occurred_at'] as String),
+            productName: row['product_name'] as String? ?? '',
+            temperature: (row['temperature'] as num?)?.toDouble(),
+            fridgeName: row['fridge_name'] as String? ?? '',
+            workerName: row['worker_name'] as String? ?? '',
+            quantity: (row['quantity'] as num?)?.toInt() ?? 1,
+          ),
+        ),
+    ];
   }
 
   bool _insertEvent({
@@ -684,12 +1144,29 @@ INSERT INTO sync_events (
     } else {
       throw const FormatException('A refrigeration log quantity is invalid.');
     }
+    // While this device is in מצב אספקה, tag the check-in with the shared
+    // open delivery so the final mail spans every fridge that took part.
+    final activeDelivery = _db.select(
+      '''
+SELECT delivery_id FROM supplier_participants
+WHERE device_id = ? AND active = 1
+ORDER BY session_id
+LIMIT 1
+''',
+      [deviceId],
+    );
+    final rawPackage = payload['package_id'];
+    final packageId = activeDelivery.isNotEmpty
+        ? activeDelivery.first['delivery_id'] as String?
+        : (rawPackage is String && rawPackage.trim().isNotEmpty
+              ? rawPackage.trim()
+              : null);
     _db.execute(
       '''
 INSERT INTO refrigeration_logs (
   id, environment, movement_id, event_type, occurred_at, product_name,
-  temperature, fridge_name, worker_name, quantity
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  temperature, fridge_name, worker_name, quantity, package_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''',
       [
         id,
@@ -702,6 +1179,7 @@ INSERT INTO refrigeration_logs (
         fridgeName is String ? fridgeName : '',
         workerName is String ? workerName : '',
         quantity,
+        eventType == 'check_in' ? packageId : null,
       ],
     );
     if (eventType != 'check_out') {

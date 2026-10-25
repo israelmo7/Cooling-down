@@ -44,6 +44,18 @@ class StoredNotice {
   final DateTime createdAt;
 }
 
+/// One environment that was on during the report day but not fully synced
+/// by the end of that day.
+class SyncGapNote {
+  const SyncGapNote({
+    required this.environmentName,
+    required this.unsynced,
+  });
+
+  final String environmentName;
+  final Duration unsynced;
+}
+
 class _Pair {
   StoredLogLine? checkIn;
   StoredLogLine? checkOut;
@@ -94,25 +106,130 @@ const _columns = [
   'מתי הוצא',
 ];
 
-/// How many stored actions the admin page and a quiet-day mail will list.
+/// How many stored actions the admin places page will list.
 const recentActionLimit = 30;
 
 /// The built-in table heading, shown read-only on the admin page.
 String get builtInReportHeading => _columns.join(' | ');
 
+/// Hebrew line for an incomplete sync, e.g. `מטבח: לא סונכרן במלואו · כ־3 שעות`.
+String formatSyncGapLine(SyncGapNote note) {
+  return '${note.environmentName}: לא סונכרן במלואו · ${_formatUnsynced(note.unsynced)}';
+}
+
+const _supplierColumns = [
+  'סביבה',
+  'מוצר',
+  'כמות',
+  'טמפ׳',
+  'מתי',
+  'מי',
+];
+
+/// One check-in row in a shared supplier delivery (may span environments).
+class SupplierEntry {
+  const SupplierEntry({
+    required this.environmentName,
+    required this.line,
+  });
+
+  final String environmentName;
+  final StoredLogLine line;
+}
+
+/// Entry-only table for a closed supplier delivery across tablets.
+ClosedDayReport buildSupplierPackageReport({
+  required List<SupplierEntry> entries,
+  DateTime? closedAt,
+  @Deprecated('Use entries[].environmentName') String? environmentName,
+}) {
+  final when = closedAt ?? DateTime.now();
+  final date = _dateKey(when.toLocal());
+  final sorted = [...entries]
+    ..sort((a, b) {
+      final byEnv = a.environmentName.compareTo(b.environmentName);
+      if (byEnv != 0) {
+        return byEnv;
+      }
+      return a.line.occurredAt.compareTo(b.line.occurredAt);
+    });
+  final buffer = StringBuffer()
+    ..writeln('מצב אספקה · $date')
+    ..writeln()
+    ..writeln(_supplierColumns.join(' | '));
+  if (sorted.isEmpty) {
+    buffer.writeln('אין תנועות.');
+  } else {
+    for (final entry in sorted) {
+      final line = entry.line;
+      buffer.writeln(
+        [
+          entry.environmentName,
+          line.productName,
+          '${line.quantity}',
+          line.temperature == null
+              ? '-'
+              : _ltr('${line.temperature!.toStringAsFixed(1)}°C'),
+          _clock(line.occurredAt),
+          line.workerName.trim().isEmpty ? '-' : line.workerName.trim(),
+        ].join(' | '),
+      );
+    }
+  }
+  final body = buffer.toString();
+  final head = _supplierColumns
+      .map(
+        (title) =>
+            '<th style="text-align:right;padding:10px 12px;border:1px solid #d7e0e4;background:#eef3f5;">${_escape(title)}</th>',
+      )
+      .join();
+  final rows = sorted.isEmpty
+      ? '<tr><td colspan="6" style="padding:12px;border:1px solid #d7e0e4;">אין תנועות.</td></tr>'
+      : sorted.map((entry) {
+          final line = entry.line;
+          final cells = [
+            _cell(entry.environmentName),
+            _cell(line.productName),
+            _cell('${line.quantity}'),
+            _cell(
+              line.temperature == null
+                  ? '-'
+                  : '${line.temperature!.toStringAsFixed(1)}°C',
+              ltr: true,
+            ),
+            _cell(_clock(line.occurredAt), ltr: true),
+            _cell(
+              line.workerName.trim().isEmpty ? '-' : line.workerName.trim(),
+            ),
+          ];
+          return '<tr>${cells.join()}</tr>';
+        }).join();
+  final html =
+      '''
+<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;color:#122428;background:#f4f7f8;padding:24px;">
+  <h1 style="font-size:22px;margin:0 0 12px;">מצב אספקה</h1>
+  <p style="margin:0 0 16px;">תאריך: ${_escape(date)}</p>
+  <table dir="rtl" style="width:100%;border-collapse:collapse;background:#ffffff;">
+    <thead><tr>$head</tr></thead>
+    <tbody>$rows</tbody>
+  </table>
+</div>
+''';
+  return ClosedDayReport(
+    subject: 'מצב אספקה · $date',
+    body: body,
+    html: html,
+  );
+}
+
 ClosedDayReport buildClosedDayReport({
   required String environmentName,
   required DateTime day,
   required List<StoredLogLine> logs,
-  required List<StoredNotice> notices,
+  List<SyncGapNote> syncGaps = const [],
 }) {
   final date = _dateKey(day);
   final rows = _rowsForDay(logs, day);
-  final dayNotices = notices
-      .where((row) => _sameDay(row.createdAt, day))
-      .toList();
-  final conclusion = _conclusion(rows, day, dayNotices);
-  final stored = rows.isEmpty ? logs : const <StoredLogLine>[];
   return ClosedDayReport(
     subject: 'דוח קירור · $environmentName · $date',
     body: _plain(
@@ -120,18 +237,14 @@ ClosedDayReport buildClosedDayReport({
       date: date,
       day: day,
       rows: rows,
-      notices: dayNotices,
-      conclusion: conclusion,
-      stored: stored,
+      syncGaps: syncGaps,
     ),
     html: _html(
       environmentName: environmentName,
       date: date,
       day: day,
       rows: rows,
-      notices: dayNotices,
-      conclusion: conclusion,
-      stored: stored,
+      syncGaps: syncGaps,
     ),
   );
 }
@@ -143,18 +256,14 @@ ClosedDayReport buildCustomReport({
   required String environmentName,
   required DateTime day,
   required List<StoredLogLine> logs,
-  required List<StoredNotice> notices,
+  List<StoredNotice> notices = const [],
+  List<SyncGapNote> syncGaps = const [],
 }) {
   final date = _dateKey(day);
   final rows = _rowsForDay(logs, day);
-  final dayNotices = notices
-      .where((row) => _sameDay(row.createdAt, day))
-      .toList();
-  final conclusion = _conclusion(rows, day, dayNotices);
-  final notes = dayNotices.isEmpty
-      ? 'אין אזהרות.'
-      : dayNotices.map((notice) => notice.message).join('\n');
-  final stored = rows.isEmpty ? logs : const <StoredLogLine>[];
+  final notes = notices.isEmpty
+      ? ''
+      : notices.map((notice) => notice.message).join('\n');
   final body = _fillTemplate(
     template: template,
     environmentName: environmentName,
@@ -162,10 +271,9 @@ ClosedDayReport buildCustomReport({
     day: day,
     rows: rows,
     notes: notes,
-    conclusion: conclusion,
   );
-  final storedText = _storedText(stored);
-  final fullBody = storedText.isEmpty ? body : '$body\n\n$storedText';
+  final gapText = _syncGapPlain(syncGaps);
+  final fullBody = gapText.isEmpty ? body : '$body\n\n$gapText';
   final columns = _columnsIn(template);
   return ClosedDayReport(
     subject: 'דוח קירור · $environmentName · $date',
@@ -177,12 +285,8 @@ ClosedDayReport buildCustomReport({
             date: date,
             day: day,
             rows: rows,
-            notices: dayNotices,
-            conclusion: conclusion,
-            stored: stored,
+            syncGaps: syncGaps,
             columns: columns,
-            showNotes: template.contains('{{notes}}'),
-            showConclusion: template.contains('{{conclusion}}'),
           ),
   );
 }
@@ -194,7 +298,6 @@ String _fillTemplate({
   required DateTime day,
   required List<_ReportRow> rows,
   required String notes,
-  required String conclusion,
 }) {
   final block = RegExp(r'\{\{rows\}\}([\s\S]*?)\{\{/rows\}\}');
   final match = block.firstMatch(template);
@@ -216,7 +319,7 @@ String _fillTemplate({
       .replaceAll('{{environment}}', environmentName)
       .replaceAll('{{date}}', date)
       .replaceAll('{{notes}}', notes)
-      .replaceAll('{{conclusion}}', conclusion);
+      .replaceAll('{{conclusion}}', '');
   for (final token in [
     'product',
     'quantity',
@@ -230,32 +333,6 @@ String _fillTemplate({
     text = text.replaceAll('{{$token}}', '');
   }
   return text;
-}
-
-String _conclusion(
-  List<_ReportRow> rows,
-  DateTime day,
-  List<StoredNotice> dayNotices,
-) {
-  final checkIns = rows
-      .where(
-        (row) => row.checkIn != null && _sameDay(row.checkIn!.occurredAt, day),
-      )
-      .length;
-  final checkOuts = rows
-      .where(
-        (row) =>
-            row.checkOut != null && _sameDay(row.checkOut!.occurredAt, day),
-      )
-      .length;
-  final counts = '($checkIns קליטות, $checkOuts הוצאות)';
-  if (dayNotices.isEmpty) {
-    return 'מסקנה: היום נסגר לפי מה שכבר הגיע למחשב $counts.';
-  }
-  if (dayNotices.length == 1) {
-    return 'מסקנה: יש הערה אחת שדורשת בדיקה $counts.';
-  }
-  return 'מסקנה: יש ${dayNotices.length} הערות שדורשות בדיקה $counts.';
 }
 
 /// One row per movement that was checked in or checked out on [day].
@@ -333,9 +410,7 @@ String _plain({
   required String date,
   required DateTime day,
   required List<_ReportRow> rows,
-  required List<StoredNotice> notices,
-  required String conclusion,
-  required List<StoredLogLine> stored,
+  required List<SyncGapNote> syncGaps,
 }) {
   final buffer = StringBuffer()
     ..writeln('סביבה: $environmentName')
@@ -344,12 +419,6 @@ String _plain({
     ..writeln(_columns.join(' | '));
   if (rows.isEmpty) {
     buffer.writeln('אין תנועות.');
-    final remembered = _storedText(stored);
-    if (remembered.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..writeln(remembered);
-    }
   } else {
     for (final row in rows) {
       buffer.writeln(
@@ -364,19 +433,12 @@ String _plain({
       );
     }
   }
-  buffer
-    ..writeln()
-    ..writeln('הערות');
-  if (notices.isEmpty) {
-    buffer.writeln('אין אזהרות.');
-  } else {
-    for (final notice in notices) {
-      buffer.writeln('- ${notice.message}');
-    }
+  final gaps = _syncGapPlain(syncGaps);
+  if (gaps.isNotEmpty) {
+    buffer
+      ..writeln()
+      ..write(gaps);
   }
-  buffer
-    ..writeln()
-    ..write(conclusion);
   return buffer.toString();
 }
 
@@ -456,12 +518,8 @@ String _html({
   required String date,
   required DateTime day,
   required List<_ReportRow> rows,
-  required List<StoredNotice> notices,
-  required String conclusion,
-  required List<StoredLogLine> stored,
+  required List<SyncGapNote> syncGaps,
   List<_ReportColumn> columns = _allColumns,
-  bool showNotes = true,
-  bool showConclusion = true,
 }) {
   final head = columns
       .map(
@@ -478,17 +536,7 @@ String _html({
           ];
           return '<tr>${cells.join()}</tr>';
         }).join();
-  final notes = notices.isEmpty
-      ? '<p style="margin:0;">אין אזהרות.</p>'
-      : '<ul style="margin:0;padding-right:20px;">${notices.map((notice) => '<li>${_escape(notice.message)}</li>').join()}</ul>';
-  final notesBlock = showNotes
-      ? '''
-  <h2 style="font-size:16px;margin:20px 0 8px;">הערות</h2>
-  $notes'''
-      : '';
-  final conclusionBlock = showConclusion
-      ? '<p style="margin:16px 0 0;">${_escape(conclusion)}</p>'
-      : '';
+  final gapBlock = _syncGapHtml(syncGaps);
   return '''
 <div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;color:#122428;background:#f4f7f8;padding:24px;">
   <h1 style="font-size:22px;margin:0 0 12px;">דוח קירור</h1>
@@ -498,78 +546,45 @@ String _html({
     <thead><tr>$head</tr></thead>
     <tbody>$body</tbody>
   </table>
-  $notesBlock
-  ${_storedHtml(stored)}
-  $conclusionBlock
+  $gapBlock
 </div>
 ''';
 }
 
-List<StoredLogLine> _recent(List<StoredLogLine> logs) {
-  final recent = [...logs]
-    ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-  if (recent.length <= recentActionLimit) {
-    return recent;
-  }
-  return recent.sublist(0, recentActionLimit);
-}
-
-String _storedText(List<StoredLogLine> logs) {
-  if (logs.isEmpty) {
+String _syncGapPlain(List<SyncGapNote> gaps) {
+  if (gaps.isEmpty) {
     return '';
   }
-  final recent = _recent(logs);
-  final buffer = StringBuffer('תנועות אחרונות שנשמרו');
-  for (final line in recent) {
-    buffer.writeln();
-    buffer.write(
-      '${_stamp(line.occurredAt)} ${line.productName} ${_eventWord(line.eventType)}',
-    );
-  }
-  if (logs.length > recent.length) {
-    buffer.writeln();
-    buffer.write(
-      'מוצגות ${recent.length} התנועות האחרונות מתוך ${logs.length}.',
-    );
-  }
-  return buffer.toString();
+  return gaps.map(formatSyncGapLine).join('\n');
 }
 
-String _storedHtml(List<StoredLogLine> logs) {
-  if (logs.isEmpty) {
+String _syncGapHtml(List<SyncGapNote> gaps) {
+  if (gaps.isEmpty) {
     return '';
   }
-  final recent = _recent(logs);
-  final items = recent
+  final lines = gaps
       .map(
-        (line) =>
-            '<li>${_escape(_stamp(line.occurredAt))} ${_escape(line.productName)} ${_escape(_eventWord(line.eventType))}</li>',
+        (note) =>
+            '<p style="margin:8px 0 0;">${_escape(formatSyncGapLine(note))}</p>',
       )
       .join();
-  final more = logs.length > recent.length
-      ? '<p style="margin:8px 0 0;">מוצגות ${recent.length} התנועות האחרונות מתוך ${logs.length}.</p>'
-      : '';
-  return '''
-  <h2 style="font-size:16px;margin:20px 0 8px;">תנועות אחרונות שנשמרו</h2>
-  <ul style="margin:0;padding-right:20px;">$items</ul>
-  $more''';
+  return '<div style="margin-top:16px;">$lines</div>';
 }
 
-String _eventWord(String eventType) {
-  if (eventType == 'check_in') {
-    return 'קליטה';
+String _formatUnsynced(Duration gap) {
+  final minutes = gap.inMinutes;
+  if (minutes < 1) {
+    return 'פחות מדקה';
   }
-  if (eventType == 'check_out') {
-    return 'הוצאה';
+  if (minutes < 60) {
+    return 'כ־$minutes דקות';
   }
-  return eventType;
-}
-
-String _stamp(DateTime instant) {
-  final local = instant.toLocal();
-  final day = local.day.toString().padLeft(2, '0');
-  final month = local.month.toString().padLeft(2, '0');
-  return '$day/$month ${_clock(instant)}';
+  final hours = gap.inHours;
+  if (hours < 48) {
+    return 'כ־$hours שעות';
+  }
+  final days = gap.inDays;
+  return 'כ־$days ימים';
 }
 
 String _cell(String value, {bool ltr = false}) {
