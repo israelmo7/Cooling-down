@@ -11,18 +11,18 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:test/test.dart';
 
 void main() {
-  test('the same log id is stored once', () {
+  test('the same log id is stored once', () async {
     final store = SyncStore.memory();
     addTearDown(store.close);
     final log = _log(id: 'log-1', movementId: 'move-1', eventType: 'check_in');
 
-    final first = store.exchange(
+    final first = await store.exchange(
       deviceId: 'tablet-a',
       environment: 'Kitchen',
       cursor: 0,
       push: [_push('refrigeration_log', log)],
     );
-    final second = store.exchange(
+    final second = await store.exchange(
       deviceId: 'tablet-a',
       environment: 'Kitchen',
       cursor: first['cursor'] as int,
@@ -35,10 +35,10 @@ void main() {
     expect((first['changes'] as List), hasLength(1));
   });
 
-  test('a second check-out is kept and flagged', () {
+  test('a second check-out is kept and flagged', () async {
     final store = SyncStore.memory();
     addTearDown(store.close);
-    store.exchange(
+    await store.exchange(
       deviceId: 'tablet-a',
       environment: 'Kitchen',
       cursor: 0,
@@ -54,7 +54,7 @@ void main() {
       ],
     );
 
-    final second = store.exchange(
+    final second = await store.exchange(
       deviceId: 'tablet-b',
       environment: 'Kitchen',
       cursor: 0,
@@ -76,6 +76,125 @@ void main() {
       (row) => row['entity_type'] == 'alert',
     );
     expect(alert['payload']['kind'], 'sync_conflict');
+  });
+
+  test('partial check-outs are fine, an over-large one is flagged', () async {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    Map<String, dynamic> withQuantity(
+      Map<String, dynamic> log,
+      Object? quantity,
+    ) => {...log, 'quantity': quantity};
+
+    final partial = await store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'Kitchen',
+      cursor: 0,
+      push: [
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'in-p', movementId: 'move-p', eventType: 'check_in'),
+            5,
+          ),
+        ),
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'out-p1', movementId: 'move-p', eventType: 'check_out'),
+            2,
+          ),
+        ),
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'out-p2', movementId: 'move-p', eventType: 'check_out'),
+            3,
+          ),
+        ),
+      ],
+    );
+    expect(partial['conflicts'], isEmpty);
+
+    await store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'Kitchen',
+      cursor: 0,
+      push: [
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'in-q', movementId: 'move-q', eventType: 'check_in'),
+            3,
+          ),
+        ),
+      ],
+    );
+    final over = await store.exchange(
+      deviceId: 'tablet-b',
+      environment: 'Kitchen',
+      cursor: 0,
+      push: [
+        _push(
+          'refrigeration_log',
+          withQuantity(
+            _log(id: 'out-q', movementId: 'move-q', eventType: 'check_out'),
+            1000,
+          ),
+        ),
+      ],
+    );
+    final conflicts = over['conflicts'] as List;
+    expect(conflicts, hasLength(1));
+    expect(
+      (conflicts.single as Map)['reason'],
+      'checkout quantity exceeds check-in',
+    );
+  });
+
+  test('a malformed quantity, temperature, or date is refused', () async {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    final badPayloads = <Map<String, dynamic>>[
+      {
+        ..._log(id: 'bad-1', movementId: 'move-b1', eventType: 'check_in'),
+        'quantity': 0,
+      },
+      {
+        ..._log(id: 'bad-2', movementId: 'move-b2', eventType: 'check_in'),
+        'quantity': 10000,
+      },
+      {
+        ..._log(id: 'bad-3', movementId: 'move-b3', eventType: 'check_in'),
+        'quantity': 2.5,
+      },
+      {
+        ..._log(id: 'bad-4', movementId: 'move-b4', eventType: 'check_in'),
+        'quantity': '3',
+      },
+      {
+        ..._log(id: 'bad-5', movementId: 'move-b5', eventType: 'check_in'),
+        'temperature_celsius': 999,
+      },
+      {..._log(id: 'bad-6', movementId: 'move-b6', eventType: 'sideways')},
+      {
+        ..._log(id: 'bad-7', movementId: 'move-b7', eventType: 'check_in'),
+        'occurred_at': 'not-a-date',
+      },
+    ];
+    for (final payload in badPayloads) {
+      await expectLater(
+        store.exchange(
+          deviceId: 'tablet-a',
+          environment: 'Kitchen',
+          cursor: 0,
+          push: [_push('refrigeration_log', payload)],
+        ),
+        throwsFormatException,
+        reason: '${payload['id']} should be refused',
+      );
+    }
+    expect(store.logsFor('Kitchen'), isEmpty);
   });
 
   test('the first email wins and a later report is already sent', () async {
@@ -119,6 +238,221 @@ void main() {
     expect(result['status'], 'stored');
   });
 
+  test('midnight mail keeps the report body in the database', () async {
+    final mailer = _RecordingMailer();
+    final store = SyncStore.memory(
+      mailer: mailer,
+      ownerEmail: 'owner@shop.test',
+    );
+    addTearDown(store.close);
+    await store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      now: DateTime(2026, 10, 11, 15),
+      push: [
+        _push('refrigeration_log', {
+          ..._log(id: 'log-keep', movementId: 'move-keep', eventType: 'check_in'),
+          'product_name_snapshot': 'חלב',
+          'fridge_name': 'מקרר',
+          'worker_name_snapshot': 'דנה',
+          'temperature_celsius': 4.0,
+          'quantity': 1,
+          'occurred_at': DateTime(2026, 10, 11, 15).toUtc().toIso8601String(),
+        }),
+      ],
+    );
+
+    await store.sendClosedDay(DateTime(2026, 10, 12, 0, 5));
+    final stored = store.reportsFor('מטבח');
+    expect(stored, hasLength(1));
+    expect(stored.single['status'], 'sent');
+    expect(stored.single['body'], contains('חלב'));
+    expect(stored.single['body'], contains('מוצר | כמות'));
+  });
+
+  test('sync gap appears only when a tablet was on but not fully synced', () async {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    final day = DateTime(2026, 10, 11);
+    // Contacted at noon, then stayed offline for the rest of the day.
+    await store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      pendingCount: 0,
+      now: DateTime(2026, 10, 11, 12),
+      push: const [],
+    );
+
+    // During the report day itself the morning mail has not run yet.
+    expect(
+      store.syncGapsForDay(day, asOf: DateTime(2026, 10, 11, 23)),
+      isEmpty,
+    );
+
+    final gaps = store.syncGapsForDay(
+      day,
+      asOf: DateTime(2026, 10, 12, 0, 10),
+    );
+    expect(gaps, hasLength(1));
+    expect(gaps.single.environmentName, 'מטבח');
+    expect(gaps.single.unsynced, const Duration(hours: 12));
+
+    // Fully synced after midnight clears the morning gap.
+    await store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      pendingCount: 0,
+      now: DateTime(2026, 10, 12, 0, 2),
+      push: const [],
+    );
+    expect(
+      store.syncGapsForDay(day, asOf: DateTime(2026, 10, 12, 0, 10)),
+      isEmpty,
+    );
+  });
+
+  test('last tablet leaving shared delivery mails entries', () async {
+    final mailer = _RecordingMailer();
+    final store = SyncStore.memory(
+      mailer: mailer,
+      ownerEmail: 'owner@shop.test',
+    );
+    addTearDown(store.close);
+
+    await store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      push: [
+        _push('receiving_package', {
+          'id': 'sess-a',
+          'session_id': 'sess-a',
+          'status': 'open',
+        }),
+        _push('refrigeration_log', {
+          ..._log(
+            id: 'in-a',
+            movementId: 'move-a',
+            eventType: 'check_in',
+          ),
+          'product_name_snapshot': 'חלב',
+          'temperature_celsius': 4.0,
+          'quantity': 3,
+          'package_id': 'sess-a',
+          'worker_name_snapshot': 'דנה',
+        }),
+      ],
+    );
+    expect(mailer.sent, 0);
+
+    await store.exchange(
+      deviceId: 'tablet-b',
+      environment: 'בר',
+      cursor: 0,
+      push: [
+        _push('receiving_package', {
+          'id': 'sess-b',
+          'session_id': 'sess-b',
+          'status': 'open',
+        }),
+        _push('refrigeration_log', {
+          ..._log(
+            id: 'in-b',
+            movementId: 'move-b',
+            eventType: 'check_in',
+          ),
+          'product_name_snapshot': 'גבינה',
+          'temperature_celsius': 5.0,
+          'quantity': 1,
+          'package_id': 'sess-b',
+          'worker_name_snapshot': 'יוסי',
+        }),
+      ],
+    );
+    expect(mailer.sent, 0);
+
+    await store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      push: [
+        _push('receiving_package', {
+          'id': 'sess-a:closed',
+          'session_id': 'sess-a',
+          'status': 'closed',
+          'closed_at': DateTime(2026, 10, 11, 16).toUtc().toIso8601String(),
+        }),
+      ],
+    );
+    expect(mailer.sent, 0);
+
+    await store.exchange(
+      deviceId: 'tablet-b',
+      environment: 'בר',
+      cursor: 0,
+      push: [
+        _push('receiving_package', {
+          'id': 'sess-b:closed',
+          'session_id': 'sess-b',
+          'status': 'closed',
+          'closed_at': DateTime(2026, 10, 11, 16, 5).toUtc().toIso8601String(),
+        }),
+      ],
+    );
+
+    expect(mailer.sent, 1);
+    expect(mailer.lastSubject, contains('מצב אספקה'));
+    expect(mailer.lastBody, contains('מטבח'));
+    expect(mailer.lastBody, contains('בר'));
+    expect(mailer.lastBody, contains('חלב'));
+    expect(mailer.lastBody, contains('גבינה'));
+    expect(mailer.lastBody, isNot(contains('איך הוצא')));
+  });
+
+  test('empty shared delivery does not mail', () async {
+    final mailer = _RecordingMailer();
+    final store = SyncStore.memory(
+      mailer: mailer,
+      ownerEmail: 'owner@shop.test',
+    );
+    addTearDown(store.close);
+
+    await store.exchange(
+      deviceId: 'tablet-a',
+      environment: 'מטבח',
+      cursor: 0,
+      push: [
+        _push('receiving_package', {
+          'id': 'sess-empty',
+          'session_id': 'sess-empty',
+          'status': 'open',
+        }),
+        _push('receiving_package', {
+          'id': 'sess-empty:closed',
+          'session_id': 'sess-empty',
+          'status': 'closed',
+          'closed_at': DateTime(2026, 10, 11, 17).toUtc().toIso8601String(),
+        }),
+      ],
+    );
+    expect(mailer.sent, 0);
+  });
+
+  test('a tablet that never contacted that day has no sync gap line', () {
+    final store = SyncStore.memory();
+    addTearDown(store.close);
+    expect(
+      store.syncGapsForDay(
+        DateTime(2026, 10, 11),
+        asOf: DateTime(2026, 10, 12, 1),
+      ),
+      isEmpty,
+    );
+  });
+
   test('sync requires the bearer token', () async {
     final store = SyncStore.memory();
     addTearDown(store.close);
@@ -149,10 +483,10 @@ void main() {
     expect(allowed.json['cursor'], 0);
   });
 
-  test('a tablet does not receive another environment', () {
+  test('a tablet does not receive another environment', () async {
     final store = SyncStore.memory();
     addTearDown(store.close);
-    store.exchange(
+    await store.exchange(
       deviceId: 'tablet-a',
       environment: 'מטבח',
       cursor: 0,
@@ -164,7 +498,7 @@ void main() {
       ],
     );
 
-    final other = store.exchange(
+    final other = await store.exchange(
       deviceId: 'tablet-b',
       environment: 'בית מרקחת',
       cursor: 0,
@@ -233,11 +567,12 @@ void main() {
     expect(places.body, isNot(contains('name="owner_email"')));
   });
 
-  test('the environment list keeps the latest actions only', () async {
+  test('the places tab summarizes today per environment', () async {
     final store = SyncStore.memory();
     addTearDown(store.close);
+    final now = DateTime.now();
     for (var index = 0; index < 2; index++) {
-      store.exchange(
+      await store.exchange(
         deviceId: 'tablet-a',
         environment: 'מטבח',
         cursor: 0,
@@ -250,9 +585,9 @@ void main() {
             ),
             'product_name_snapshot': 'חלב',
             'occurred_at': DateTime(
-              2026,
-              10,
-              11,
+              now.year,
+              now.month,
+              now.day,
               8,
               index,
             ).toUtc().toIso8601String(),
@@ -283,8 +618,8 @@ void main() {
       '/admin?tab=places',
       cookie: allowed.cookie,
     );
-    expect(places.body, contains('הרשימה נעצרת ב-30'));
-    expect(places.body, contains('מתוך 2'));
+    expect(places.body, contains('תמונת מצב להיום'));
+    expect(places.body, contains('היום: 2 קליטות · 0 הוצאות'));
     expect(places.body, contains('חלב'));
   });
 
@@ -296,7 +631,7 @@ void main() {
     );
     addTearDown(store.close);
     final occurred = DateTime(2026, 10, 11, 15);
-    store.exchange(
+    await store.exchange(
       deviceId: 'tablet-a',
       environment: 'מטבח',
       cursor: 0,
@@ -307,6 +642,7 @@ void main() {
           'fridge_name': 'מקרר מטבח',
           'worker_name_snapshot': 'דנה',
           'temperature_celsius': 4.0,
+          'quantity': 5,
           'occurred_at': occurred.toUtc().toIso8601String(),
         }),
       ],
@@ -321,11 +657,14 @@ void main() {
     expect(mailer.lastTo, 'owner@shop.test');
     expect(mailer.lastSubject, contains('2026-10-11'));
     expect(mailer.lastBody, contains('חלב'));
+    expect(mailer.lastHtml, contains('<table'));
+    expect(mailer.lastHtml, contains('>חלב</td>'));
     expect(mailer.lastBody, contains('דנה'));
-    expect(mailer.lastBody, contains('מסקנה:'));
+    expect(mailer.lastBody, isNot(contains('מסקנה:')));
+    expect(mailer.lastBody, isNot(contains('הערות')));
     expect(
       mailer.lastBody,
-      contains('חלב | \u20664.0°C\u2069 · דנה · מקרר מטבח | 15:00 | - | -'),
+      contains('חלב | 5 | \u20664.0°C\u2069 · דנה · מקרר מטבח | 15:00 | - | -'),
     );
     expect(mailer.lastHtml, contains('<table'));
     expect(mailer.lastHtml, contains('>חלב</td>'));
@@ -436,9 +775,11 @@ void main() {
 
     final statuses = await store.sendClosedDay(DateTime(2026, 10, 12, 0, 1));
 
-    expect(statuses, ['sent', 'sent']);
-    expect(mailer.sent, 2);
-    expect(mailer.tos, ['owner@shop.test', 'owner@shop.test']);
+    expect(statuses, ['sent']);
+    expect(mailer.sent, 1);
+    expect(mailer.tos, ['owner@shop.test']);
+    expect(mailer.lastHtml, contains('מטבח'));
+    expect(mailer.lastHtml, contains('בית מרקחת'));
   });
 
   test('the test button sends today to the shop address', () async {
@@ -449,7 +790,7 @@ void main() {
     );
     addTearDown(store.close);
     final now = DateTime.now();
-    store.exchange(
+    await store.exchange(
       deviceId: 'tablet-a',
       environment: 'מטבח',
       cursor: 0,
@@ -502,6 +843,8 @@ void main() {
     expect(mailer.sent, 1);
     expect(mailer.lastTo, 'owner@shop.test');
     expect(mailer.lastBody, contains('חלב'));
+    expect(mailer.lastHtml, contains('<table'));
+    expect(mailer.lastHtml, contains('>חלב</td>'));
 
     final again = await _form(
       client,
@@ -511,7 +854,7 @@ void main() {
       cookie: allowed.cookie,
     );
     expect(again.status, 302);
-    expect(mailer.sent, 1);
+    expect(mailer.sent, 2);
   });
 
   test('the report waits until the chosen hour', () async {
@@ -521,7 +864,7 @@ void main() {
       ownerEmail: 'owner@shop.test',
     );
     addTearDown(store.close);
-    store.exchange(
+    await store.exchange(
       deviceId: 'tablet-a',
       environment: 'מטבח',
       cursor: 0,
@@ -554,6 +897,13 @@ void main() {
     expect(due, ['sent']);
     expect(again, isEmpty);
     expect(mailer.sent, 1);
+
+    final moved = await store.sendClosedDay(
+      DateTime(2026, 10, 12, 21),
+      reportTime: const ReportTime(21, 0),
+    );
+    expect(moved, ['sent']);
+    expect(mailer.sent, 2);
   });
 
   test(
@@ -607,6 +957,19 @@ void main() {
       expect(page.body, contains('שעת הדוח'));
       expect(page.body, contains('שליחת דוח לבדיקה'));
       expect(page.body, isNot(contains('name="sync_token"')));
+      expect(page.body, isNot(contains('value="panel-secret"')));
+      expect(page.body, isNot(contains('value="new pass"')));
+
+      final blankPassword = await _form(client, server.port, '/admin/save', {
+        'admin_user': 'owner',
+        'admin_password': '',
+        'time_zone': 'UTC',
+        'report_time': '00:00',
+        'report_format': 'builtin',
+        'owner_email': 'owner@shop.test',
+      }, cookie: allowed.cookie);
+      expect(blankPassword.status, 302);
+      expect(loadEnvFile(envFile)['ADMIN_PASSWORD'], 'panel-secret');
 
       final renamed = await _form(client, server.port, '/admin/save', {
         'admin_user': 'shop',
@@ -703,11 +1066,12 @@ void main() {
       final shown = await _get(
         client,
         server.port,
-        '/admin',
+        '/admin?tab=report',
         cookie: allowed.cookie,
       );
       expect(shown.body, contains('הדוח הקבוע'));
-      expect(shown.body, contains('סביבה: {{environment}}'));
+      expect(shown.body, contains('איך נקלט'));
+      expect(shown.body, contains('value="custom" checked'));
       expect(shown.body, isNot(contains('name="smtp_password"')));
     },
   );

@@ -1055,6 +1055,38 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         requiredDuringInsert: false,
         defaultValue: const Constant(''),
       );
+  static const VerificationMeta _dueAtMeta = const VerificationMeta('dueAt');
+  @override
+  late final GeneratedColumn<DateTime> dueAt = GeneratedColumn<DateTime>(
+    'due_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _packageIdMeta = const VerificationMeta(
+    'packageId',
+  );
+  @override
+  late final GeneratedColumn<String> packageId = GeneratedColumn<String>(
+    'package_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1068,6 +1100,9 @@ class $RefrigerationLogsTable extends RefrigerationLogs
     createdAt,
     originDeviceId,
     workerNameSnapshot,
+    dueAt,
+    quantity,
+    packageId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1166,6 +1201,24 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         ),
       );
     }
+    if (data.containsKey('due_at')) {
+      context.handle(
+        _dueAtMeta,
+        dueAt.isAcceptableOrUnknown(data['due_at']!, _dueAtMeta),
+      );
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    }
+    if (data.containsKey('package_id')) {
+      context.handle(
+        _packageIdMeta,
+        packageId.isAcceptableOrUnknown(data['package_id']!, _packageIdMeta),
+      );
+    }
     return context;
   }
 
@@ -1221,6 +1274,18 @@ class $RefrigerationLogsTable extends RefrigerationLogs
         DriftSqlType.string,
         data['${effectivePrefix}worker_name_snapshot'],
       )!,
+      dueAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_at'],
+      ),
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      packageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}package_id'],
+      ),
     );
   }
 
@@ -1246,6 +1311,9 @@ class RefrigerationLogRow extends DataClass
   final DateTime createdAt;
   final String originDeviceId;
   final String workerNameSnapshot;
+  final DateTime? dueAt;
+  final int quantity;
+  final String? packageId;
   const RefrigerationLogRow({
     required this.id,
     required this.movementId,
@@ -1258,6 +1326,9 @@ class RefrigerationLogRow extends DataClass
     required this.createdAt,
     required this.originDeviceId,
     required this.workerNameSnapshot,
+    this.dueAt,
+    required this.quantity,
+    this.packageId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1277,6 +1348,13 @@ class RefrigerationLogRow extends DataClass
     map['created_at'] = Variable<DateTime>(createdAt);
     map['origin_device_id'] = Variable<String>(originDeviceId);
     map['worker_name_snapshot'] = Variable<String>(workerNameSnapshot);
+    if (!nullToAbsent || dueAt != null) {
+      map['due_at'] = Variable<DateTime>(dueAt);
+    }
+    map['quantity'] = Variable<int>(quantity);
+    if (!nullToAbsent || packageId != null) {
+      map['package_id'] = Variable<String>(packageId);
+    }
     return map;
   }
 
@@ -1293,6 +1371,13 @@ class RefrigerationLogRow extends DataClass
       createdAt: Value(createdAt),
       originDeviceId: Value(originDeviceId),
       workerNameSnapshot: Value(workerNameSnapshot),
+      dueAt: dueAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueAt),
+      quantity: Value(quantity),
+      packageId: packageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(packageId),
     );
   }
 
@@ -1319,6 +1404,9 @@ class RefrigerationLogRow extends DataClass
       workerNameSnapshot: serializer.fromJson<String>(
         json['workerNameSnapshot'],
       ),
+      dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      packageId: serializer.fromJson<String?>(json['packageId']),
     );
   }
   @override
@@ -1336,6 +1424,9 @@ class RefrigerationLogRow extends DataClass
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'originDeviceId': serializer.toJson<String>(originDeviceId),
       'workerNameSnapshot': serializer.toJson<String>(workerNameSnapshot),
+      'dueAt': serializer.toJson<DateTime?>(dueAt),
+      'quantity': serializer.toJson<int>(quantity),
+      'packageId': serializer.toJson<String?>(packageId),
     };
   }
 
@@ -1351,6 +1442,9 @@ class RefrigerationLogRow extends DataClass
     DateTime? createdAt,
     String? originDeviceId,
     String? workerNameSnapshot,
+    Value<DateTime?> dueAt = const Value.absent(),
+    int? quantity,
+    Value<String?> packageId = const Value.absent(),
   }) => RefrigerationLogRow(
     id: id ?? this.id,
     movementId: movementId ?? this.movementId,
@@ -1363,6 +1457,9 @@ class RefrigerationLogRow extends DataClass
     createdAt: createdAt ?? this.createdAt,
     originDeviceId: originDeviceId ?? this.originDeviceId,
     workerNameSnapshot: workerNameSnapshot ?? this.workerNameSnapshot,
+    dueAt: dueAt.present ? dueAt.value : this.dueAt,
+    quantity: quantity ?? this.quantity,
+    packageId: packageId.present ? packageId.value : this.packageId,
   );
   RefrigerationLogRow copyWithCompanion(RefrigerationLogsCompanion data) {
     return RefrigerationLogRow(
@@ -1389,6 +1486,9 @@ class RefrigerationLogRow extends DataClass
       workerNameSnapshot: data.workerNameSnapshot.present
           ? data.workerNameSnapshot.value
           : this.workerNameSnapshot,
+      dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      packageId: data.packageId.present ? data.packageId.value : this.packageId,
     );
   }
 
@@ -1405,7 +1505,10 @@ class RefrigerationLogRow extends DataClass
           ..write('occurredAt: $occurredAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('originDeviceId: $originDeviceId, ')
-          ..write('workerNameSnapshot: $workerNameSnapshot')
+          ..write('workerNameSnapshot: $workerNameSnapshot, ')
+          ..write('dueAt: $dueAt, ')
+          ..write('quantity: $quantity, ')
+          ..write('packageId: $packageId')
           ..write(')'))
         .toString();
   }
@@ -1423,6 +1526,9 @@ class RefrigerationLogRow extends DataClass
     createdAt,
     originDeviceId,
     workerNameSnapshot,
+    dueAt,
+    quantity,
+    packageId,
   );
   @override
   bool operator ==(Object other) =>
@@ -1438,7 +1544,10 @@ class RefrigerationLogRow extends DataClass
           other.occurredAt == this.occurredAt &&
           other.createdAt == this.createdAt &&
           other.originDeviceId == this.originDeviceId &&
-          other.workerNameSnapshot == this.workerNameSnapshot);
+          other.workerNameSnapshot == this.workerNameSnapshot &&
+          other.dueAt == this.dueAt &&
+          other.quantity == this.quantity &&
+          other.packageId == this.packageId);
 }
 
 class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
@@ -1453,6 +1562,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
   final Value<DateTime> createdAt;
   final Value<String> originDeviceId;
   final Value<String> workerNameSnapshot;
+  final Value<DateTime?> dueAt;
+  final Value<int> quantity;
+  final Value<String?> packageId;
   final Value<int> rowid;
   const RefrigerationLogsCompanion({
     this.id = const Value.absent(),
@@ -1466,6 +1578,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     this.createdAt = const Value.absent(),
     this.originDeviceId = const Value.absent(),
     this.workerNameSnapshot = const Value.absent(),
+    this.dueAt = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.packageId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RefrigerationLogsCompanion.insert({
@@ -1480,6 +1595,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     required DateTime createdAt,
     this.originDeviceId = const Value.absent(),
     this.workerNameSnapshot = const Value.absent(),
+    this.dueAt = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.packageId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        movementId = Value(movementId),
@@ -1502,6 +1620,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     Expression<DateTime>? createdAt,
     Expression<String>? originDeviceId,
     Expression<String>? workerNameSnapshot,
+    Expression<DateTime>? dueAt,
+    Expression<int>? quantity,
+    Expression<String>? packageId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1518,6 +1639,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
       if (originDeviceId != null) 'origin_device_id': originDeviceId,
       if (workerNameSnapshot != null)
         'worker_name_snapshot': workerNameSnapshot,
+      if (dueAt != null) 'due_at': dueAt,
+      if (quantity != null) 'quantity': quantity,
+      if (packageId != null) 'package_id': packageId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1534,6 +1658,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     Value<DateTime>? createdAt,
     Value<String>? originDeviceId,
     Value<String>? workerNameSnapshot,
+    Value<DateTime?>? dueAt,
+    Value<int>? quantity,
+    Value<String?>? packageId,
     Value<int>? rowid,
   }) {
     return RefrigerationLogsCompanion(
@@ -1548,6 +1675,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
       createdAt: createdAt ?? this.createdAt,
       originDeviceId: originDeviceId ?? this.originDeviceId,
       workerNameSnapshot: workerNameSnapshot ?? this.workerNameSnapshot,
+      dueAt: dueAt ?? this.dueAt,
+      quantity: quantity ?? this.quantity,
+      packageId: packageId ?? this.packageId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1592,6 +1722,15 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
     if (workerNameSnapshot.present) {
       map['worker_name_snapshot'] = Variable<String>(workerNameSnapshot.value);
     }
+    if (dueAt.present) {
+      map['due_at'] = Variable<DateTime>(dueAt.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (packageId.present) {
+      map['package_id'] = Variable<String>(packageId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1612,6 +1751,9 @@ class RefrigerationLogsCompanion extends UpdateCompanion<RefrigerationLogRow> {
           ..write('createdAt: $createdAt, ')
           ..write('originDeviceId: $originDeviceId, ')
           ..write('workerNameSnapshot: $workerNameSnapshot, ')
+          ..write('dueAt: $dueAt, ')
+          ..write('quantity: $quantity, ')
+          ..write('packageId: $packageId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3022,6 +3164,33 @@ class $LocalSettingsTable extends LocalSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _receivingPackageIdMeta =
+      const VerificationMeta('receivingPackageId');
+  @override
+  late final GeneratedColumn<String> receivingPackageId =
+      GeneratedColumn<String>(
+        'receiving_package_id',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _showQuantityMeta = const VerificationMeta(
+    'showQuantity',
+  );
+  @override
+  late final GeneratedColumn<bool> showQuantity = GeneratedColumn<bool>(
+    'show_quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("show_quantity" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _currentWorkerIdMeta = const VerificationMeta(
     'currentWorkerId',
   );
@@ -3068,6 +3237,8 @@ class $LocalSettingsTable extends LocalSettings
     workerRefreshIntervalHours,
     workerRefreshEndMinute,
     settingsPassword,
+    receivingPackageId,
+    showQuantity,
     currentWorkerId,
     workerActiveAt,
   ];
@@ -3256,6 +3427,24 @@ class $LocalSettingsTable extends LocalSettings
         ),
       );
     }
+    if (data.containsKey('receiving_package_id')) {
+      context.handle(
+        _receivingPackageIdMeta,
+        receivingPackageId.isAcceptableOrUnknown(
+          data['receiving_package_id']!,
+          _receivingPackageIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('show_quantity')) {
+      context.handle(
+        _showQuantityMeta,
+        showQuantity.isAcceptableOrUnknown(
+          data['show_quantity']!,
+          _showQuantityMeta,
+        ),
+      );
+    }
     if (data.containsKey('current_worker_id')) {
       context.handle(
         _currentWorkerIdMeta,
@@ -3367,6 +3556,14 @@ class $LocalSettingsTable extends LocalSettings
         DriftSqlType.string,
         data['${effectivePrefix}settings_password'],
       )!,
+      receivingPackageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receiving_package_id'],
+      )!,
+      showQuantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}show_quantity'],
+      )!,
       currentWorkerId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}current_worker_id'],
@@ -3407,6 +3604,10 @@ class LocalSettingsRow extends DataClass
   final int workerRefreshIntervalHours;
   final int workerRefreshEndMinute;
   final String settingsPassword;
+  final String receivingPackageId;
+
+  /// When false, check-in/out hide the stepper and use quantity 1 (or all out).
+  final bool showQuantity;
   final String? currentWorkerId;
   final DateTime? workerActiveAt;
   const LocalSettingsRow({
@@ -3431,6 +3632,8 @@ class LocalSettingsRow extends DataClass
     required this.workerRefreshIntervalHours,
     required this.workerRefreshEndMinute,
     required this.settingsPassword,
+    required this.receivingPackageId,
+    required this.showQuantity,
     this.currentWorkerId,
     this.workerActiveAt,
   });
@@ -3466,6 +3669,8 @@ class LocalSettingsRow extends DataClass
     );
     map['worker_refresh_end_minute'] = Variable<int>(workerRefreshEndMinute);
     map['settings_password'] = Variable<String>(settingsPassword);
+    map['receiving_package_id'] = Variable<String>(receivingPackageId);
+    map['show_quantity'] = Variable<bool>(showQuantity);
     if (!nullToAbsent || currentWorkerId != null) {
       map['current_worker_id'] = Variable<String>(currentWorkerId);
     }
@@ -3502,6 +3707,8 @@ class LocalSettingsRow extends DataClass
       workerRefreshIntervalHours: Value(workerRefreshIntervalHours),
       workerRefreshEndMinute: Value(workerRefreshEndMinute),
       settingsPassword: Value(settingsPassword),
+      receivingPackageId: Value(receivingPackageId),
+      showQuantity: Value(showQuantity),
       currentWorkerId: currentWorkerId == null && nullToAbsent
           ? const Value.absent()
           : Value(currentWorkerId),
@@ -3544,6 +3751,10 @@ class LocalSettingsRow extends DataClass
         json['workerRefreshEndMinute'],
       ),
       settingsPassword: serializer.fromJson<String>(json['settingsPassword']),
+      receivingPackageId: serializer.fromJson<String>(
+        json['receivingPackageId'],
+      ),
+      showQuantity: serializer.fromJson<bool>(json['showQuantity']),
       currentWorkerId: serializer.fromJson<String?>(json['currentWorkerId']),
       workerActiveAt: serializer.fromJson<DateTime?>(json['workerActiveAt']),
     );
@@ -3577,6 +3788,8 @@ class LocalSettingsRow extends DataClass
       ),
       'workerRefreshEndMinute': serializer.toJson<int>(workerRefreshEndMinute),
       'settingsPassword': serializer.toJson<String>(settingsPassword),
+      'receivingPackageId': serializer.toJson<String>(receivingPackageId),
+      'showQuantity': serializer.toJson<bool>(showQuantity),
       'currentWorkerId': serializer.toJson<String?>(currentWorkerId),
       'workerActiveAt': serializer.toJson<DateTime?>(workerActiveAt),
     };
@@ -3604,6 +3817,8 @@ class LocalSettingsRow extends DataClass
     int? workerRefreshIntervalHours,
     int? workerRefreshEndMinute,
     String? settingsPassword,
+    String? receivingPackageId,
+    bool? showQuantity,
     Value<String?> currentWorkerId = const Value.absent(),
     Value<DateTime?> workerActiveAt = const Value.absent(),
   }) => LocalSettingsRow(
@@ -3633,6 +3848,8 @@ class LocalSettingsRow extends DataClass
     workerRefreshEndMinute:
         workerRefreshEndMinute ?? this.workerRefreshEndMinute,
     settingsPassword: settingsPassword ?? this.settingsPassword,
+    receivingPackageId: receivingPackageId ?? this.receivingPackageId,
+    showQuantity: showQuantity ?? this.showQuantity,
     currentWorkerId: currentWorkerId.present
         ? currentWorkerId.value
         : this.currentWorkerId,
@@ -3699,6 +3916,12 @@ class LocalSettingsRow extends DataClass
       settingsPassword: data.settingsPassword.present
           ? data.settingsPassword.value
           : this.settingsPassword,
+      receivingPackageId: data.receivingPackageId.present
+          ? data.receivingPackageId.value
+          : this.receivingPackageId,
+      showQuantity: data.showQuantity.present
+          ? data.showQuantity.value
+          : this.showQuantity,
       currentWorkerId: data.currentWorkerId.present
           ? data.currentWorkerId.value
           : this.currentWorkerId,
@@ -3732,6 +3955,8 @@ class LocalSettingsRow extends DataClass
           ..write('workerRefreshIntervalHours: $workerRefreshIntervalHours, ')
           ..write('workerRefreshEndMinute: $workerRefreshEndMinute, ')
           ..write('settingsPassword: $settingsPassword, ')
+          ..write('receivingPackageId: $receivingPackageId, ')
+          ..write('showQuantity: $showQuantity, ')
           ..write('currentWorkerId: $currentWorkerId, ')
           ..write('workerActiveAt: $workerActiveAt')
           ..write(')'))
@@ -3761,6 +3986,8 @@ class LocalSettingsRow extends DataClass
     workerRefreshIntervalHours,
     workerRefreshEndMinute,
     settingsPassword,
+    receivingPackageId,
+    showQuantity,
     currentWorkerId,
     workerActiveAt,
   ]);
@@ -3789,6 +4016,8 @@ class LocalSettingsRow extends DataClass
           other.workerRefreshIntervalHours == this.workerRefreshIntervalHours &&
           other.workerRefreshEndMinute == this.workerRefreshEndMinute &&
           other.settingsPassword == this.settingsPassword &&
+          other.receivingPackageId == this.receivingPackageId &&
+          other.showQuantity == this.showQuantity &&
           other.currentWorkerId == this.currentWorkerId &&
           other.workerActiveAt == this.workerActiveAt);
 }
@@ -3815,6 +4044,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
   final Value<int> workerRefreshIntervalHours;
   final Value<int> workerRefreshEndMinute;
   final Value<String> settingsPassword;
+  final Value<String> receivingPackageId;
+  final Value<bool> showQuantity;
   final Value<String?> currentWorkerId;
   final Value<DateTime?> workerActiveAt;
   final Value<int> rowid;
@@ -3840,6 +4071,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.workerRefreshIntervalHours = const Value.absent(),
     this.workerRefreshEndMinute = const Value.absent(),
     this.settingsPassword = const Value.absent(),
+    this.receivingPackageId = const Value.absent(),
+    this.showQuantity = const Value.absent(),
     this.currentWorkerId = const Value.absent(),
     this.workerActiveAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -3866,6 +4099,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     this.workerRefreshIntervalHours = const Value.absent(),
     this.workerRefreshEndMinute = const Value.absent(),
     this.settingsPassword = const Value.absent(),
+    this.receivingPackageId = const Value.absent(),
+    this.showQuantity = const Value.absent(),
     this.currentWorkerId = const Value.absent(),
     this.workerActiveAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -3895,6 +4130,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Expression<int>? workerRefreshIntervalHours,
     Expression<int>? workerRefreshEndMinute,
     Expression<String>? settingsPassword,
+    Expression<String>? receivingPackageId,
+    Expression<bool>? showQuantity,
     Expression<String>? currentWorkerId,
     Expression<DateTime>? workerActiveAt,
     Expression<int>? rowid,
@@ -3925,6 +4162,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       if (workerRefreshEndMinute != null)
         'worker_refresh_end_minute': workerRefreshEndMinute,
       if (settingsPassword != null) 'settings_password': settingsPassword,
+      if (receivingPackageId != null)
+        'receiving_package_id': receivingPackageId,
+      if (showQuantity != null) 'show_quantity': showQuantity,
       if (currentWorkerId != null) 'current_worker_id': currentWorkerId,
       if (workerActiveAt != null) 'worker_active_at': workerActiveAt,
       if (rowid != null) 'rowid': rowid,
@@ -3953,6 +4193,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     Value<int>? workerRefreshIntervalHours,
     Value<int>? workerRefreshEndMinute,
     Value<String>? settingsPassword,
+    Value<String>? receivingPackageId,
+    Value<bool>? showQuantity,
     Value<String?>? currentWorkerId,
     Value<DateTime?>? workerActiveAt,
     Value<int>? rowid,
@@ -3982,6 +4224,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
       workerRefreshEndMinute:
           workerRefreshEndMinute ?? this.workerRefreshEndMinute,
       settingsPassword: settingsPassword ?? this.settingsPassword,
+      receivingPackageId: receivingPackageId ?? this.receivingPackageId,
+      showQuantity: showQuantity ?? this.showQuantity,
       currentWorkerId: currentWorkerId ?? this.currentWorkerId,
       workerActiveAt: workerActiveAt ?? this.workerActiveAt,
       rowid: rowid ?? this.rowid,
@@ -4060,6 +4304,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
     if (settingsPassword.present) {
       map['settings_password'] = Variable<String>(settingsPassword.value);
     }
+    if (receivingPackageId.present) {
+      map['receiving_package_id'] = Variable<String>(receivingPackageId.value);
+    }
+    if (showQuantity.present) {
+      map['show_quantity'] = Variable<bool>(showQuantity.value);
+    }
     if (currentWorkerId.present) {
       map['current_worker_id'] = Variable<String>(currentWorkerId.value);
     }
@@ -4096,6 +4346,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSettingsRow> {
           ..write('workerRefreshIntervalHours: $workerRefreshIntervalHours, ')
           ..write('workerRefreshEndMinute: $workerRefreshEndMinute, ')
           ..write('settingsPassword: $settingsPassword, ')
+          ..write('receivingPackageId: $receivingPackageId, ')
+          ..write('showQuantity: $showQuantity, ')
           ..write('currentWorkerId: $currentWorkerId, ')
           ..write('workerActiveAt: $workerActiveAt, ')
           ..write('rowid: $rowid')
@@ -5613,6 +5865,9 @@ typedef $$RefrigerationLogsTableCreateCompanionBuilder =
       required DateTime createdAt,
       Value<String> originDeviceId,
       Value<String> workerNameSnapshot,
+      Value<DateTime?> dueAt,
+      Value<int> quantity,
+      Value<String?> packageId,
       Value<int> rowid,
     });
 typedef $$RefrigerationLogsTableUpdateCompanionBuilder =
@@ -5628,6 +5883,9 @@ typedef $$RefrigerationLogsTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String> originDeviceId,
       Value<String> workerNameSnapshot,
+      Value<DateTime?> dueAt,
+      Value<int> quantity,
+      Value<String?> packageId,
       Value<int> rowid,
     });
 
@@ -5750,6 +6008,21 @@ class $$RefrigerationLogsTableFilterComposer
 
   ColumnFilters<String> get workerNameSnapshot => $composableBuilder(
     column: $table.workerNameSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueAt => $composableBuilder(
+    column: $table.dueAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get packageId => $composableBuilder(
+    column: $table.packageId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5879,6 +6152,21 @@ class $$RefrigerationLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get dueAt => $composableBuilder(
+    column: $table.dueAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get packageId => $composableBuilder(
+    column: $table.packageId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ProductsTableOrderingComposer get productId {
     final $$ProductsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -5973,6 +6261,15 @@ class $$RefrigerationLogsTableAnnotationComposer
     column: $table.workerNameSnapshot,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get dueAt =>
+      $composableBuilder(column: $table.dueAt, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<String> get packageId =>
+      $composableBuilder(column: $table.packageId, builder: (column) => column);
 
   $$ProductsTableAnnotationComposer get productId {
     final $$ProductsTableAnnotationComposer composer = $composerBuilder(
@@ -6094,6 +6391,9 @@ class $$RefrigerationLogsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> originDeviceId = const Value.absent(),
                 Value<String> workerNameSnapshot = const Value.absent(),
+                Value<DateTime?> dueAt = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<String?> packageId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RefrigerationLogsCompanion(
                 id: id,
@@ -6107,6 +6407,9 @@ class $$RefrigerationLogsTableTableManager
                 createdAt: createdAt,
                 originDeviceId: originDeviceId,
                 workerNameSnapshot: workerNameSnapshot,
+                dueAt: dueAt,
+                quantity: quantity,
+                packageId: packageId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6122,6 +6425,9 @@ class $$RefrigerationLogsTableTableManager
                 required DateTime createdAt,
                 Value<String> originDeviceId = const Value.absent(),
                 Value<String> workerNameSnapshot = const Value.absent(),
+                Value<DateTime?> dueAt = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<String?> packageId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RefrigerationLogsCompanion.insert(
                 id: id,
@@ -6135,6 +6441,9 @@ class $$RefrigerationLogsTableTableManager
                 createdAt: createdAt,
                 originDeviceId: originDeviceId,
                 workerNameSnapshot: workerNameSnapshot,
+                dueAt: dueAt,
+                quantity: quantity,
+                packageId: packageId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7033,6 +7342,8 @@ typedef $$LocalSettingsTableCreateCompanionBuilder =
       Value<int> workerRefreshIntervalHours,
       Value<int> workerRefreshEndMinute,
       Value<String> settingsPassword,
+      Value<String> receivingPackageId,
+      Value<bool> showQuantity,
       Value<String?> currentWorkerId,
       Value<DateTime?> workerActiveAt,
       Value<int> rowid,
@@ -7060,6 +7371,8 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder =
       Value<int> workerRefreshIntervalHours,
       Value<int> workerRefreshEndMinute,
       Value<String> settingsPassword,
+      Value<String> receivingPackageId,
+      Value<bool> showQuantity,
       Value<String?> currentWorkerId,
       Value<DateTime?> workerActiveAt,
       Value<int> rowid,
@@ -7176,6 +7489,16 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get settingsPassword => $composableBuilder(
     column: $table.settingsPassword,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receivingPackageId => $composableBuilder(
+    column: $table.receivingPackageId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get showQuantity => $composableBuilder(
+    column: $table.showQuantity,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7304,6 +7627,16 @@ class $$LocalSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get receivingPackageId => $composableBuilder(
+    column: $table.receivingPackageId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get showQuantity => $composableBuilder(
+    column: $table.showQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get currentWorkerId => $composableBuilder(
     column: $table.currentWorkerId,
     builder: (column) => ColumnOrderings(column),
@@ -7423,6 +7756,16 @@ class $$LocalSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get receivingPackageId => $composableBuilder(
+    column: $table.receivingPackageId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get showQuantity => $composableBuilder(
+    column: $table.showQuantity,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get currentWorkerId => $composableBuilder(
     column: $table.currentWorkerId,
     builder: (column) => column,
@@ -7490,6 +7833,8 @@ class $$LocalSettingsTableTableManager
                 Value<int> workerRefreshIntervalHours = const Value.absent(),
                 Value<int> workerRefreshEndMinute = const Value.absent(),
                 Value<String> settingsPassword = const Value.absent(),
+                Value<String> receivingPackageId = const Value.absent(),
+                Value<bool> showQuantity = const Value.absent(),
                 Value<String?> currentWorkerId = const Value.absent(),
                 Value<DateTime?> workerActiveAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -7515,6 +7860,8 @@ class $$LocalSettingsTableTableManager
                 workerRefreshIntervalHours: workerRefreshIntervalHours,
                 workerRefreshEndMinute: workerRefreshEndMinute,
                 settingsPassword: settingsPassword,
+                receivingPackageId: receivingPackageId,
+                showQuantity: showQuantity,
                 currentWorkerId: currentWorkerId,
                 workerActiveAt: workerActiveAt,
                 rowid: rowid,
@@ -7542,6 +7889,8 @@ class $$LocalSettingsTableTableManager
                 Value<int> workerRefreshIntervalHours = const Value.absent(),
                 Value<int> workerRefreshEndMinute = const Value.absent(),
                 Value<String> settingsPassword = const Value.absent(),
+                Value<String> receivingPackageId = const Value.absent(),
+                Value<bool> showQuantity = const Value.absent(),
                 Value<String?> currentWorkerId = const Value.absent(),
                 Value<DateTime?> workerActiveAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -7567,6 +7916,8 @@ class $$LocalSettingsTableTableManager
                 workerRefreshIntervalHours: workerRefreshIntervalHours,
                 workerRefreshEndMinute: workerRefreshEndMinute,
                 settingsPassword: settingsPassword,
+                receivingPackageId: receivingPackageId,
+                showQuantity: showQuantity,
                 currentWorkerId: currentWorkerId,
                 workerActiveAt: workerActiveAt,
                 rowid: rowid,

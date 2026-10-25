@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/alert.dart';
+import '../../domain/entities/open_holding.dart';
 import '../../domain/settings/device_settings.dart';
 import '../../domain/workers/worker_refresh.dart';
 import '../check_in/check_in_panel.dart';
 import '../check_out/check_out_panel.dart';
 import '../live_log/live_log_feed.dart';
 import '../providers.dart';
+import '../widgets/transient_notice.dart';
 import '../settings/settings_page.dart';
 import '../workers/worker_picker.dart';
 
@@ -26,6 +28,8 @@ class _TabletShellState extends ConsumerState<TabletShell>
   Timer? _timer;
   Timer? _idleTimer;
   Timer? _popupRetry;
+  Timer? _dueTimer;
+  final _toldDue = <String>{};
   DateTime? _lastTouch;
   DateTime? _lastPersisted;
   var _askingWorker = false;
@@ -48,6 +52,7 @@ class _TabletShellState extends ConsumerState<TabletShell>
     _timer?.cancel();
     _idleTimer?.cancel();
     _popupRetry?.cancel();
+    _dueTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -203,6 +208,49 @@ class _TabletShellState extends ConsumerState<TabletShell>
     _armWorkerRefresh();
   }
 
+  void _announceDue(List<OpenHolding> items) {
+    final now = DateTime.now();
+    final ready = <String>[];
+    DateTime? nextMark;
+    for (final item in items) {
+      final due = item.dueAt?.toLocal();
+      if (due == null) {
+        continue;
+      }
+      if (!due.isAfter(now)) {
+        if (_toldDue.add(item.movementId)) {
+          ready.add(item.productName);
+        }
+        continue;
+      }
+      final soon = due.subtract(const Duration(hours: 1));
+      for (final mark in [soon, due]) {
+        if (mark.isAfter(now) &&
+            (nextMark == null || mark.isBefore(nextMark))) {
+          nextMark = mark;
+        }
+      }
+    }
+    if (ready.isNotEmpty && mounted) {
+      showTransientNotice(context, 'זמן יציאה: ${ready.join(', ')}');
+    }
+    _dueTimer?.cancel();
+    final mark = nextMark;
+    if (mark == null) {
+      return;
+    }
+    _dueTimer = Timer(mark.difference(now) + const Duration(seconds: 1), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+      final current = ref.read(openHoldingsProvider).asData?.value;
+      if (current != null) {
+        _announceDue(current);
+      }
+    });
+  }
+
   Future<void> _tick() async {
     if (!mounted) {
       return;
@@ -230,6 +278,9 @@ class _TabletShellState extends ConsumerState<TabletShell>
     ref.listen(workersProvider, (_, _) => _armWorkerRefresh());
     ref.listen(workerSessionProvider, (_, _) => _armWorkerRefresh());
     ref.listen(settingsProvider, (_, _) => _armWorkerRefresh());
+    ref.listen(openHoldingsProvider, (_, next) {
+      next.whenData(_announceDue);
+    });
     final signedIn = session?.workerName.trim().isNotEmpty ?? false;
     final workerLabel = signedIn ? session!.workerName : 'לא עובד';
     final refresh = settings?.workerRefresh ?? const WorkerRefresh();
@@ -328,6 +379,29 @@ class _TabletShellState extends ConsumerState<TabletShell>
             ),
             body: Column(
               children: [
+                if (settings?.isReceivingSupplier ?? false)
+                  const Material(
+                    color: Color(0xFFFEF3C7),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        child: Text(
+                          key: Key('receiving-banner'),
+                          'מצב אספקה',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF92400E),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 if (alerts.isNotEmpty) _DismissingAlert(alert: alerts.first),
                 Expanded(
                   child: IndexedStack(

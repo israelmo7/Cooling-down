@@ -72,11 +72,14 @@ Future<Response> _sync(Request request, SyncStore store) async {
   }
   try {
     final ownerEmail = body['owner_email'];
-    final result = store.exchange(
+    final pendingRaw = body['pending_count'];
+    final pendingCount = pendingRaw is num ? pendingRaw.toInt() : null;
+    final result = await store.exchange(
       deviceId: deviceId,
       environment: environment,
       cursor: cursor.toInt(),
       ownerEmail: ownerEmail is String ? ownerEmail : null,
+      pendingCount: pendingCount,
       push: [
         for (final item in push)
           if (item is Map)

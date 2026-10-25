@@ -70,6 +70,54 @@ void main() {
     expect(gateway.request!.environment, 'מטבח');
   });
 
+  test('offline errors become a short Hebrew line', () {
+    expect(
+      syncFailureMessage('ClientException: Connection failed'),
+      'אין חיבור למחשב',
+    );
+    expect(syncFailureMessage('TimeoutException after 0:00:08'), 'אין חיבור למחשב');
+    expect(syncFailureMessage('המחשב דחה את האסימון.'), 'המחשב דחה את האסימון.');
+  });
+
+  test('a second trySync waits on the first instead of overlapping', () async {
+    final database = AppDatabase.memory();
+    addTearDown(database.close);
+    final settings = DriftSettingsRepository(database);
+    final current = await settings.ensure();
+    await settings.save(
+      current.copyWith(
+        serverUrl: 'http://192.168.1.20:8080',
+        serverToken: 'secret',
+      ),
+    );
+    await DriftLogRepository(database).insertCheckIn(
+      productId: SeedIds.chickenBreast,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 2,
+      workerName: 'דנה',
+    );
+    final started = Completer<void>();
+    final release = Completer<SyncExchange>();
+    var calls = 0;
+    final sync = DriftSyncRepository(
+      database,
+      settings: settings,
+      gatewayFor: (DeviceSettings _) {
+        calls += 1;
+        return _BlockingGateway(started: started, release: release);
+      },
+    );
+
+    final first = sync.trySync();
+    await started.future;
+    final second = sync.trySync();
+    release.complete(
+      const SyncExchange(reachable: true, cursor: 1, acceptedIds: []),
+    );
+    await Future.wait([first, second]);
+    expect(calls, 1);
+  });
+
   test('the http gateway posts the batch and reads the reply', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(server.close);
@@ -158,6 +206,26 @@ class _FakeGateway implements SyncGateway {
   Future<SyncExchange> exchange(SyncRequest request) async {
     this.request = request;
     return result;
+  }
+
+  @override
+  Future<ReportPostResult> postReport(ReportPost report) async {
+    return const ReportPostResult(status: 'stored');
+  }
+}
+
+class _BlockingGateway implements SyncGateway {
+  _BlockingGateway({required this.started, required this.release});
+
+  final Completer<void> started;
+  final Completer<SyncExchange> release;
+
+  @override
+  Future<SyncExchange> exchange(SyncRequest request) async {
+    if (!started.isCompleted) {
+      started.complete();
+    }
+    return release.future;
   }
 
   @override

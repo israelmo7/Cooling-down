@@ -92,7 +92,7 @@ class DriftWorkerRepository implements WorkerRepository {
   @override
   Future<Worker?> addWorker(String name) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) {
+    if (trimmed.isEmpty || trimmed.length > 60) {
       return null;
     }
     final existing = await _named(trimmed);
@@ -116,7 +116,7 @@ class DriftWorkerRepository implements WorkerRepository {
   @override
   Future<void> renameWorker(String id, String name) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) {
+    if (trimmed.isEmpty || trimmed.length > 60) {
       return;
     }
     await (_db.update(_db.workers)..where((table) => table.id.equals(id)))

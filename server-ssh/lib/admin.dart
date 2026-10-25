@@ -7,6 +7,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'daily_mail.dart';
 import 'env_file.dart';
 import 'mailer.dart';
+import 'report_layout.dart';
 import 'report_time.dart';
 import 'server_config.dart';
 import 'sync_store.dart';
@@ -99,6 +100,11 @@ void mountAdmin(
       '/admin/test-report',
       (Request request) =>
           _sendTest(request, store, gate, mail, clock, reportFile),
+    )
+    ..post(
+      '/admin/report',
+      (Request request) =>
+          _saveReport(request, gate, clock, envFile, shopFile, reportFile),
     );
 }
 
@@ -123,18 +129,28 @@ Response _page(
       _loginForm(failed: request.url.queryParameters['error'] == '1'),
     );
   }
-  final places = request.url.queryParameters['tab'] == 'places';
+  final tab = _tab(request);
   final notice = _notice(request.url.queryParameters['notice']);
-  final body = places
-      ? _places(store)
-      : _settings(gate, mail, schedule, reportFile);
+  final body = switch (tab) {
+    'places' => _places(store),
+    'report' => _reportBuilder(schedule, reportFile),
+    _ => _settings(gate, mail, schedule),
+  };
   return _html(
     _shell('', '''
-${_bar(places: places)}
+${_bar(tab: tab)}
 $notice
 $body
 '''),
   );
+}
+
+String _tab(Request request) {
+  return switch (request.url.queryParameters['tab']) {
+    'places' => 'places',
+    'report' => 'report',
+    _ => 'settings',
+  };
 }
 
 String _notice(String? code) {
@@ -161,15 +177,15 @@ String _notice(String? code) {
   return '<p class="notice $kind">$text</p>';
 }
 
-String _bar({required bool places}) {
-  final settingsClass = places ? '' : ' class="on"';
-  final placesClass = places ? ' class="on"' : '';
+String _bar({required String tab}) {
+  String mark(String name) => tab == name ? ' class="on"' : '';
   return '''
 <header class="bar">
   <strong>לוח ניהול</strong>
   <nav>
-    <a href="/admin"$settingsClass>הגדרות</a>
-    <a href="/admin?tab=places"$placesClass>סביבות</a>
+    <a href="/admin"${mark('settings')}>הגדרות</a>
+    <a href="/admin?tab=report"${mark('report')}>דוח</a>
+    <a href="/admin?tab=places"${mark('places')}>סביבות</a>
   </nav>
   <form method="post" action="/admin/logout"><button type="submit">יציאה</button></form>
 </header>
@@ -213,7 +229,11 @@ Future<Response> _save(
   }
   final form = await _form(request);
   final user = (form['admin_user'] ?? '').trim();
-  final password = form['admin_password'] ?? '';
+  final submittedPassword = form['admin_password'] ?? '';
+  // Blank password keeps the current one so the form never echoes secrets.
+  final password = submittedPassword.isEmpty
+      ? gate.password
+      : submittedPassword;
   final zone = (form['time_zone'] ?? '').trim();
   final rawTime = (form['report_time'] ?? '').trim();
   final ownerEmail = (form['owner_email'] ?? '').trim();
@@ -230,7 +250,10 @@ Future<Response> _save(
   if (ownerEmail.isNotEmpty && !ownerEmail.contains('@')) {
     return _redirect('/admin?notice=mail');
   }
-  final format = normalizeReportFormat(form['report_format'] ?? '');
+  final submittedFormat = form['report_format'];
+  final format = submittedFormat == null
+      ? schedule.reportFormat
+      : normalizeReportFormat(submittedFormat);
   gate.replace(user: user, password: password);
   mail.ownerEmail = ownerEmail;
   schedule.replaceClock(timeZone: zone, reportTime: time);
@@ -270,6 +293,7 @@ Future<Response> _sendTest(
     DateTime.now(),
     reportFormat: schedule.reportFormat,
     template: template,
+    force: true,
   );
   final notice = _testNotice(statuses);
   return _redirect('/admin?notice=$notice');
@@ -311,19 +335,11 @@ void _writeBoth(File? envFile, File? shopFile, Map<String, String> updates) {
 
 String _ltr(String value) => '\u2066$value\u2069';
 
-String _settings(
-  AdminGate gate,
-  MailSettings mail,
-  ShopSchedule schedule,
-  File? reportFile,
-) {
+String _settings(AdminGate gate, MailSettings mail, ShopSchedule schedule) {
   final state = mail.emailEnabled ? 'הדואר פעיל.' : 'הדואר כבוי.';
-  final builtin = schedule.reportFormat == 'builtin' ? ' checked' : '';
-  final custom = schedule.reportFormat == 'custom' ? ' checked' : '';
-  final text = _reportText(reportFile);
-  final file = text.isEmpty
-      ? '<p class="hint">אין קובץ report.txt. בלי הקובץ נשלח הדוח הקבוע.</p>'
-      : '<pre>${_escape(text)}</pre>';
+  final reportName = schedule.reportFormat == 'custom'
+      ? 'טבלה שנבחרה'
+      : 'הדוח הקבוע';
   return '''
 <form method="post" action="/admin/save" class="card">
   <section>
@@ -333,7 +349,7 @@ String _settings(
       <input name="admin_user" value="${_escape(gate.user)}" autocomplete="username" required>
     </label>
     <label>סיסמה
-      <input name="admin_password" type="password" value="${_escape(gate.password)}" autocomplete="new-password" required>
+      <input name="admin_password" type="password" value="" autocomplete="new-password" placeholder="השאירו ריק כדי לא לשנות">
     </label>
   </section>
   <section>
@@ -348,11 +364,7 @@ String _settings(
   </section>
   <section>
     <h2>דוח</h2>
-    <label class="choice"><input type="radio" name="report_format" value="builtin"$builtin> הדוח הקבוע</label>
-    <pre>$builtInReportHeading</pre>
-    <label class="choice"><input type="radio" name="report_format" value="custom"$custom> הקובץ report.txt</label>
-    $file
-    <p class="hint">{{environment}} {{date}} {{rows}} … {{/rows}} {{product}} {{check_in}} {{check_in_time}} {{check_out}} {{check_out_time}} {{notes}} {{conclusion}}</p>
+    <p class="hint">עכשיו נשלח $reportName. את העמודות בוחרים בלשונית דוח.</p>
   </section>
   <section>
     <h2>דואר</h2>
@@ -365,31 +377,158 @@ String _settings(
 </form>
 <form method="post" action="/admin/test-report" class="card test">
   <h2>בדיקת הדוח</h2>
-  <p class="hint">שולח את תנועות היום לאימייל הבעלים. ביום בלי תנועות הדוח מצרף את מה שכבר נשמר. הדוח הקבוע של אתמול נשאר בשעה שנשמרה.</p>
+  <p class="hint">שולח שוב את תנועות היום. זה לא סוגר את הדוח הקבוע של אתמול.</p>
   <button type="submit">שליחת דוח לבדיקה</button>
 </form>
+''';
+}
+
+Future<Response> _saveReport(
+  Request request,
+  AdminGate gate,
+  ShopSchedule schedule,
+  File? envFile,
+  File? shopFile,
+  File? reportFile,
+) async {
+  if (!gate.allows(request)) {
+    return _redirect('/admin');
+  }
+  final form = await _form(request);
+  final custom = form['layout'] == 'custom';
+  if (custom && reportFile != null) {
+    final columns = ReportColumns(
+      quantity: form.containsKey('col_quantity'),
+      checkIn: form.containsKey('col_check_in'),
+      checkInTime: form.containsKey('col_check_in_time'),
+      checkOut: form.containsKey('col_check_out'),
+      checkOutTime: form.containsKey('col_check_out_time'),
+    );
+    reportFile.parent.createSync(recursive: true);
+    reportFile.writeAsStringSync(columns.toTemplate());
+  }
+  final format = custom ? 'custom' : 'builtin';
+  schedule.replaceFormat(format);
+  _writeBoth(envFile, shopFile, {'REPORT_FORMAT': format});
+  return _redirect('/admin?tab=report&notice=saved');
+}
+
+String _reportBuilder(ShopSchedule schedule, File? reportFile) {
+  final custom = schedule.reportFormat == 'custom';
+  final columns = custom
+      ? ReportColumns.fromTemplate(_reportText(reportFile))
+      : ReportColumns.fixed;
+  final builtin = custom ? '' : ' checked';
+  final chosen = custom ? ' checked' : '';
+  String box(String name, String label, bool on) {
+    final checked = on ? ' checked' : '';
+    return '<label class="choice"><input type="checkbox" name="$name" value="1"$checked> $label</label>';
+  }
+
+  String cell(String column, String text, {bool head = false}) {
+    final tag = head ? 'th' : 'td';
+    return '<$tag data-col="$column">$text</$tag>';
+  }
+
+  return '''
+<form method="post" action="/admin/report" class="card" id="report-layout">
+  <h2>מבנה הדוח</h2>
+  <p class="hint">בחרו מה הבעלים רואה. שם המוצר תמיד בטבלה. השמירה כותבת את הטבלה, בלי לערוך קובץ.</p>
+  <label class="choice"><input type="radio" name="layout" value="builtin"$builtin> הדוח הקבוע</label>
+  <label class="choice"><input type="radio" name="layout" value="custom"$chosen> טבלה לפי הסימונים</label>
+  <div class="cols">
+    ${box('col_quantity', 'כמות', columns.quantity)}
+    ${box('col_check_in', 'איך נקלט', columns.checkIn)}
+    ${box('col_check_in_time', 'מתי נקלט', columns.checkInTime)}
+    ${box('col_check_out', 'איך הוצא', columns.checkOut)}
+    ${box('col_check_out_time', 'מתי הוצא', columns.checkOutTime)}
+  </div>
+  <h2>תצוגה</h2>
+  <table class="preview">
+    <thead><tr>
+      ${cell('product', 'מוצר', head: true)}
+      ${cell('quantity', 'כמות', head: true)}
+      ${cell('check_in', 'איך נקלט', head: true)}
+      ${cell('check_in_time', 'מתי נקלט', head: true)}
+      ${cell('check_out', 'איך הוצא', head: true)}
+      ${cell('check_out_time', 'מתי הוצא', head: true)}
+    </tr></thead>
+    <tbody><tr>
+      ${cell('product', 'חלב')}
+      ${cell('quantity', '2')}
+      ${cell('check_in', '4.0°C · דנה · מטבח')}
+      ${cell('check_in_time', '15:04')}
+      ${cell('check_out', '—')}
+      ${cell('check_out_time', '—')}
+    </tr></tbody>
+  </table>
+  <button type="submit" class="primary">שמירת המבנה</button>
+</form>
+<script>
+(function () {
+  var form = document.getElementById('report-layout');
+  if (!form) return;
+  function shown(name) {
+    var custom = form.querySelector('input[name="layout"][value="custom"]').checked;
+    if (!custom || name === 'product') return true;
+    var box = form.querySelector('input[name="col_' + name + '"]');
+    return !box || box.checked;
+  }
+  function sync() {
+    var custom = form.querySelector('input[name="layout"][value="custom"]').checked;
+    form.querySelectorAll('input[type="checkbox"]').forEach(function (box) {
+      box.disabled = !custom;
+    });
+    form.querySelectorAll('[data-col]').forEach(function (cell) {
+      cell.hidden = !shown(cell.getAttribute('data-col'));
+    });
+  }
+  form.addEventListener('change', sync);
+  sync();
+})();
+</script>
 ''';
 }
 
 String _places(SyncStore store) {
   final environments = store.environmentSummaries();
   if (environments.isEmpty) {
-    return '<section class="card"><p>עדיין אין סביבות. טאבלט מעלה נתונים אחרי הסנכרון הראשון.</p></section>';
+    return '''
+<section class="card">
+  <p>עדיין אין סביבות. טאבלט מעלה נתונים אחרי הסנכרון הראשון.</p>
+</section>
+''';
   }
-  final sections = StringBuffer();
+  final today = DateTime.now();
+  final dayLabel =
+      '${today.day.toString().padLeft(2, '0')}/${today.month.toString().padLeft(2, '0')}/${today.year}';
+  final sections = StringBuffer()
+    ..writeln('''
+<section class="card">
+  <h2>תמונת מצב להיום</h2>
+  <p class="hint">תנועות מהיום ($dayLabel) בכל סביבה — סיכום קצר למנהל. הדוח המלא נשלח באימייל לפי ההגדרות.</p>
+</section>
+''');
   for (final environment in environments) {
     final name = environment['name'] as String;
     final logs = store.logsFor(name);
+    final todayLogs = logs
+        .where((log) => _sameLocalDay(log.occurredAt, today))
+        .toList()
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final checkIns = todayLogs.where((log) => log.eventType == 'check_in').length;
+    final checkOuts =
+        todayLogs.where((log) => log.eventType == 'check_out').length;
     final rows = StringBuffer();
-    if (logs.isEmpty) {
-      rows.writeln('<p class="hint">אין תנועות בסביבה הזו.</p>');
+    if (todayLogs.isEmpty) {
+      rows.writeln('<p class="hint">אין תנועות היום בסביבה הזו.</p>');
     } else {
-      final ordered = [...logs]
-        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-      final shown = ordered.take(recentActionLimit).toList();
-      rows.writeln(
-        '<p class="hint">מוצגות ${shown.length} התנועות האחרונות מתוך ${ordered.length}. הרשימה נעצרת ב-$recentActionLimit.</p>',
-      );
+      final shown = todayLogs.take(recentActionLimit).toList();
+      if (todayLogs.length > shown.length) {
+        rows.writeln(
+          '<p class="hint">מוצגות ${shown.length} האחרונות מתוך ${todayLogs.length} היום.</p>',
+        );
+      }
       rows.writeln('<ul>');
       for (final log in shown) {
         final word = log.eventType == 'check_in'
@@ -404,7 +543,7 @@ String _places(SyncStore store) {
             ? ''
             : ' · ${_escape(log.workerName.trim())}';
         rows.writeln(
-          '<li>${_escape(_stamp(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker</li>',
+          '<li>${_escape(_stamp(log.occurredAt))} ${_escape(log.productName)} $word$temperature ${_escape(log.fridgeName)}$worker · כמות ${log.quantity}</li>',
         );
       }
       rows.writeln('</ul>');
@@ -412,12 +551,19 @@ String _places(SyncStore store) {
     sections.writeln('''
 <section class="card">
   <h2>${_escape(name)}</h2>
-  <p class="hint">${environment['logs']} תנועות שמורות במחשב.</p>
+  <p class="hint">היום: $checkIns קליטות · $checkOuts הוצאות.</p>
   $rows
 </section>
 ''');
   }
   return sections.toString();
+}
+
+bool _sameLocalDay(DateTime instant, DateTime day) {
+  final local = instant.toLocal();
+  return local.year == day.year &&
+      local.month == day.month &&
+      local.day == day.day;
 }
 
 String _reportText(File? reportFile) {
@@ -477,6 +623,10 @@ String _shell(String title, String body) {
     .notice.error, .error { background: #fde8e8; color: #8a1f1f; }
     .error { padding: 12px 16px; border-radius: 10px; }
     pre { white-space: pre-wrap; background: #f7fafa; padding: 12px; border-radius: 8px; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin: 12px 0; }
+    table.preview { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+    table.preview th, table.preview td { border: 1px solid #d7e0e4; padding: 8px 10px; text-align: right; }
+    table.preview th { background: #eef3f5; }
     ul { padding-inline-start: 20px; }
   </style>
 </head>

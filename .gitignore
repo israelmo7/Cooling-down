@@ -12,18 +12,15 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# IntelliJ / IDE
 *.iml
 *.ipr
 *.iws
 .idea/
+.vscode/
+.cursor/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
+# Flutter / Dart
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -32,28 +29,38 @@ migrate_working_dir/
 .pub/
 build/
 coverage/
+.widget_preview/
 
-# Symbolication related
+# Symbolication / obfuscation
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio outputs
 android/app/debug
 android/app/profile
 android/app/release
+**/local.properties
 
-# Widget Preview related
-.widget_preview/
+# Built installers (never commit)
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
 
-# Local sync server files
+# Local sync server secrets and runtime (Docker volume / dart run)
 .env
+**/.env
+!**/.env.example
 sync_token.txt
 *.sqlite
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+
+# Shop computer live data next to docker-compose (token, mail, DB, custom report)
+server-ssh/data/
+server-ssh/cooling_down_server.sqlite
+server-ssh/report.txt
 
 # USB packages downloaded for a shop PC
 server-usb/packages/*

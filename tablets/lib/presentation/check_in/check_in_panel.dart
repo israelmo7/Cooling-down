@@ -1,12 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 
 import '../../data/db/seed_ids.dart';
 import '../../domain/entities/fridge.dart';
 import '../../domain/entities/product.dart';
+import '../../domain/entities/refrigeration_log.dart';
 import '../../domain/failures.dart';
+import '../../domain/hold_for.dart';
+import '../../domain/quantity.dart';
 import '../../domain/workers/worker_refresh.dart';
 import '../format.dart';
 import '../providers.dart';
@@ -23,15 +28,36 @@ class CheckInPanel extends ConsumerStatefulWidget {
 
 class _CheckInPanelState extends ConsumerState<CheckInPanel> {
   final _searchController = TextEditingController();
+  final _holdHours = TextEditingController();
   String _query = '';
   Product? _selectedProduct;
-  double _temperature = 4;
+  double? _chosenTemperature;
+  int _quantity = 1;
+  var _averageToken = 0;
   bool _saving = false;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _holdHours.dispose();
     super.dispose();
+  }
+
+  Future<void> _useAverage(String productId) async {
+    final token = ++_averageToken;
+    final average = await ref
+        .read(logRepositoryProvider)
+        .averageCheckInCelsius(productId);
+    if (!mounted ||
+        token != _averageToken ||
+        _selectedProduct?.id != productId) {
+      return;
+    }
+    setState(() => _chosenTemperature = average);
+  }
+
+  double _reading(Fridge? fridge) {
+    return _chosenTemperature ?? fridge?.midpoint ?? 2.5;
   }
 
   Fridge? _environmentFridge(List<Fridge> items) {
@@ -56,8 +82,13 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final refresh =
         ref.read(settingsProvider).asData?.value?.workerRefresh ??
         const WorkerRefresh();
+    final showQuantity =
+        ref.read(settingsProvider).asData?.value?.showQuantity ?? false;
+    final quantity = showQuantity ? _quantity : 1;
     if (product == null ||
         fridge == null ||
+        !isValidQuantity(quantity) ||
+        !isValidHoldHoursInput(_holdHours.text) ||
         _saving ||
         !workerAllowsAction(
           session: session,
@@ -70,20 +101,24 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final accepted = await confirmRecordedAction(
       context,
       enabled: ref.read(settingsProvider).asData?.value?.confirmAction ?? false,
-      action: 'קליטה: ${product.name} ב-${formatCelsius(_temperature)}$who',
+      action:
+          'קליטה: ${product.name} ב-${formatCelsius(_reading(fridge))} · כמות $quantity$who',
     );
     if (!accepted || !mounted) {
       return;
     }
     setState(() => _saving = true);
     try {
+      final hours = parseHoldHours(_holdHours.text);
       final log = await ref
           .read(logRepositoryProvider)
           .insertCheckIn(
             productId: product.id,
             fridgeId: fridge.id,
-            temperatureCelsius: _temperature,
+            temperatureCelsius: _reading(fridge),
             workerName: workerName,
+            dueAt: hours == null ? null : dueAfter(DateTime.now(), hours),
+            quantity: quantity,
           );
       if (!mounted) {
         return;
@@ -92,14 +127,22 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
         _selectedProduct = null;
         _query = '';
         _searchController.clear();
-        _temperature = (fridge.minCelsius + fridge.maxCelsius) / 2;
+        _holdHours.clear();
+        _quantity = 1;
+        _chosenTemperature = null;
       });
       showTransientNotice(
         context,
         'נקלט ${log.productNameSnapshot} ב-${formatCelsius(log.temperatureCelsius)} · ${formatClock(log.occurredAt)}',
+        onUndo: () => unawaited(_undoCheckIn(log, workerName)),
       );
       unawaited(_syncSoon());
     } on CatalogEntryNotFound catch (error) {
+      if (!mounted) {
+        return;
+      }
+      showTransientNotice(context, error.message);
+    } on InvalidQuantityException catch (error) {
       if (!mounted) {
         return;
       }
@@ -131,7 +174,32 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
       _selectedProduct = product;
       _query = '';
       _searchController.clear();
+      _chosenTemperature = null;
     });
+    unawaited(_useAverage(product.id));
+  }
+
+  Future<void> _undoCheckIn(RefrigerationLog log, String workerName) async {
+    try {
+      await ref
+          .read(logRepositoryProvider)
+          .insertCheckOut(
+            movementId: log.movementId,
+            temperatureCelsius: log.temperatureCelsius,
+            workerName: '$workerName · ביטול',
+            quantity: log.quantity,
+          );
+      if (!mounted) {
+        return;
+      }
+      showTransientNotice(context, 'הקליטה בוטלה ונשמרה כביטול.');
+      unawaited(_syncSoon());
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      showTransientNotice(context, 'לא ניתן לבטל את הקליטה.');
+    }
   }
 
   Future<void> _syncSoon() async {
@@ -149,9 +217,15 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
     final fridge = fridges.asData == null
         ? null
         : _environmentFridge(fridges.asData!.value);
+    final showQuantity =
+        ref.watch(settingsProvider).asData?.value?.showQuantity ?? false;
+    final quantity = showQuantity ? _quantity : 1;
+    final holdValid = isValidHoldHoursInput(_holdHours.text);
     final canConfirm =
         _selectedProduct != null &&
         fridge != null &&
+        isValidQuantity(quantity) &&
+        holdValid &&
         !_saving &&
         workerAllowsAction(
           session: ref.watch(workerSessionProvider).asData?.value,
@@ -176,18 +250,31 @@ class _CheckInPanelState extends ConsumerState<CheckInPanel> {
             products: products,
             selectedProductId: _selectedProduct?.id,
             onQueryChanged: (value) => setState(() => _query = value),
-            onProductSelected: (product) =>
-                setState(() => _selectedProduct = product),
+            onProductSelected: (product) {
+              setState(() {
+                _selectedProduct = product;
+                _chosenTemperature = null;
+              });
+              unawaited(_useAverage(product.id));
+            },
             onAddNew: _addNewProduct,
           );
           final controls = _CheckInControls(
             fridges: fridges,
             selectedName: selectedName,
-            temperature: _temperature,
+            temperature: _reading(fridge),
+            holdHours: _holdHours,
+            quantity: quantity,
+            showQuantity: showQuantity,
+            holdError: holdValid ? null : 'מספר שעות עד 72, או להשאיר ריק',
+            onInputChanged: () => setState(() {}),
             canConfirm: canConfirm,
             saving: _saving,
-            onTemperatureChanged: (value) =>
-                setState(() => _temperature = value),
+            onTemperatureChanged: (value) {
+              _averageToken += 1;
+              setState(() => _chosenTemperature = value);
+            },
+            onQuantityChanged: (value) => setState(() => _quantity = value),
             onConfirm: _confirm,
           );
           if (!wide) {
@@ -364,18 +451,30 @@ class _CheckInControls extends StatelessWidget {
     required this.fridges,
     required this.selectedName,
     required this.temperature,
+    required this.holdHours,
+    required this.quantity,
+    required this.showQuantity,
+    required this.holdError,
+    required this.onInputChanged,
     required this.canConfirm,
     required this.saving,
     required this.onTemperatureChanged,
+    required this.onQuantityChanged,
     required this.onConfirm,
   });
 
   final AsyncValue<List<Fridge>> fridges;
   final String? selectedName;
   final double temperature;
+  final TextEditingController holdHours;
+  final int quantity;
+  final bool showQuantity;
+  final String? holdError;
+  final VoidCallback onInputChanged;
   final bool canConfirm;
   final bool saving;
   final ValueChanged<double> onTemperatureChanged;
+  final ValueChanged<int> onQuantityChanged;
   final VoidCallback onConfirm;
 
   @override
@@ -411,6 +510,33 @@ class _CheckInControls extends StatelessWidget {
                 'השעה נרשמת ברגע האישור',
                 style: Theme.of(context).textTheme.bodyMedium
                     ?.copyWith(color: const Color(0xFF5C6B70)),
+              ),
+              if (showQuantity) ...[
+                const SizedBox(height: 12),
+                QuantityStepper(
+                  key: const Key('check-in-quantity'),
+                  quantity: quantity,
+                  onChanged: onQuantityChanged,
+                ),
+              ],
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('hold-hours'),
+                controller: holdHours,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                style: const TextStyle(fontSize: 16),
+                decoration: InputDecoration(
+                  labelText: 'יציאה בעוד',
+                  hintText: 'שעות, לא חובה',
+                  isDense: true,
+                  errorText: holdError,
+                ),
+                onChanged: (_) => onInputChanged(),
               ),
               const SizedBox(height: 16),
               ConfirmBar(

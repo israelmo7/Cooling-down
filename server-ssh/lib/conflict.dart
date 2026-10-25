@@ -13,3 +13,7 @@ String checkoutConflictAlertId(String movementId) {
 String checkoutConflictMessage(String productName) {
   return '$productName הוצא יותר מפעם אחת לאותה שהייה. שתי הטמפרטורות נשמרו. ההוצאה המוקדמת ביותר סגרה את הפריט.';
 }
+
+String checkoutQuantityConflictMessage(String productName) {
+  return '$productName הוצא בכמות גדולה ממה שנקלט לאותה שהייה. יש לבדוק את הכמויות בדוח.';
+}

@@ -48,6 +48,8 @@ class DeviceSettings {
     this.workerRefreshIntervalHours = 8,
     this.workerRefreshEndMinute = 20 * 60,
     this.settingsPassword = '',
+    this.receivingPackageId = '',
+    this.showQuantity = false,
   });
 
   final String deviceId;
@@ -71,7 +73,17 @@ class DeviceSettings {
   final int workerRefreshEndMinute;
   final String settingsPassword;
 
-  bool get hasServer => serverUrl.trim().isNotEmpty;
+  /// Non-empty while this tablet is in supplier receiving mode.
+  final String receivingPackageId;
+
+  /// When false, quantity stays 1 and the stepper is hidden.
+  final bool showQuantity;
+
+  /// Needs both address and token — URL alone used to look "online" and retry forever.
+  bool get hasServer =>
+      serverUrl.trim().isNotEmpty && serverToken.trim().isNotEmpty;
+
+  bool get isReceivingSupplier => receivingPackageId.trim().isNotEmpty;
 
   Duration get workerIdleLimit => Duration(
     seconds: workerIdleSeconds < 1
@@ -108,6 +120,8 @@ class DeviceSettings {
     int? workerRefreshIntervalHours,
     int? workerRefreshEndMinute,
     String? settingsPassword,
+    String? receivingPackageId,
+    bool? showQuantity,
     bool clearLastSyncAt = false,
     bool clearLastSyncError = false,
   }) {
@@ -137,6 +151,8 @@ class DeviceSettings {
       workerRefreshEndMinute:
           workerRefreshEndMinute ?? this.workerRefreshEndMinute,
       settingsPassword: settingsPassword ?? this.settingsPassword,
+      receivingPackageId: receivingPackageId ?? this.receivingPackageId,
+      showQuantity: showQuantity ?? this.showQuantity,
     );
   }
 }

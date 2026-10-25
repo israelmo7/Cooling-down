@@ -1,3 +1,13 @@
+/// The range the temperature stepper can show. Recorded temperatures must
+/// stay inside it, whichever caller asks to store them.
+const minTemperatureCelsius = -40.0;
+const maxTemperatureCelsius = 30.0;
+
+bool isValidTemperature(double value) =>
+    value.isFinite &&
+    value >= minTemperatureCelsius &&
+    value <= maxTemperatureCelsius;
+
 /// Wraps [value] so a Hebrew line does not reorder it.
 String ltrIsolate(String value) => '\u2066$value\u2069';
 

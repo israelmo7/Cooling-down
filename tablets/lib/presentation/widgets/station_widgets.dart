@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/quantity.dart';
 import '../format.dart';
 
 const stationLine = Color(0xFFD7E0E4);
@@ -147,6 +148,89 @@ class TemperatureStepper extends StatelessWidget {
   double _step(double current, double delta) {
     final next = (current + delta).clamp(-40.0, 30.0).toDouble();
     return (next * 2).round() / 2;
+  }
+}
+
+/// Same layout as [TemperatureStepper], a notch quieter so temp stays primary.
+class QuantityStepper extends StatelessWidget {
+  const QuantityStepper({
+    super.key,
+    required this.quantity,
+    required this.onChanged,
+    this.min = 1,
+    this.max = maxQuantity,
+  });
+
+  final int quantity;
+  final ValueChanged<int> onChanged;
+  final int min;
+  final int max;
+
+  @override
+  Widget build(BuildContext context) {
+    final low = min < 1 ? 1 : min;
+    final high = max < low ? low : (max > maxQuantity ? maxQuantity : max);
+    final buttonStyle = IconButton.styleFrom(
+      minimumSize: const Size(64, 64),
+      iconSize: 28,
+      foregroundColor: const Color(0xFF5C6B70),
+      backgroundColor: const Color(0xFFF4F7F8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'כמות',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF5C6B70),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            IconButton.filled(
+              key: const Key('quantity-decrease'),
+              tooltip: 'הורדת כמות',
+              onPressed: quantity <= low
+                  ? null
+                  : () => onChanged(
+                      clampQuantity(quantity - 1, min: low, max: high),
+                    ),
+              icon: const Icon(Icons.remove),
+              style: buttonStyle,
+            ),
+            Expanded(
+              child: Text(
+                key: const Key('quantity-value'),
+                '$quantity',
+                textDirection: TextDirection.ltr,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
+                  color: Color(0xFF5C6B70),
+                ),
+              ),
+            ),
+            IconButton.filled(
+              key: const Key('quantity-increase'),
+              tooltip: 'העלאת כמות',
+              onPressed: quantity >= high
+                  ? null
+                  : () => onChanged(
+                      clampQuantity(quantity + 1, min: low, max: high),
+                    ),
+              icon: const Icon(Icons.add),
+              style: buttonStyle,
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 

@@ -5,6 +5,8 @@ import 'package:cooling_down/data/repositories/drift_settings_repository.dart';
 import 'package:cooling_down/data/repositories/drift_worker_repository.dart';
 import 'package:cooling_down/domain/settings/device_settings.dart';
 import 'package:cooling_down/domain/workers/worker_refresh.dart';
+import 'package:cooling_down/data/db/seed_ids.dart';
+import 'package:cooling_down/data/repositories/drift_log_repository.dart';
 import 'package:cooling_down/presentation/check_out/check_out_panel.dart';
 import 'package:cooling_down/presentation/format.dart';
 import 'package:cooling_down/presentation/providers.dart';
@@ -90,6 +92,38 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('אין כרגע פריטים במקרר.'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('supply mode shows a top banner', (tester) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    await DriftSettingsRepository(database).startReceivingPackage();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byKey(const Key('receiving-banner')), findsOneWidget);
+    expect(find.text('מצב אספקה'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -354,7 +388,7 @@ void main() {
 
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
     expect(
-      find.text('קליטה: חזה עוף ב-${formatCelsius(4.0)} · דנה'),
+      find.text('קליטה: חזה עוף ב-${formatCelsius(2.5)} · כמות 1 · דנה'),
       findsOneWidget,
     );
     await tester.tap(find.text('ביטול'));
@@ -365,7 +399,7 @@ void main() {
       tester.widget<Text>(find.byKey(const Key('sync-status'))).style?.color,
       const Color(0xFFB91C1C),
     );
-    expect(find.text(formatCelsius(4.0)), findsOneWidget);
+    expect(find.text(formatCelsius(2.5)), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
@@ -376,7 +410,7 @@ void main() {
     await tester.pump();
     expect(find.text('לא מסונכרן'), findsOneWidget);
     expect(find.textContaining('נקלט'), findsOneWidget);
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 11));
     await tester.pump();
     expect(find.textContaining('נקלט'), findsNothing);
 
@@ -395,7 +429,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('האם אתה בטוח?'), findsOneWidget);
     expect(
-      find.text('הוצאה: חזה עוף ב-${formatCelsius(4.0)} · דנה'),
+      find.text('הוצאה: חזה עוף ב-${formatCelsius(2.5)} · כמות 1 · דנה'),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const Key('confirm-recorded-action')));
@@ -473,11 +507,229 @@ void main() {
     tester.view.resetDevicePixelRatio();
   }, timeout: const Timeout(Duration(seconds: 30)));
 
+  testWidgets('the fridge groups a product and check-out shows its age', (
+    tester,
+  ) async {
+    final database = AppDatabase.memory();
+    final logs = DriftLogRepository(database);
+    final now = DateTime.now().toUtc();
+    await logs.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      occurredAt: now.subtract(const Duration(hours: 2, minutes: 30)),
+      workerName: 'דנה',
+      quantity: 2,
+    );
+    await logs.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 4,
+      occurredAt: now.subtract(const Duration(minutes: 20)),
+      workerName: 'דנה',
+      quantity: 3,
+    );
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    // Check-out: each item says how long it has been inside.
+    await tester.tap(find.text('הוצאה'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('2 שע׳ 30 דק׳ במקרר'), findsOneWidget);
+    expect(find.textContaining('20 דק׳ במקרר'), findsOneWidget);
+
+    // Fridge: the two milk check-ins are one group until tapped.
+    await tester.tap(find.text('במקרר'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('2 במקרר'), findsOneWidget);
+    expect(find.text('2 פריטים · כמות כוללת 5'), findsOneWidget);
+    expect(find.textContaining('2 שע׳ 30 דק׳ במקרר'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const Key('fridge-group-${SeedIds.wholeMilk}')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('2 שע׳ 30 דק׳ במקרר'), findsOneWidget);
+    expect(find.textContaining('20 דק׳ במקרר'), findsOneWidget);
+    expect(find.textContaining('כמות 2'), findsOneWidget);
+    expect(find.textContaining('כמות 3'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('check-out stepper stays in remaining, allows part', (
+    tester,
+  ) async {
+    final database = AppDatabase.memory();
+    await signInWorker(database);
+    final settings = DriftSettingsRepository(database);
+    final current = await settings.ensure();
+    await settings.save(current.copyWith(showQuantity: true));
+    final logs = DriftLogRepository(database);
+    await logs.insertCheckIn(
+      productId: SeedIds.wholeMilk,
+      fridgeId: SeedIds.kitchenFridge,
+      temperatureCelsius: 3,
+      workerName: 'דנה',
+      quantity: 3,
+    );
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('הוצאה'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(CheckOutPanel),
+        matching: find.text('חלב'),
+      ),
+    );
+    await tester.pump();
+
+    bool confirmEnabled() =>
+        tester
+            .widget<FilledButton>(find.byKey(const Key('confirm-check-out')))
+            .onPressed !=
+        null;
+
+    // Starts at what is inside (3); + is disabled at the remaining max.
+    expect(find.byKey(const Key('quantity-value')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('quantity-value'))).data,
+      '3',
+    );
+    expect(confirmEnabled(), isTrue);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('quantity-increase')))
+          .onPressed,
+      isNull,
+    );
+
+    // − down to 1; cannot go to 0.
+    await tester.tap(find.byKey(const Key('quantity-decrease')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('quantity-decrease')));
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const Key('quantity-value'))).data,
+      '1',
+    );
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('quantity-decrease')))
+          .onPressed,
+      isNull,
+    );
+    expect(confirmEnabled(), isTrue);
+
+    // Taking 2 of the 3 out leaves 1 inside.
+    await tester.tap(find.byKey(const Key('quantity-increase')));
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const Key('quantity-value'))).data,
+      '2',
+    );
+    expect(confirmEnabled(), isTrue);
+    await tester.tap(find.byKey(const Key('confirm-check-out')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final stored = await database.select(database.refrigerationLogs).get();
+    expect(stored, hasLength(2));
+    expect(stored.last.quantity, 2);
+    // One unit is still inside.
+    expect(find.textContaining('כמות 1'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 11));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
   test('environment title is limited to 20 characters', () {
     expect(clipEnvironmentName('מטבח'), 'מטבח');
     expect(clipEnvironmentName('  '), 'מטבח');
     expect(clipEnvironmentName('א' * 25), 'א' * 20);
   });
+
+  testWidgets('settings shows clear fridge only after unlock', (tester) async {
+    final database = AppDatabase.memory();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          tabletMaintenanceProvider.overrideWithValue(TabletMaintenance.idle()),
+        ],
+        child: const CoolingDownApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('open-settings')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const Key('clear-fridge')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('unlock-settings')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('clear-fridge')), findsOneWidget);
+    expect(find.text('ריקון המקרר'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    final closing = database.close();
+    await tester.pump();
+    await tester.pump(Duration.zero);
+    await closing;
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
   testWidgets('a temperature warning disappears on its own', (tester) async {
     final database = AppDatabase.memory();
@@ -499,16 +751,17 @@ void main() {
 
     await tester.tap(find.text('חזה עוף'));
     await tester.pump();
-    for (var step = 0; step < 4; step++) {
+    for (var step = 0; step < 6; step++) {
       await tester.tap(find.byTooltip('העלאת טמפרטורה'));
       await tester.pump();
     }
     await tester.tap(find.byKey(const Key('confirm-check-in')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('מחוץ לטווח'), findsOneWidget);
+    expect(find.textContaining('מחוץ לטווח'), findsNothing);
+    expect(find.textContaining('נקלט'), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(seconds: 11));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.textContaining('מחוץ לטווח'), findsNothing);
@@ -600,7 +853,15 @@ void main() {
     final stored = await database.select(database.refrigerationLogs).get();
     expect(stored.single.workerNameSnapshot, 'דנה');
 
-    await tester.pump(const Duration(seconds: 3));
+    tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final cancelled = await database.select(database.refrigerationLogs).get();
+    expect(cancelled, hasLength(2));
+    expect(cancelled.last.workerNameSnapshot, 'דנה · ביטול');
+    expect(find.textContaining('הקליטה בוטלה'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 7));
     await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -672,7 +933,7 @@ void main() {
     final stored = await database.select(database.refrigerationLogs).get();
     expect(stored.single.workerNameSnapshot, 'יוסי');
 
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 11));
     await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
